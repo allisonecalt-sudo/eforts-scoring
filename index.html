@@ -1024,11 +1024,10 @@ function buildSummary(d) {
   if (weakItems.length > 0) {
     const efLabels = { inh: "עכבה", wm: "זיכרון עבודה", flex: "גמישות מחשבתית" };
     summary += `<p><strong>פריטים שדורגו כחלשים ביותר (אף פעם / לעיתים רחוקות):</strong></p><ul>`;
-    weakItems.slice(0, 8).forEach(item => {
+    weakItems.forEach(item => {
       const label = item.ef ? efLabels[item.ef] : "";
       summary += `<li>"${item.text}" <span style="color:#999;">(פריט ${item.num}${label ? " — " + label : ""})</span></li>`;
     });
-    if (weakItems.length > 8) summary += `<li>ו-${weakItems.length - 8} פריטים נוספים...</li>`;
     summary += `</ul>`;
   }
 
