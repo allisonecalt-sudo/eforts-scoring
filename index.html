@@ -1171,7 +1171,7 @@ function buildSummary(d) {
   const child = m ? "הילד" : "הילדה";
   const shows = m ? "מציג" : "מציגה";
   const hisAge = m ? "גילו" : "גילה";
-  const efLabels = { inh: "עכבה", wm: "זיכרון עבודה", flex: "גמישות מחשבתית" };
+  const doesnt = m ? "לא" : "לא";
   const routineLabels = { morning: "בוקר וערב", play: "פנאי ומשחק", social: "שגרה חברתית" };
 
   const routineData = [
@@ -1191,106 +1191,256 @@ function buildSummary(d) {
   const okEFs = efData.filter(e => !belowCutoff(e.score, e.cutoff));
   const totalBelow = belowCutoff(d.totalAvg, d.c.total);
 
-  const getWeakItems = (itemList) => itemList.filter(i => d.scores[i.num] <= 2).sort((a,b) => d.scores[a.num] - d.scores[b.num]);
+  const wmBelow = belowCutoff(d.wmAvg, d.c.wm);
+  const inhBelow = belowCutoff(d.inhAvg, d.c.inh);
+  const flexBelow = belowCutoff(d.flexAvg, d.c.flex);
+
+  // Helper: get items by score threshold
+  const weakItems = (list) => list.filter(i => d.scores[i.num] <= 2).sort((a,b) => d.scores[a.num] - d.scores[b.num]);
+  const strongItems = (list) => list.filter(i => d.scores[i.num] >= 4);
+  const midItems = (list) => list.filter(i => d.scores[i.num] === 3);
+  const scoreLabel = (num) => d.scores[num] === 1 ? "אף פעם" : d.scores[num] === 2 ? "לעיתים רחוקות" : d.scores[num] === 3 ? "לפעמים" : d.scores[num] === 4 ? "לעיתים קרובות" : "תמיד";
+
+  // Items by routine
+  const morningItems = items.filter(i => i.routine === "morning");
+  const playItems = items.filter(i => i.routine === "play");
+  const socialItems = items.filter(i => i.routine === "social");
+
+  // Count weak/strong per routine
+  const morningWeak = weakItems(morningItems);
+  const morningStrong = strongItems(morningItems);
+  const socialWeak = weakItems(socialItems);
+  const playWeak = weakItems(playItems);
+  const playStrong = strongItems(playItems);
+
+  // Find THE weakest item (scored 1) — the outlier
+  const allItems1 = items.filter(i => d.scores[i.num] === 1);
 
   let s = "";
 
-  // ===== PARAGRAPH 1: What the EFORTS found — the headline =====
-  s += `<p style="font-size:0.9rem; font-weight:500; background:#f8fafc; padding:12px; border-radius:8px; border-right:3px solid ${totalBelow ? 'var(--red)' : 'var(--green)'}; margin-bottom:14px;">`;
+  // =================================================================
+  // BLOCK 1: מה התמונה? — One-sentence headline
+  // =================================================================
+  s += `<p style="font-weight:700; color:var(--primary); font-size:0.88rem; margin-bottom:6px;">מה התמונה?</p>`;
+  s += `<p style="font-size:0.88rem; margin-bottom:14px;">`;
+
   if (totalBelow) {
-    s += `ע"פ שאלון ה-EFORTS, ${child} ${shows} קושי בניהול עצמי של שגרות יום-יום ביחס לבני ${hisAge} `;
-    s += `(ציון כולל ${d.totalAvg.toFixed(2)}, חתך ${d.c.total.toFixed(2)}). `;
-    if (weakRoutines.length > 0) {
-      s += `הקושי בולט ב${weakRoutines.map(r => r.key === "social" ? "שגרה חברתית" : r.label).join(" וב")}`;
-      if (okRoutines.length > 0) {
-        s += `, בעוד ש${okRoutines.map(r => r.key === "social" ? "השגרה החברתית" : "שגרת " + r.label).join(" ו")} בטווח התקין`;
-      }
-      s += `. `;
-    }
-    if (weakEFs.length > 0) {
-      s += `ברקע — קושי ב${weakEFs.map(e => e.label).join(" וב")}`;
-      if (okEFs.length > 0) {
-        s += `; ${okEFs.map(e => e.label).join(" ו")} ${okEFs.length === 1 ? "תקין" : "תקינים"}`;
-      }
-      s += `.`;
-    }
+    s += `ע"פ דיווח ההורים בשאלון ה-EFORTS, ${child} ${shows} קושי בניהול עצמאי של שגרות יום-יום ביחס לבני ${hisAge} `;
+    s += `(ציון כולל ${d.totalAvg.toFixed(2)}, מתחת לחתך ${d.c.total.toFixed(2)}).`;
   } else {
-    s += `ע"פ שאלון ה-EFORTS, הניהול העצמי של שגרות יום-יום תקין ביחס ל${hisAge} `;
-    s += `(ציון כולל ${d.totalAvg.toFixed(2)}, חתך ${d.c.total.toFixed(2)}). `;
-    if (weakEFs.length > 0) {
-      s += `נמצא קושי ב${weakEFs.map(e => e.label).join(" וב")} — מומלץ לעקוב.`;
-    } else if (weakRoutines.length > 0) {
-      s += `שגרת ${weakRoutines.map(r => r.label).join(" ו")} מתחת לחתך — מומלץ לבחון גורמים סביבתיים.`;
-    } else {
-      s += `כל השגרות והתפקודים הניהוליים בטווח התקין.`;
-    }
+    s += `ע"פ דיווח ההורים בשאלון ה-EFORTS, הניהול העצמי של שגרות יום-יום תקין ביחס לבני ${hisAge} `;
+    s += `(ציון כולל ${d.totalAvg.toFixed(2)}, חתך ${d.c.total.toFixed(2)}).`;
   }
   s += `</p>`;
 
-  // ===== PARAGRAPH 2: How it shows up in daily life — the evidence =====
-  // Collect ALL weak items, grouped by EF, showing which routine they come from
-  if (weakEFs.length > 0 || weakRoutines.length > 0) {
-    // Clinical interpretation sentences
-    const clinicalLines = [];
-    if (belowCutoff(d.wmAvg, d.c.wm)) {
-      const wmWeak = getWeakItems(items.filter(i => i.ef === "wm"));
-      if (wmWeak.filter(i => [1, 9, 17].includes(i.num)).length > 0) clinicalLines.push(`${child} ${m ? "מתקשה" : "מתקשה"} ביזימת פעילויות באופן עצמאי`);
-      if (wmWeak.filter(i => [3, 11, 19].includes(i.num)).length > 0) clinicalLines.push(`קושי בזכירת רצף הפעילויות ובביצוען לפי הסדר`);
-      if (wmWeak.filter(i => [2, 10, 18].includes(i.num)).length > 0) clinicalLines.push(`צורך בתזכורות חוזרות לשמירה על קצב`);
-    }
-    if (belowCutoff(d.inhAvg, d.c.inh)) {
-      const inhWeak = getWeakItems(items.filter(i => i.ef === "inh"));
-      if (inhWeak.filter(i => [6, 14, 21].includes(i.num)).length > 0) clinicalLines.push(`קושי בהתעלמות מגירויים מסיחים`);
-      if (inhWeak.filter(i => [8, 16, 23].includes(i.num)).length > 0) clinicalLines.push(`נטייה לעבור בין פעילויות ללא סיום`);
-      if (inhWeak.filter(i => [26, 29, 30].includes(i.num)).length > 0) clinicalLines.push(`קושי בוויסות תגובות רגשיות`);
-    }
-    if (belowCutoff(d.flexAvg, d.c.flex)) {
-      const flexWeak = getWeakItems(items.filter(i => i.ef === "flex"));
-      if (flexWeak.filter(i => [5, 13, 28].includes(i.num)).length > 0) clinicalLines.push(`קושי בפתרון בעיות שמתעוררות במהלך פעילות`);
-      if (flexWeak.filter(i => [24].includes(i.num)).length > 0) clinicalLines.push(`קושי ביזימה חברתית עצמאית`);
-    }
+  // =================================================================
+  // BLOCK 2: מה קורה ביום-יום? — Each weak routine as a narrative paragraph with items woven in
+  // =================================================================
+  if (weakRoutines.length > 0 || weakEFs.length > 0) {
+    s += `<p style="font-weight:700; color:var(--primary); font-size:0.88rem; margin-bottom:6px;">מה קורה ביום-יום?</p>`;
 
-    if (clinicalLines.length > 0) {
-      s += `<p style="font-size:0.85rem; margin-bottom:10px;"><strong>כיצד זה בא לידי ביטוי:</strong> `;
-      s += clinicalLines.join("; ") + `.`;
+    // --- Morning/Evening routine ---
+    const morningBelow = belowCutoff(d.morningAvg, d.c.morning);
+    if (morningBelow) {
+      s += `<p style="font-size:0.85rem; margin-bottom:10px;">`;
+      s += `<strong>שגרת בוקר וערב</strong> היא ${weakRoutines.length > 1 && morningWeak.length >= socialWeak.length ? "התחום החלש ביותר" : "מתחת לחתך"}. `;
+
+      // Weave in WM items — initiation, sequence, pace
+      const initItems = morningWeak.filter(i => [1, 9].includes(i.num));
+      const seqItems = morningWeak.filter(i => [3, 11].includes(i.num));
+      const paceItems = morningWeak.filter(i => [2, 10].includes(i.num));
+      const rulesItems = morningWeak.filter(i => [4, 12].includes(i.num));
+
+      if (initItems.length > 0) {
+        s += `${child} ${doesnt} ${m ? "מתחיל" : "מתחילה"} להתלבש או לצחצח שיניים ${m ? "ביוזמתו" : "ביוזמתה"} — `;
+        s += `לא בבוקר${morningWeak.some(i => i.num === 9) ? " ולא בערב" : ""}. `;
+      }
+      if (seqItems.length > 0) {
+        s += `${doesnt} ${m ? "זוכר" : "זוכרת"} מה הצעד הבא ברצף. `;
+      }
+      if (paceItems.length > 0) {
+        s += `${m ? "צריך" : "צריכה"} תזכורות חוזרות כדי לשמור על קצב${paceItems.length > 1 ? " — גם בבוקר וגם בערב" : ""}. `;
+      }
+      if (rulesItems.length > 0) {
+        s += `${doesnt} ${m ? "מתארגן" : "מתארגנת"} לפי כללי הבית. `;
+      }
+
+      // Proportion context
+      s += `למעשה, ${morningWeak.length} מתוך ${morningItems.length} הפריטים בשגרה זו דורגו "${morningWeak.every(i => d.scores[i.num] === 2) ? "לעיתים רחוקות" : "לעיתים רחוקות או אף פעם"}". `;
+
+      // Strengths within weak routine
+      if (morningStrong.length > 0) {
+        s += `מה שכן עובד: `;
+        const strengthTexts = [];
+        if (morningStrong.some(i => i.num === 8 || i.num === 16)) strengthTexts.push(`${m ? "מסיים" : "מסיימת"} מה ש${m ? "מתחיל" : "מתחילה"}`);
+        if (morningStrong.some(i => i.num === 7)) strengthTexts.push(`${m ? "מקפיד" : "מקפידה"} על איכות`);
+        if (morningStrong.some(i => i.num === 6 || i.num === 14)) strengthTexts.push(`${m ? "מצליח" : "מצליחה"} להתעלם מגירויים מסיחים`);
+        if (strengthTexts.length > 0) {
+          s += strengthTexts.join(", ") + `. `;
+        } else {
+          s += `${morningStrong.length} פריטים דורגו "לעיתים קרובות" או "תמיד". `;
+        }
+      }
       s += `</p>`;
     }
 
-    // Supporting items — top 5 weakest, each shown once with its EF tag + routine
-    const allWeak = getWeakItems(items).slice(0, 5);
-    if (allWeak.length > 0) {
-      s += `<p style="font-size:0.82rem; color:#334155; margin-bottom:4px;"><strong>פריטים תומכים:</strong></p>`;
-      s += `<ul style="font-size:0.82rem; margin-top:2px;">`;
-      allWeak.forEach(item => {
-        const scoreLabel = d.scores[item.num] === 1 ? "אף פעם" : "לעיתים רחוקות";
-        const efTag = item.ef ? efLabels[item.ef] : "";
-        const rTag = routineLabels[item.routine];
-        s += `<li>"${item.text}" — <strong>${scoreLabel}</strong> <span style="color:#94a3b8;">[${efTag}${efTag ? " | " : ""}${rTag}]</span></li>`;
-      });
-      s += `</ul>`;
+    // --- Social routine ---
+    const socialBelow = belowCutoff(d.socialAvg, d.c.social);
+    if (socialBelow) {
+      s += `<p style="font-size:0.85rem; margin-bottom:10px;">`;
+      s += `<strong>במישור החברתי</strong> — `;
+
+      // Check for the "never" outlier (item 24 is often the lowest)
+      const socialItem24 = d.scores[24];
+      if (socialItem24 === 1) {
+        s += `${doesnt} ${m ? "יוזם" : "יוזמת"} כלל אינטראקציות חברתיות`;
+        if (allItems1.length === 1 && allItems1[0].num === 24) {
+          s += ` (הפריט היחיד שדורג "אף פעם" בכל השאלון)`;
+        }
+        s += `. `;
+      } else if (socialItem24 <= 2) {
+        s += `${m ? "מתקשה" : "מתקשה"} ליזום אינטראקציות חברתיות. `;
+      }
+
+      if (d.scores[28] <= 2) {
+        s += `${m ? "מתקשה" : "מתקשה"} לפתור קונפליקטים במשחק חברתי. `;
+      }
+
+      // Mid-range social items — the "sometimes" pattern
+      const socialMid = midItems(socialItems);
+      if (socialMid.length > 0 && socialWeak.length < socialItems.length) {
+        const midExamples = [];
+        if (socialMid.some(i => i.num === 26)) midExamples.push("ויסות כעס");
+        if (socialMid.some(i => i.num === 27)) midExamples.push("שמירה על כללים");
+        if (socialMid.some(i => i.num === 25)) midExamples.push("למידה מטעויות");
+        if (socialMid.some(i => i.num === 29)) midExamples.push("חשיבה לפני תגובה");
+        if (midExamples.length > 0) {
+          s += `שאר הפריטים (${midExamples.join(", ")}) דורגו "לפעמים" — לא חסרים לגמרי אלא לא עקביים. `;
+        }
+      }
+      s += `</p>`;
     }
 
-    // Strengths — one line
-    if (okRoutines.length > 0 || okEFs.length > 0) {
-      const strongItems = items.filter(i => d.scores[i.num] === 5);
-      s += `<p style="font-size:0.82rem; color:var(--green);"><strong>חוזקות:</strong> `;
-      const parts = [];
-      if (okRoutines.length > 0) parts.push(`${okRoutines.map(r => r.key === "social" ? "השגרה החברתית" : "שגרת " + r.label).join(" ו")} בטווח התקין`);
-      if (okEFs.length > 0) parts.push(`${okEFs.map(e => e.label).join(" ו")} ${okEFs.length === 1 ? "תקין" : "תקינים"}`);
-      s += parts.join("; ");
-      if (strongItems.length > 0) {
-        s += `. ${strongItems.length} פריטים דורגו "תמיד"`;
+    // --- Play/Leisure (usually OK — mention briefly) ---
+    const playBelow = belowCutoff(d.playAvg, d.c.play);
+    if (playBelow) {
+      s += `<p style="font-size:0.85rem; margin-bottom:10px;">`;
+      s += `<strong>פנאי ומשחק</strong> גם מתחת לחתך. `;
+      if (playWeak.length > 0) {
+        const examples = playWeak.slice(0, 2).map(i => {
+          if (i.num === 17) return `לא ${m ? "בוחר" : "בוחרת"} משחקים ${m ? "ביוזמתו" : "ביוזמתה"}`;
+          if (i.num === 22) return `לא ${m ? "מתכנן" : "מתכננת"} לפני שמתחיל`;
+          if (i.num === 23) return `${m ? "עובר" : "עוברת"} ממשחק למשחק ללא סיום`;
+          return `קושי בפריט ${i.num}`;
+        });
+        s += examples.join("; ") + `. `;
       }
-      s += `.</p>`;
+      s += `</p>`;
+    } else if (okRoutines.some(r => r.key === "play")) {
+      s += `<p style="font-size:0.85rem; margin-bottom:10px;">`;
+      s += `<strong>פנאי ומשחק</strong> בטווח התקין`;
+      // Weave in what works
+      const playStrongExamples = [];
+      if (playStrong.some(i => i.num === 17)) playStrongExamples.push(`${m ? "בוחר" : "בוחרת"} משחקים ${m ? "ביוזמתו" : "ביוזמתה"}`);
+      if (playStrong.some(i => i.num === 18)) playStrongExamples.push(`${m ? "משחק" : "משחקת"} בקצב מתאים`);
+      if (playStrong.some(i => i.num === 19 || i.num === 20)) playStrongExamples.push(`${m ? "עוקב" : "עוקבת"} אחרי כללים`);
+      if (playStrongExamples.length > 0) {
+        s += ` — ${playStrongExamples.join(", ")}`;
+      }
+      s += `.`;
+      s += `</p>`;
     }
+
   } else {
-    // All OK
-    s += `<p style="font-size:0.85rem;">כל השגרות והתפקודים הניהוליים בטווח התקין. `;
-    const midItems = items.filter(i => d.scores[i.num] === 3);
-    if (midItems.length > 3) {
-      s += `${midItems.length} פריטים דורגו "לפעמים" — ייתכן שכדאי לעקוב אחריהם.`;
+    // All routines OK — brief note
+    s += `<p style="font-size:0.85rem; margin-bottom:10px;">`;
+    s += `כל השגרות בטווח התקין. `;
+    const allMid = midItems(items);
+    if (allMid.length > 3) {
+      s += `${allMid.length} פריטים דורגו "לפעמים" — ייתכן שכדאי לעקוב אחריהם.`;
     }
     s += `</p>`;
+  }
+
+  // =================================================================
+  // BLOCK 3: מה מניע את זה? — EF profile explanation + what's intact
+  // =================================================================
+  if (weakEFs.length > 0 || okEFs.length > 0) {
+    s += `<p style="font-weight:700; color:var(--primary); font-size:0.88rem; margin-bottom:6px;">מה מניע את זה?</p>`;
+    s += `<p style="font-size:0.85rem; margin-bottom:4px;">`;
+
+    // Weak EFs — explain what each means in plain language
+    if (wmBelow) {
+      s += `<strong>זיכרון עבודה ↓</strong> — `;
+      const wmExplanations = [];
+      const wmWeak = weakItems(items.filter(i => i.ef === "wm"));
+      if (wmWeak.some(i => [1, 9, 17].includes(i.num))) wmExplanations.push(`${doesnt} ${m ? "מתניע" : "מתניעה"} לבד`);
+      if (wmWeak.some(i => [3, 11, 19].includes(i.num))) wmExplanations.push(`${doesnt} ${m ? "מחזיק" : "מחזיקה"} רצף`);
+      if (wmWeak.some(i => [2, 10, 18].includes(i.num))) wmExplanations.push(`${m ? "צריך" : "צריכה"} תזכורות`);
+      if (wmWeak.some(i => [4, 12].includes(i.num))) wmExplanations.push(`${doesnt} ${m ? "מתארגן" : "מתארגנת"} לפי כללים`);
+      s += wmExplanations.length > 0 ? wmExplanations.join(", ") : "ציון מתחת לחתך";
+      s += `. `;
+    }
+    if (flexBelow) {
+      s += `<strong>גמישות מחשבתית ↓</strong> — `;
+      const flexExplanations = [];
+      const flexWeak = weakItems(items.filter(i => i.ef === "flex"));
+      if (flexWeak.some(i => [5, 13, 28].includes(i.num))) flexExplanations.push(`${doesnt} ${m ? "פותר" : "פותרת"} בעיות שצצות`);
+      if (flexWeak.some(i => [24].includes(i.num))) flexExplanations.push(`${doesnt} ${m ? "יוזם" : "יוזמת"} חברתית`);
+      if (flexWeak.some(i => [22].includes(i.num))) flexExplanations.push(`${doesnt} ${m ? "מתכנן" : "מתכננת"} מראש`);
+      s += flexExplanations.length > 0 ? flexExplanations.join(", ") : "ציון מתחת לחתך";
+      s += `. `;
+    }
+    if (inhBelow) {
+      s += `<strong>עכבה ↓</strong> — `;
+      const inhExplanations = [];
+      const inhWeak = weakItems(items.filter(i => i.ef === "inh"));
+      if (inhWeak.some(i => [6, 14].includes(i.num))) inhExplanations.push(`${m ? "מוסח" : "מוסחת"} מגירויים`);
+      if (inhWeak.some(i => [8, 16, 23].includes(i.num))) inhExplanations.push(`${doesnt} ${m ? "מסיים" : "מסיימת"} משימות`);
+      if (inhWeak.some(i => [26, 29, 30].includes(i.num))) inhExplanations.push(`קושי בוויסות רגשי`);
+      s += inhExplanations.length > 0 ? inhExplanations.join(", ") : "ציון מתחת לחתך";
+      s += `. `;
+    }
+
+    // Intact EFs — explain what that MEANS (the interpretive line)
+    if (okEFs.length > 0) {
+      s += `<br><strong>${okEFs.map(e => e.label).join(" ו")} ${okEFs.length === 1 ? "תקין" : "תקינים"}</strong> — `;
+
+      // Generate an interpretive line based on which EFs are intact
+      if (!inhBelow && (wmBelow || flexBelow)) {
+        // Inhibition intact but WM/Flex weak = "not impulsive, problem is getting started"
+        s += `${child} ${doesnt} ${m ? "אימפולסיבי" : "אימפולסיבית"}, `;
+        if (strongItems(items.filter(i => i.ef === "inh")).some(i => [8, 16].includes(i.num))) {
+          s += `${m ? "מסיים" : "מסיימת"} מה ש${m ? "מתחיל" : "מתחילה"} (כשמישהו עוזר ${m ? "לו" : "לה"} להתחיל), `;
+        }
+        if (strongItems(items.filter(i => i.ef === "inh")).some(i => [6, 14].includes(i.num))) {
+          s += `ו${doesnt} ${m ? "מוסח" : "מוסחת"} מגירויים חיצוניים. `;
+        }
+        s += `הבעיה היא התנעה וארגון, לא שליטה עצמית.`;
+      } else if (!wmBelow && (inhBelow || flexBelow)) {
+        // WM intact but Inh/Flex weak
+        s += `${child} ${m ? "זוכר" : "זוכרת"} רצפים ו${m ? "מתניע" : "מתניעה"} לבד — הקושי הוא בבלימה ובגמישות, לא בזיכרון.`;
+      } else if (!flexBelow && (wmBelow || inhBelow)) {
+        // Flexibility intact
+        s += `${child} ${m ? "מצליח" : "מצליחה"} לפתור בעיות ו${m ? "מסתגל" : "מסתגלת"} לשינויים — הקושי הוא בביצוע עצמאי של השגרה.`;
+      } else {
+        s += `${okEFs.map(e => e.label).join(" ו")} בטווח הצפוי לגיל.`;
+      }
+    }
+    s += `</p>`;
+  }
+
+  // No EF difficulties but some routines below
+  if (weakEFs.length === 0 && weakRoutines.length > 0) {
+    s += `<p style="font-weight:700; color:var(--primary); font-size:0.88rem; margin-bottom:6px;">מה מניע את זה?</p>`;
+    s += `<p style="font-size:0.85rem;">`;
+    s += `כל התפקודים הניהוליים בטווח התקין. הקושי בשגרות ייתכן שנובע מגורמים סביבתיים, חווייתיים, או הרגלים — לא מבעיה בתפקודים הניהוליים עצמם.`;
+    s += `</p>`;
+  }
+
+  // All OK — no block 3 needed
+  if (weakEFs.length === 0 && weakRoutines.length === 0) {
+    s += `<p style="font-size:0.85rem; margin-top:8px;">כל התפקודים הניהוליים תקינים ביחס לגיל.</p>`;
   }
 
   return s;
