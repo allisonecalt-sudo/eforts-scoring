@@ -4,6 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>EFORTS — קידוד שאלון</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.2/jspdf.umd.min.js"></script>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body {
@@ -352,6 +354,55 @@
   .drill-weak-bg { background: #e74c3c !important; color: #fff !important; border-color: #e74c3c !important; }
   .drill-mid-bg { background: #f39c12 !important; color: #fff !important; border-color: #f39c12 !important; }
   .drill-strong-bg { background: #2ecc71 !important; color: #fff !important; border-color: #2ecc71 !important; }
+
+  /* Summary */
+  .summary-section {
+    margin-top: 20px;
+    padding: 16px;
+    background: #f8f9ff;
+    border: 1px solid #d0d5e8;
+    border-radius: 8px;
+  }
+  .summary-title {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: #2c3e50;
+    margin-bottom: 10px;
+    text-align: center;
+  }
+  .summary-text {
+    font-size: 0.88rem;
+    line-height: 1.7;
+    color: #333;
+  }
+  .summary-text ul {
+    padding-right: 20px;
+    margin: 6px 0;
+  }
+  .summary-text li { margin-bottom: 4px; }
+  .pdf-btn {
+    display: block;
+    width: 100%;
+    padding: 12px;
+    margin-top: 16px;
+    background: #8e44ad;
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  .pdf-btn:hover { background: #7d3c98; }
+  .pdf-btn:disabled { background: #bbb; cursor: wait; }
+  .drill-hint {
+    font-size: 0.75rem;
+    color: #888;
+    text-align: center;
+    margin-top: 8px;
+    margin-bottom: 4px;
+  }
 
   .section-divider {
     grid-column: 1 / -1;
@@ -760,6 +811,7 @@ function calculate() {
 
   resultsDiv.innerHTML = `
     <div class="results-title">תוצאות — מזהה: ${anonId} | ${gender} | ${ageText} | קבוצת גיל: ${ageLabel}</div>
+    <div class="drill-hint">לחצ/י על כל תיבה כדי לראות פירוט הפריטים</div>
     <div class="results-grid">
       <div class="section-divider">ציוני שגרות</div>
       ${resultCard("morning", "בוקר וערב", morningAvg, c.morning, routineGroups.morning.items, scores, "routine")}
@@ -776,6 +828,18 @@ function calculate() {
       ציון חתך = 1.5 סטיות תקן מתחת לממוצע הנורמטיבי. ציון מתחת לחתך מעיד על חשד לעיכוב.
       <br>פריטים 10 ו-11 לא נכללים בחישוב הסולמות הניהוליים.
     </div>
+
+    <div class="summary-section">
+      <div class="summary-title">סיכום קליני</div>
+      <div class="summary-text">${buildSummary({
+        anonId, gender, ageText, ageLabel,
+        morningAvg, playAvg, socialAvg, totalAvg,
+        inhAvg, wmAvg, flexAvg,
+        c, scores
+      })}</div>
+    </div>
+
+    <button class="pdf-btn" onclick="printResults()">שמור כ-PDF / הדפס</button>
   `;
 
   resultsDiv.style.display = "block";
@@ -834,12 +898,164 @@ function resultCard(id, label, score, cutoff, cardItems, scores, type) {
 
   return `<div class="result-card ${status} ${isTotal ? 'full-width' : ''} ${hasDetails ? 'clickable' : ''}" ${hasDetails ? `onclick="toggleDrill('${id}')"` : ''}>
     <div class="result-label">${label} ${hasDetails ? '<span class="drill-arrow" id="arrow_' + id + '">&#9660;</span>' : ''}</div>
-    <div class="result-score" title="ממוצע על סולם 1 (אף פעם) עד 5 (תמיד). ציון גבוה = ניהול עצמי טוב יותר">${score.toFixed(2)}</div>
+    <div class="result-score" title="ממוצע על סולם 1-5:\n1.0-2.0 = קושי משמעותי (אף פעם / לעיתים רחוקות)\n2.0-3.0 = מתחת לממוצע\n3.0-4.0 = בטווח הממוצע\n4.0-5.0 = חזק (לעיתים קרובות / תמיד)">${score.toFixed(2)}</div>
     <div class="result-interp">${interp}</div>
     <div class="result-cutoff" title="ציון חתך = 1.5 סטיות תקן מתחת לממוצע הנורמטיבי לקבוצת הגיל">ציון חתך: ${cutoff.toFixed(2)}</div>
     <div class="result-status">${statusText}</div>
     ${detailsHtml}
   </div>`;
+}
+
+function buildSummary(d) {
+  const interpLabel = (s) => s <= 2 ? "קושי משמעותי" : s <= 3 ? "מתחת לממוצע" : s <= 4 ? "בטווח הממוצע" : "חזק";
+  const belowCutoff = (s, c) => s < c;
+
+  // Identify weak routines and EF scales
+  const weakRoutines = [];
+  const strongRoutines = [];
+  if (belowCutoff(d.morningAvg, d.c.morning)) weakRoutines.push("בוקר וערב"); else strongRoutines.push("בוקר וערב");
+  if (belowCutoff(d.playAvg, d.c.play)) weakRoutines.push("פנאי ומשחק"); else strongRoutines.push("פנאי ומשחק");
+  if (belowCutoff(d.socialAvg, d.c.social)) weakRoutines.push("שגרה חברתית"); else strongRoutines.push("שגרה חברתית");
+
+  const weakEFs = [];
+  const strongEFs = [];
+  if (belowCutoff(d.inhAvg, d.c.inh)) weakEFs.push("עכבה"); else strongEFs.push("עכבה");
+  if (belowCutoff(d.wmAvg, d.c.wm)) weakEFs.push("זיכרון עבודה"); else strongEFs.push("זיכרון עבודה");
+  if (belowCutoff(d.flexAvg, d.c.flex)) weakEFs.push("גמישות מחשבתית"); else strongEFs.push("גמישות מחשבתית");
+
+  // Find weakest items (score 1-2)
+  const weakItems = items.filter(i => d.scores[i.num] <= 2).sort((a, b) => d.scores[a.num] - d.scores[b.num]);
+
+  let summary = "";
+
+  // Opening
+  summary += `<p><strong>נבדק/ת:</strong> מזהה ${d.anonId}`;
+  if (d.gender) summary += `, ${d.gender}`;
+  summary += `, ${d.ageText}, קבוצת גיל ${d.ageLabel}.</p>`;
+
+  // Overall
+  const totalStatus = belowCutoff(d.totalAvg, d.c.total);
+  summary += `<p><strong>ציון כולל:</strong> ${d.totalAvg.toFixed(2)} (${interpLabel(d.totalAvg)}).`;
+  if (totalStatus) {
+    summary += ` <span style="color:#e74c3c;">הציון הכולל מתחת לציון החתך (${d.c.total.toFixed(2)}), המעיד על חשד לקושי בניהול עצמי של שגרות יום-יום.</span>`;
+  } else {
+    summary += ` הציון הכולל בטווח התקין.`;
+  }
+  summary += `</p>`;
+
+  // Routines
+  summary += `<p><strong>שגרות:</strong> `;
+  if (weakRoutines.length === 0) {
+    summary += `כל שלוש השגרות בטווח התקין.`;
+  } else {
+    summary += `קושי נמצא בשגרות: <span style="color:#e74c3c;">${weakRoutines.join(", ")}</span>.`;
+    if (strongRoutines.length > 0) summary += ` בטווח התקין: ${strongRoutines.join(", ")}.`;
+  }
+  summary += `</p>`;
+
+  // EF Scales
+  summary += `<p><strong>תפקודים ניהוליים:</strong> `;
+  if (weakEFs.length === 0) {
+    summary += `כל שלושת הסולמות בטווח התקין.`;
+  } else {
+    summary += `קושי נמצא ב: <span style="color:#e74c3c;">${weakEFs.join(", ")}</span>.`;
+    if (strongEFs.length > 0) summary += ` בטווח התקין: ${strongEFs.join(", ")}.`;
+  }
+  summary += `</p>`;
+
+  // Weak items detail
+  if (weakItems.length > 0) {
+    const efLabels = { inh: "עכבה", wm: "זיכרון עבודה", flex: "גמישות מחשבתית" };
+    summary += `<p><strong>פריטים שדורגו כחלשים ביותר (אף פעם / לעיתים רחוקות):</strong></p><ul>`;
+    weakItems.slice(0, 8).forEach(item => {
+      const label = item.ef ? efLabels[item.ef] : "";
+      summary += `<li>"${item.text}" <span style="color:#999;">(פריט ${item.num}${label ? " — " + label : ""})</span></li>`;
+    });
+    if (weakItems.length > 8) summary += `<li>ו-${weakItems.length - 8} פריטים נוספים...</li>`;
+    summary += `</ul>`;
+  }
+
+  // Strengths
+  const strongItems = items.filter(i => d.scores[i.num] >= 5);
+  if (strongItems.length > 0) {
+    summary += `<p><strong>חוזקות (דורגו "תמיד"):</strong> ${strongItems.length} פריטים, `;
+    summary += `כולל: "${strongItems[0].text}"`;
+    if (strongItems.length > 1) summary += ` ו-${strongItems.length - 1} נוספים`;
+    summary += `.</p>`;
+  }
+
+  return summary;
+}
+
+async function printResults() {
+  const btn = document.querySelector(".pdf-btn");
+  btn.disabled = true;
+  btn.textContent = "...יוצר PDF";
+
+  // Expand all drilldowns for capture
+  const drilldowns = document.querySelectorAll(".drilldown");
+  const origStates = [];
+  drilldowns.forEach(el => { origStates.push(el.style.display); el.style.display = "block"; });
+
+  // Hide buttons inside results
+  const pdfBtnEl = document.querySelector(".pdf-btn");
+  pdfBtnEl.style.display = "none";
+
+  try {
+    const resultsEl = document.getElementById("results");
+    const canvas = await html2canvas(resultsEl, {
+      scale: 2,
+      useCORS: true,
+      backgroundColor: "#ffffff",
+      scrollY: -window.scrollY
+    });
+
+    const imgData = canvas.toDataURL("image/png");
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF("p", "mm", "a4");
+
+    const pageW = pdf.internal.pageSize.getWidth();
+    const pageH = pdf.internal.pageSize.getHeight();
+    const margin = 10;
+    const imgW = pageW - margin * 2;
+    const imgH = (canvas.height * imgW) / canvas.width;
+
+    // Multi-page support
+    let yPos = margin;
+    let remainH = imgH;
+    const pageContentH = pageH - margin * 2;
+
+    if (imgH <= pageContentH) {
+      pdf.addImage(imgData, "PNG", margin, margin, imgW, imgH);
+    } else {
+      // Split across pages
+      let srcY = 0;
+      while (remainH > 0) {
+        const sliceH = Math.min(remainH, pageContentH);
+        const sliceCanvas = document.createElement("canvas");
+        sliceCanvas.width = canvas.width;
+        sliceCanvas.height = (sliceH / imgH) * canvas.height;
+        const ctx = sliceCanvas.getContext("2d");
+        ctx.drawImage(canvas, 0, srcY, canvas.width, sliceCanvas.height, 0, 0, canvas.width, sliceCanvas.height);
+        const sliceData = sliceCanvas.toDataURL("image/png");
+        if (srcY > 0) pdf.addPage();
+        pdf.addImage(sliceData, "PNG", margin, margin, imgW, sliceH);
+        srcY += sliceCanvas.height;
+        remainH -= sliceH;
+      }
+    }
+
+    const anonId = document.getElementById("anonId").value || "eforts";
+    pdf.save(`EFORTS_${anonId}_${new Date().toISOString().slice(0,10)}.pdf`);
+  } catch(e) {
+    alert("שגיאה ביצירת PDF: " + e.message);
+  }
+
+  // Restore drilldown states
+  drilldowns.forEach((el, i) => el.style.display = origStates[i]);
+  pdfBtnEl.style.display = "block";
+  btn.disabled = false;
+  btn.textContent = "שמור כ-PDF / הדפס";
 }
 
 function toggleDrill(id) {
