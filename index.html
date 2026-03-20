@@ -110,24 +110,27 @@
   }
   .item-scores {
     display: flex;
-    gap: 4px;
-    direction: ltr;
+    gap: 3px;
+    direction: rtl;
   }
   .item-scores input[type="radio"] { display: none; }
   .item-scores label {
-    width: 36px;
-    height: 36px;
+    padding: 6px 6px;
+    min-width: 44px;
     display: flex;
     align-items: center;
     justify-content: center;
-    border-radius: 50%;
+    border-radius: 6px;
     border: 2px solid #ddd;
-    font-size: 0.9rem;
+    font-size: 0.68rem;
     font-weight: 600;
     cursor: pointer;
     transition: all 0.15s;
-    color: #999;
+    color: #888;
     background: #fafafa;
+    text-align: center;
+    line-height: 1.2;
+    white-space: nowrap;
   }
   .item-scores label:hover {
     border-color: #3498db;
@@ -313,7 +316,7 @@
     .results-grid { grid-template-columns: 1fr; }
     .item-row { flex-wrap: wrap; }
     .item-scores { margin-top: 6px; width: 100%; justify-content: center; }
-    .item-scores label { width: 42px; height: 42px; font-size: 1rem; }
+    .item-scores label { min-width: 50px; font-size: 0.7rem; padding: 8px 4px; }
   }
 </style>
 </head>
@@ -425,6 +428,7 @@ function buildForm() {
   ];
 
   const scaleLabels = ["אף פעם", "לעיתים רחוקות", "לפעמים", "לעיתים קרובות", "תמיד"];
+  const shortLabels = ["אף פעם", "לעיתים\nרחוקות", "לפעמים", "לעיתים\nקרובות", "תמיד"];
 
   routines.forEach(r => {
     const section = document.createElement("div");
@@ -442,14 +446,6 @@ function buildForm() {
       </select>
     </div>`;
     html += `<div class="routine-instruction">${r.instruction}</div>`;
-    html += `<div class="scale-header-row">
-      <span class="sh-num"></span>
-      <span class="sh-text"></span>
-      <div class="sh-labels">
-        ${scaleLabels.map((l, i) => `<span class="sh-label"><span class="sh-label-text">${l}</span><span class="sh-label-num">${i+1}</span></span>`).join("")}
-      </div>
-      <span class="sh-num"></span>
-    </div>`;
 
     items.filter(it => it.num >= r.range[0] && it.num <= r.range[1]).forEach(item => {
       html += `<div class="item-row">
@@ -458,7 +454,7 @@ function buildForm() {
         <div class="item-scores">`;
       for (let v = 1; v <= 5; v++) {
         html += `<input type="radio" name="q${item.num}" id="q${item.num}_${v}" value="${v}">`;
-        html += `<label for="q${item.num}_${v}">${v}</label>`;
+        html += `<label for="q${item.num}_${v}">${scaleLabels[v-1]}</label>`;
       }
       html += `</div>
         <span class="item-num">${item.num}</span>`;
