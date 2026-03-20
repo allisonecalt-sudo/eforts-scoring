@@ -6,7 +6,7 @@
 <title>EFORTS — קידוד שאלון</title>
 <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.2/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
   :root {
     --blue: #0077b6;
@@ -1171,75 +1171,245 @@ function scoreRow(id, label, score, cutoff, cardItems, scores, type) {
 }
 
 function buildSummary(d) {
-  const interpLabel = (s) => s <= 2 ? "קושי משמעותי" : s <= 3 ? "מתחת לממוצע" : s <= 4 ? "בטווח הממוצע" : "חזק";
   const belowCutoff = (s, c) => s < c;
+  const efLabels = { inh: "עכבה", wm: "זיכרון עבודה", flex: "גמישות מחשבתית" };
+  const routineLabels = { morning: "בוקר וערב", play: "פנאי ומשחק", social: "שגרה חברתית" };
 
-  const weakRoutines = [];
-  const strongRoutines = [];
-  if (belowCutoff(d.morningAvg, d.c.morning)) weakRoutines.push("בוקר וערב"); else strongRoutines.push("בוקר וערב");
-  if (belowCutoff(d.playAvg, d.c.play)) weakRoutines.push("פנאי ומשחק"); else strongRoutines.push("פנאי ומשחק");
-  if (belowCutoff(d.socialAvg, d.c.social)) weakRoutines.push("שגרה חברתית"); else strongRoutines.push("שגרה חברתית");
+  // Classify routines and EFs
+  const routineData = [
+    { key: "morning", label: "בוקר וערב", score: d.morningAvg, cutoff: d.c.morning },
+    { key: "play", label: "פנאי ומשחק", score: d.playAvg, cutoff: d.c.play },
+    { key: "social", label: "שגרה חברתית", score: d.socialAvg, cutoff: d.c.social },
+  ];
+  const efData = [
+    { key: "wm", label: "זיכרון עבודה", score: d.wmAvg, cutoff: d.c.wm },
+    { key: "inh", label: "עכבה", score: d.inhAvg, cutoff: d.c.inh },
+    { key: "flex", label: "גמישות מחשבתית", score: d.flexAvg, cutoff: d.c.flex },
+  ];
 
-  const weakEFs = [];
-  const strongEFs = [];
-  if (belowCutoff(d.inhAvg, d.c.inh)) weakEFs.push("עכבה"); else strongEFs.push("עכבה");
-  if (belowCutoff(d.wmAvg, d.c.wm)) weakEFs.push("זיכרון עבודה"); else strongEFs.push("זיכרון עבודה");
-  if (belowCutoff(d.flexAvg, d.c.flex)) weakEFs.push("גמישות מחשבתית"); else strongEFs.push("גמישות מחשבתית");
+  const weakRoutines = routineData.filter(r => belowCutoff(r.score, r.cutoff));
+  const okRoutines = routineData.filter(r => !belowCutoff(r.score, r.cutoff));
+  const weakEFs = efData.filter(e => belowCutoff(e.score, e.cutoff));
+  const okEFs = efData.filter(e => !belowCutoff(e.score, e.cutoff));
+  const totalBelow = belowCutoff(d.totalAvg, d.c.total);
 
-  const weakItems = items.filter(i => d.scores[i.num] <= 2).sort((a, b) => d.scores[a.num] - d.scores[b.num]);
+  // Get items by score level per routine
+  const getItemsByRoutine = (routineKey) => items.filter(i => i.routine === routineKey);
+  const getWeakItems = (itemList) => itemList.filter(i => d.scores[i.num] <= 2).sort((a,b) => d.scores[a.num] - d.scores[b.num]);
+  const getMidItems = (itemList) => itemList.filter(i => d.scores[i.num] === 3);
 
-  let summary = "";
+  // Get items by EF scale
+  const getItemsByEF = (efKey) => items.filter(i => i.ef === efKey);
 
-  summary += `<p><strong>נבדק/ת:</strong> מזהה ${d.anonId}`;
-  if (d.gender) summary += `, ${d.gender}`;
-  summary += `, ${d.ageText}, קבוצת גיל ${d.ageLabel}.</p>`;
+  let s = "";
 
-  const totalStatus = belowCutoff(d.totalAvg, d.c.total);
-  summary += `<p><strong>ציון כולל:</strong> ${d.totalAvg.toFixed(2)} (${interpLabel(d.totalAvg)}).`;
-  if (totalStatus) {
-    summary += ` <span style="color:var(--red);">הציון הכולל מתחת לציון החתך (${d.c.total.toFixed(2)}), המעיד על חשד לקושי בניהול עצמי של שגרות יום-יום.</span>`;
+  // ===== OPENING: Main finding =====
+  s += `<p><strong>ממצא מרכזי:</strong> `;
+  if (totalBelow) {
+    s += `הציון הכולל (${d.totalAvg.toFixed(2)}) <span style="color:var(--red);">מתחת לציון החתך</span> (${d.c.total.toFixed(2)}), `;
+    s += `המעיד על קושי בניהול עצמי של שגרות יום-יום ביחס לבני גילו/ה.`;
   } else {
-    summary += ` הציון הכולל בטווח התקין.`;
+    s += `הציון הכולל (${d.totalAvg.toFixed(2)}) בטווח התקין. הניהול העצמי של שגרות יום-יום תואם את הצפוי לגיל.`;
   }
-  summary += `</p>`;
+  s += `</p>`;
 
-  summary += `<p><strong>שגרות:</strong> `;
-  if (weakRoutines.length === 0) {
-    summary += `כל שלוש השגרות בטווח התקין.`;
+  // ===== ROUTINE ANALYSIS: Each routine with supporting items =====
+  s += `<p style="font-weight:700; margin-top:12px; margin-bottom:4px; border-bottom:1px solid #e2e8f0; padding-bottom:4px;">ניתוח לפי שגרות</p>`;
+
+  routineData.forEach(routine => {
+    const below = belowCutoff(routine.score, routine.cutoff);
+    const routineItems = getItemsByRoutine(routine.key);
+    const weak = getWeakItems(routineItems);
+    const mid = getMidItems(routineItems);
+    const strong = routineItems.filter(i => d.scores[i.num] >= 4);
+
+    const icon = below ? `<span style="color:var(--red);">●</span>` : `<span style="color:var(--green);">●</span>`;
+    const statusText = below ? `מתחת לחתך (${routine.cutoff.toFixed(2)})` : `בטווח התקין`;
+
+    s += `<p>${icon} <strong>${routine.label}</strong> — ${routine.score.toFixed(2)} — ${statusText}</p>`;
+
+    if (weak.length > 0) {
+      s += `<p style="margin-right:16px; font-size:0.82rem; color:#334155;">קשיים בולטים:</p><ul style="font-size:0.82rem;">`;
+      weak.forEach(item => {
+        const scoreLabel = d.scores[item.num] === 1 ? "אף פעם" : "לעיתים רחוקות";
+        const efTag = item.ef ? ` <span style="color:#94a3b8;">[${efLabels[item.ef]}]</span>` : "";
+        s += `<li>"${item.text}" — <strong>${scoreLabel}</strong>${efTag}</li>`;
+      });
+      s += `</ul>`;
+    }
+    if (strong.length > 0 && below) {
+      // Show strengths within a weak routine — important contrast
+      s += `<p style="margin-right:16px; font-size:0.82rem; color:var(--green);">חוזקות בשגרה זו: `;
+      s += strong.map(i => `פריט ${i.num}`).join(", ");
+      s += ` (${strong.length} פריטים דורגו "לעיתים קרובות" או "תמיד")</p>`;
+    }
+    if (weak.length === 0 && !below) {
+      s += `<p style="margin-right:16px; font-size:0.82rem; color:#64748b;">ללא קשיים בולטים בשגרה זו.</p>`;
+    }
+  });
+
+  // ===== EF ANALYSIS: Each scale with cross-routine evidence =====
+  s += `<p style="font-weight:700; margin-top:16px; margin-bottom:4px; border-bottom:1px solid #e2e8f0; padding-bottom:4px;">ניתוח לפי תפקודים ניהוליים</p>`;
+
+  efData.forEach(ef => {
+    const below = belowCutoff(ef.score, ef.cutoff);
+    const efItems = getItemsByEF(ef.key);
+    const weak = getWeakItems(efItems);
+    const efStrong = efItems.filter(i => d.scores[i.num] >= 4);
+
+    const icon = below ? `<span style="color:var(--red);">●</span>` : `<span style="color:var(--green);">●</span>`;
+    const statusText = below ? `מתחת לחתך (${ef.cutoff.toFixed(2)})` : `בטווח התקין`;
+
+    s += `<p>${icon} <strong>${ef.label}</strong> — ${ef.score.toFixed(2)} — ${statusText}</p>`;
+
+    if (below || weak.length > 0) {
+      // Show where in daily life this EF difficulty shows up
+      const byRoutine = {};
+      weak.forEach(item => {
+        const rLabel = routineLabels[item.routine];
+        if (!byRoutine[rLabel]) byRoutine[rLabel] = [];
+        byRoutine[rLabel].push(item);
+      });
+
+      if (Object.keys(byRoutine).length > 0) {
+        s += `<p style="margin-right:16px; font-size:0.82rem; color:#334155;">איפה זה בא לידי ביטוי:</p>`;
+        for (const [rLabel, rItems] of Object.entries(byRoutine)) {
+          s += `<p style="margin-right:24px; font-size:0.82rem;"><em>${rLabel}:</em></p><ul style="font-size:0.82rem;">`;
+          rItems.forEach(item => {
+            const scoreLabel = d.scores[item.num] === 1 ? "אף פעם" : "לעיתים רחוקות";
+            s += `<li>"${item.text}" — <strong>${scoreLabel}</strong></li>`;
+          });
+          s += `</ul>`;
+        }
+      }
+
+      // Contrast: where this EF IS working
+      if (efStrong.length > 0) {
+        s += `<p style="margin-right:16px; font-size:0.82rem; color:var(--green);">לעומת זאת, ${ef.label} בא לידי ביטוי חיובי ב: `;
+        s += efStrong.map(i => `"${i.text.substring(0, 40)}..." (${routineLabels[i.routine]})`).join("; ");
+        s += `</p>`;
+      }
+    } else {
+      s += `<p style="margin-right:16px; font-size:0.82rem; color:#64748b;">ללא קשיים בולטים. ${ef.label} תקין ביחס לגיל.</p>`;
+    }
+  });
+
+  // ===== CLINICAL PICTURE: Connecting the dots =====
+  if (weakEFs.length > 0 && weakRoutines.length > 0) {
+    s += `<p style="font-weight:700; margin-top:16px; margin-bottom:4px; border-bottom:1px solid #e2e8f0; padding-bottom:4px;">תמונה קלינית</p>`;
+    s += `<p style="font-size:0.85rem;">`;
+
+    // Build a narrative connecting EF difficulties to routine struggles
+    s += `הקשיים ב`;
+    s += weakEFs.map(e => `<strong>${e.label}</strong>`).join(" וב");
+    s += ` באים לידי ביטוי בעיקר ב`;
+    s += weakRoutines.map(r => `שגרת ${r.label}`).join(" וב");
+    s += `. `;
+
+    // Specific patterns
+    const wmBelow = belowCutoff(d.wmAvg, d.c.wm);
+    const inhBelow = belowCutoff(d.inhAvg, d.c.inh);
+    const flexBelow = belowCutoff(d.flexAvg, d.c.flex);
+
+    if (wmBelow) {
+      const wmWeak = getWeakItems(getItemsByEF("wm"));
+      const initiationItems = wmWeak.filter(i => [1, 9, 17].includes(i.num));
+      const sequenceItems = wmWeak.filter(i => [3, 11, 19].includes(i.num));
+      const paceItems = wmWeak.filter(i => [2, 10, 18].includes(i.num));
+
+      if (initiationItems.length > 0) s += `הילד/ה מתקשה ביזימת פעילויות באופן עצמאי. `;
+      if (sequenceItems.length > 0) s += `קושי בזכירת רצף הפעילויות ובביצוען לפי הסדר. `;
+      if (paceItems.length > 0) s += `צורך בתזכורות חוזרות מצד המבוגר לשמירה על קצב מתאים. `;
+    }
+    if (inhBelow) {
+      const inhWeak = getWeakItems(getItemsByEF("inh"));
+      const distractItems = inhWeak.filter(i => [6, 14, 21].includes(i.num));
+      const completionItems = inhWeak.filter(i => [8, 16, 23].includes(i.num));
+      const emotionItems = inhWeak.filter(i => [26, 29, 30].includes(i.num));
+
+      if (distractItems.length > 0) s += `קושי בהתעלמות מגירויים מסיחים בסביבה. `;
+      if (completionItems.length > 0) s += `נטייה לעבור בין פעילויות ללא סיום. `;
+      if (emotionItems.length > 0) s += `קושי בוויסות תגובות רגשיות במצבים חברתיים. `;
+    }
+    if (flexBelow) {
+      const flexWeak = getWeakItems(getItemsByEF("flex"));
+      const problemItems = flexWeak.filter(i => [5, 13, 28].includes(i.num));
+      const planItems = flexWeak.filter(i => [22].includes(i.num));
+      const socialInitItems = flexWeak.filter(i => [24].includes(i.num));
+
+      if (problemItems.length > 0) s += `קושי בפתרון בעיות שמתעוררות במהלך הפעילות. `;
+      if (planItems.length > 0) s += `קושי בתכנון מוקדם לפני תחילת פעילות. `;
+      if (socialInitItems.length > 0) s += `קושי ביזימה חברתית עצמאית. `;
+    }
+
+    s += `</p>`;
+
+    // Strengths contrast
+    if (okRoutines.length > 0 || okEFs.length > 0) {
+      s += `<p style="font-size:0.85rem;">`;
+      s += `<strong>חוזקות:</strong> `;
+      if (okRoutines.length > 0) {
+        s += `שגרת ${okRoutines.map(r => r.label).join(" ו")} בטווח התקין`;
+        if (okEFs.length > 0) s += `, `;
+      }
+      if (okEFs.length > 0) {
+        s += `${okEFs.map(e => e.label).join(" ו")} תקינים ביחס לגיל`;
+      }
+      s += `. `;
+
+      // Mention strongest items
+      const strongItems = items.filter(i => d.scores[i.num] === 5);
+      if (strongItems.length > 0) {
+        s += `${strongItems.length} פריטים דורגו "תמיד", כולל: "${strongItems[0].text}".`;
+      }
+      s += `</p>`;
+    }
+  }
+
+  // ===== If all OK =====
+  if (weakEFs.length === 0 && weakRoutines.length === 0) {
+    s += `<p style="font-weight:700; margin-top:16px; margin-bottom:4px; border-bottom:1px solid #e2e8f0; padding-bottom:4px;">תמונה קלינית</p>`;
+    s += `<p style="font-size:0.85rem;">כל הציונים בטווח התקין. הניהול העצמי של שגרות היום-יום וכן התפקודים הניהוליים (עכבה, זיכרון עבודה, גמישות מחשבתית) תואמים את הצפוי לגיל.</p>`;
+
+    const midItems = items.filter(i => d.scores[i.num] === 3);
+    if (midItems.length > 3) {
+      s += `<p style="font-size:0.82rem; color:#64748b;">יש לשים לב: ${midItems.length} פריטים דורגו "לפעמים" — ייתכן שמצביעים על תחומים שכדאי לעקוב אחריהם.</p>`;
+    }
+  }
+
+  // ===== TAKEAWAY: 1-2 sentence bottom line =====
+  s += `<p style="font-weight:700; margin-top:16px; margin-bottom:4px; border-bottom:1px solid #e2e8f0; padding-bottom:4px;">שורה תחתונה</p>`;
+  s += `<p style="font-size:0.9rem; font-weight:500; background:#f8fafc; padding:12px; border-radius:8px; border-right:3px solid ${totalBelow ? 'var(--red)' : 'var(--green)'};">`;
+
+  if (totalBelow) {
+    if (weakEFs.length === 3) {
+      s += `ע"פ שאלון ה-EFORTS, הילד/ה מציג/ה קושי בניהול עצמי של שגרות יום-יום על רקע קשיים בכל שלושת התפקודים הניהוליים. `;
+      s += `מומלץ להתמקד בבניית שגרות מובנות עם תמיכה חיצונית, ובמיוחד ב${weakRoutines.map(r => r.label).join(" וב")}.`;
+    } else if (weakEFs.length > 0) {
+      s += `ע"פ שאלון ה-EFORTS, הילד/ה מציג/ה קושי בניהול עצמי של שגרות, בדגש על ${weakRoutines.map(r => r.label).join(" ו")}. `;
+      s += `הקושי נובע בעיקר מ${weakEFs.map(e => e.label).join(" ומ")}`;
+      if (okEFs.length > 0) {
+        s += `, בעוד ש${okEFs.map(e => e.label).join(" ו")} ${okEFs.length === 1 ? 'מהווה' : 'מהווים'} חוזקה יחסית`;
+      }
+      s += `.`;
+    } else {
+      s += `ע"פ שאלון ה-EFORTS, הציון הכולל מתחת לחתך. הקושי מתבטא בעיקר ב${weakRoutines.map(r => r.label).join(" וב")}. `;
+      s += `התפקודים הניהוליים בטווח התקין — ייתכן שהקושי קשור לגורמים סביבתיים או חווייתיים.`;
+    }
   } else {
-    summary += `קושי נמצא בשגרות: <span style="color:var(--red);">${weakRoutines.join(", ")}</span>.`;
-    if (strongRoutines.length > 0) summary += ` בטווח התקין: ${strongRoutines.join(", ")}.`;
+    if (weakEFs.length > 0) {
+      s += `ע"פ שאלון ה-EFORTS, הציון הכולל בטווח התקין, אך נמצא קושי ב${weakEFs.map(e => e.label).join(" וב")}. `;
+      s += `מומלץ לעקוב אחר תחומים אלה ולשקול התערבות ממוקדת.`;
+    } else if (weakRoutines.length > 0) {
+      s += `ע"פ שאלון ה-EFORTS, הציון הכולל בטווח התקין, אך שגרת ${weakRoutines.map(r => r.label).join(" ו")} מתחת לחתך. `;
+      s += `מומלץ לבחון גורמים סביבתיים או חווייתיים בשגרות אלו.`;
+    } else {
+      s += `ע"פ שאלון ה-EFORTS, הניהול העצמי של שגרות יום-יום והתפקודים הניהוליים תקינים ביחס לגיל.`;
+    }
   }
-  summary += `</p>`;
+  s += `</p>`;
 
-  summary += `<p><strong>תפקודים ניהוליים:</strong> `;
-  if (weakEFs.length === 0) {
-    summary += `כל שלושת הסולמות בטווח התקין.`;
-  } else {
-    summary += `קושי נמצא ב: <span style="color:var(--red);">${weakEFs.join(", ")}</span>.`;
-    if (strongEFs.length > 0) summary += ` בטווח התקין: ${strongEFs.join(", ")}.`;
-  }
-  summary += `</p>`;
-
-  if (weakItems.length > 0) {
-    const efLabels = { inh: "עכבה", wm: "זיכרון עבודה", flex: "גמישות מחשבתית" };
-    summary += `<p><strong>פריטים שדורגו כחלשים ביותר (אף פעם / לעיתים רחוקות):</strong></p><ul>`;
-    weakItems.forEach(item => {
-      const label = item.ef ? efLabels[item.ef] : "";
-      summary += `<li>"${item.text}" <span style="color:#94a3b8;">(פריט ${item.num}${label ? " — " + label : ""})</span></li>`;
-    });
-    summary += `</ul>`;
-  }
-
-  const strongItems = items.filter(i => d.scores[i.num] >= 5);
-  if (strongItems.length > 0) {
-    summary += `<p><strong>חוזקות (דורגו "תמיד"):</strong> ${strongItems.length} פריטים, `;
-    summary += `כולל: "${strongItems[0].text}"`;
-    if (strongItems.length > 1) summary += ` ו-${strongItems.length - 1} נוספים`;
-    summary += `.</p>`;
-  }
-
-  return summary;
+  return s;
 }
 
 async function printResults() {
