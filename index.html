@@ -303,29 +303,33 @@
 <!-- Child Info -->
 <div class="info-bar">
   <div class="field">
-    <label for="childName">שם הילד/ה</label>
-    <input type="text" id="childName" placeholder="שם">
+    <label for="anonId">מספר מזהה</label>
+    <input type="text" id="anonId" placeholder="מספר אנונימי">
   </div>
   <div class="field">
-    <label for="childAge">גיל (שנים.חודשים)</label>
-    <input type="text" id="childAge" placeholder="לדוגמה: 5.3" inputmode="decimal">
-  </div>
-  <div class="field">
-    <label for="ageGroup">קבוצת גיל</label>
-    <select id="ageGroup">
-      <option value="">— בחר/י —</option>
-      <option value="3-5">3.0 — 5.11</option>
-      <option value="6-7">6.0 — 7.11</option>
-      <option value="8-11">8.0 — 11.11</option>
+    <label for="childGender">מין</label>
+    <select id="childGender">
+      <option value="">—</option>
+      <option value="male">זכר</option>
+      <option value="female">נקבה</option>
     </select>
   </div>
   <div class="field">
-    <label for="fillDate">תאריך</label>
-    <input type="date" id="fillDate">
+    <label for="birthDate">תאריך לידה</label>
+    <input type="date" id="birthDate">
   </div>
   <div class="field">
-    <label for="filledBy">ממלא/ת השאלון</label>
-    <input type="text" id="filledBy" placeholder="אמא / אבא / אחר">
+    <label>גיל</label>
+    <div id="calcAge" style="padding:8px 10px; font-size:0.95rem; color:#555;">—</div>
+  </div>
+  <div class="field">
+    <label>קבוצת גיל</label>
+    <div id="ageGroupDisplay" style="padding:8px 10px; font-size:0.95rem; color:#555;">—</div>
+    <input type="hidden" id="ageGroup">
+  </div>
+  <div class="field">
+    <label for="fillDate">תאריך מילוי</label>
+    <input type="date" id="fillDate">
   </div>
 </div>
 
@@ -405,6 +409,16 @@ function buildForm() {
     section.className = "routine-section";
 
     let html = `<div class="routine-title">${r.title}</div>`;
+    html += `<div style="display:flex; align-items:center; gap:8px; margin:8px 0 4px; font-size:0.85rem; color:#666;">
+      <span>מי נמצא עם הילד בדרך כלל בשגרות אלו:</span>
+      <select id="companion_${r.key}" style="padding:4px 8px; border:1px solid #ddd; border-radius:6px; font-family:inherit; font-size:0.85rem;">
+        <option value="">—</option>
+        <option value="mom">אמא</option>
+        <option value="dad">אבא</option>
+        <option value="both">שני ההורים</option>
+        <option value="other">אחר</option>
+      </select>
+    </div>`;
     html += `<div class="routine-instruction">${r.instruction}</div>`;
     html += `<div class="scale-header"><span></span><div class="scale-labels">`;
     scaleLabels.forEach((l, i) => {
@@ -429,19 +443,51 @@ function buildForm() {
   });
 }
 
-// Auto-detect age group from age input
+// Auto-calculate age from date of birth
+function updateAge() {
+  const birthInput = document.getElementById("birthDate").value;
+  const fillInput = document.getElementById("fillDate").value;
+  if (!birthInput || !fillInput) return;
+
+  const birth = new Date(birthInput);
+  const fill = new Date(fillInput);
+  if (birth >= fill) return;
+
+  // Calculate years and months
+  let years = fill.getFullYear() - birth.getFullYear();
+  let months = fill.getMonth() - birth.getMonth();
+  if (fill.getDate() < birth.getDate()) months--;
+  if (months < 0) { years--; months += 12; }
+
+  const totalYears = years + months / 12;
+  document.getElementById("calcAge").textContent = `${years} שנים, ${months} חודשים`;
+
+  // Set age group
+  const ageGroupEl = document.getElementById("ageGroup");
+  const ageGroupDisplay = document.getElementById("ageGroupDisplay");
+  if (totalYears >= 3 && totalYears < 6) {
+    ageGroupEl.value = "3-5";
+    ageGroupDisplay.textContent = "3.0 — 5.11";
+  } else if (totalYears >= 6 && totalYears < 8) {
+    ageGroupEl.value = "6-7";
+    ageGroupDisplay.textContent = "6.0 — 7.11";
+  } else if (totalYears >= 8 && totalYears < 12) {
+    ageGroupEl.value = "8-11";
+    ageGroupDisplay.textContent = "8.0 — 11.11";
+  } else {
+    ageGroupEl.value = "";
+    ageGroupDisplay.textContent = "מחוץ לטווח הגילאים";
+    ageGroupDisplay.style.color = "#e74c3c";
+    return;
+  }
+  ageGroupDisplay.style.color = "#2ecc71";
+}
+
 document.addEventListener("DOMContentLoaded", () => {
   buildForm();
   document.getElementById("fillDate").valueAsDate = new Date();
-  document.getElementById("childAge").addEventListener("input", function() {
-    const val = parseFloat(this.value);
-    const sel = document.getElementById("ageGroup");
-    if (isNaN(val)) { sel.value = ""; return; }
-    if (val >= 3 && val < 6) sel.value = "3-5";
-    else if (val >= 6 && val < 8) sel.value = "6-7";
-    else if (val >= 8 && val < 12) sel.value = "8-11";
-    else sel.value = "";
-  });
+  document.getElementById("birthDate").addEventListener("change", updateAge);
+  document.getElementById("fillDate").addEventListener("change", updateAge);
 });
 
 // ===== CALCULATE =====
@@ -495,11 +541,13 @@ function calculate() {
 
   // Build results
   const resultsDiv = document.getElementById("results");
-  const ageLabel = document.getElementById("ageGroup").options[document.getElementById("ageGroup").selectedIndex].text;
-  const childName = document.getElementById("childName").value || "—";
+  const ageLabel = document.getElementById("ageGroupDisplay").textContent;
+  const anonId = document.getElementById("anonId").value || "—";
+  const ageText = document.getElementById("calcAge").textContent;
+  const gender = document.getElementById("childGender").value === "male" ? "זכר" : document.getElementById("childGender").value === "female" ? "נקבה" : "";
 
   resultsDiv.innerHTML = `
-    <div class="results-title">תוצאות — ${childName} (קבוצת גיל: ${ageLabel})</div>
+    <div class="results-title">תוצאות — מזהה: ${anonId} | ${gender} | ${ageText} | קבוצת גיל: ${ageLabel}</div>
     <div class="results-grid">
       <div class="section-divider">ציוני שגרות</div>
       ${resultCard("בוקר וערב", morningAvg, c.morning)}
