@@ -246,11 +246,21 @@
   }
   .result-card.below .result-score { color: #e74c3c; }
   .result-card.above .result-score { color: #2ecc71; }
+  .result-interp {
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: #555;
+    margin-top: 2px;
+  }
+  .result-card.below .result-interp { color: #c0392b; }
+  .result-card.above .result-interp { color: #27ae60; }
   .result-cutoff {
     font-size: 0.72rem;
     color: #aaa;
     margin-top: 4px;
+    cursor: help;
   }
+  .result-score { cursor: help; }
   .result-status {
     font-size: 0.78rem;
     font-weight: 600;
@@ -819,10 +829,14 @@ function resultCard(id, label, score, cutoff, cardItems, scores, type) {
     detailsHtml += `</div>`;
   }
 
+  // Plain-language interpretation
+  const interp = score <= 2 ? "קושי משמעותי" : score <= 3 ? "מתחת לממוצע" : score <= 4 ? "בטווח הממוצע" : "חזק";
+
   return `<div class="result-card ${status} ${isTotal ? 'full-width' : ''} ${hasDetails ? 'clickable' : ''}" ${hasDetails ? `onclick="toggleDrill('${id}')"` : ''}>
     <div class="result-label">${label} ${hasDetails ? '<span class="drill-arrow" id="arrow_' + id + '">&#9660;</span>' : ''}</div>
-    <div class="result-score">${score.toFixed(2)}</div>
-    <div class="result-cutoff">ציון חתך: ${cutoff.toFixed(2)}</div>
+    <div class="result-score" title="ממוצע על סולם 1 (אף פעם) עד 5 (תמיד). ציון גבוה = ניהול עצמי טוב יותר">${score.toFixed(2)}</div>
+    <div class="result-interp">${interp}</div>
+    <div class="result-cutoff" title="ציון חתך = 1.5 סטיות תקן מתחת לממוצע הנורמטיבי לקבוצת הגיל">ציון חתך: ${cutoff.toFixed(2)}</div>
     <div class="result-status">${statusText}</div>
     ${detailsHtml}
   </div>`;
