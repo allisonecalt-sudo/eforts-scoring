@@ -1078,6 +1078,10 @@ function calculate() {
         inhAvg, wmAvg, flexAvg,
         c, scores
       })}</div>
+      <div style="background:#eef6ff; border:1px solid #c5ddf5; border-radius:8px; padding:10px 14px; margin-top:14px; display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+        <span style="font-size:0.82rem; color:#334155; flex:1;">לסיכום קליני מפורט יותר — העתיקו את הנתונים והדביקו בכלי AI (כמו Claude או ChatGPT)</span>
+        <button onclick="copyResultsForAI()" style="background:var(--primary); color:#fff; border:none; border-radius:6px; padding:6px 14px; font-size:0.8rem; font-weight:600; cursor:pointer; font-family:inherit; white-space:nowrap;" id="copyAiBtn">העתק נתונים</button>
+      </div>
       <div class="summary-note">
         ציון חתך = 1.5 סטיות תקן מתחת לממוצע הנורמטיבי. ציון מתחת לחתך מעיד על חשד לעיכוב.
         <br>פריטים 10 ו-11 לא נכללים בחישוב הסולמות הניהוליים.
@@ -1444,6 +1448,54 @@ function buildSummary(d) {
   }
 
   return s;
+}
+
+function copyResultsForAI() {
+  const gender = document.getElementById("childGender").value === "male" ? "זכר" : "נקבה";
+  const ageText = document.getElementById("calcAge").textContent;
+  const ageLabel = document.getElementById("ageGroupDisplay").textContent;
+  const efLabels = { inh: "עכבה", wm: "זיכרון עבודה", flex: "גמישות מחשבתית" };
+  const routineLabels = { morning: "בוקר וערב", play: "פנאי ומשחק", social: "שגרה חברתית" };
+
+  // Collect all scores
+  const scores = {};
+  items.forEach(item => {
+    const checked = document.querySelector(`input[name="q${item.num}"]:checked`);
+    if (checked) scores[item.num] = parseInt(checked.value);
+  });
+
+  const scoreNames = ["", "אף פעם", "לעיתים רחוקות", "לפעמים", "לעיתים קרובות", "תמיד"];
+
+  let text = `שאלון EFORTS — נתונים לניתוח\n`;
+  text += `${gender} | ${ageText} | קבוצת גיל: ${ageLabel}\n\n`;
+
+  // All 30 items with scores
+  text += `פריטים וציונים:\n`;
+  const routines = [
+    { key: "morning", label: "שגרות בוקר וערב", range: [1, 16] },
+    { key: "play", label: "פנאי ומשחק", range: [17, 23] },
+    { key: "social", label: "שגרה חברתית", range: [24, 30] },
+  ];
+  routines.forEach(r => {
+    text += `\n${r.label}:\n`;
+    items.filter(i => i.num >= r.range[0] && i.num <= r.range[1]).forEach(item => {
+      const sc = scores[item.num];
+      const ef = item.ef ? efLabels[item.ef] : "לא כלול בסולמות";
+      text += `  ${item.num}. ${item.text} — ${sc} (${scoreNames[sc]}) [${ef}]\n`;
+    });
+  });
+
+  text += `\nכתוב סיכום קליני בעברית על סמך הנתונים. תאר מה קורה ביום-יום, מה מניע את הקשיים, ומה תקין. שלב את הפריטים כראיות בתוך המשפטים, לא כרשימה נפרדת.`;
+
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = document.getElementById("copyAiBtn");
+    btn.textContent = "הועתק!";
+    btn.style.background = "var(--green)";
+    setTimeout(() => {
+      btn.textContent = "העתק נתונים";
+      btn.style.background = "var(--primary)";
+    }, 2000);
+  });
 }
 
 async function printResults() {
