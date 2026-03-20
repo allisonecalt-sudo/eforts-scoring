@@ -577,12 +577,44 @@
     padding: 20px;
     margin-bottom: 16px;
   }
-  .summary-card h3 {
+  .summary-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+  }
+  .summary-header h3 {
     font-size: 0.95rem;
     font-weight: 700;
     color: var(--text);
-    margin-bottom: 12px;
-    text-align: center;
+    margin: 0;
+  }
+  .summary-toggle {
+    display: flex;
+    background: #f1f5f9;
+    border-radius: 8px;
+    padding: 2px;
+    gap: 2px;
+  }
+  .summary-toggle button {
+    border: none;
+    background: transparent;
+    padding: 5px 14px;
+    border-radius: 6px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: #64748b;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-family: inherit;
+  }
+  .summary-toggle button.active {
+    background: #fff;
+    color: var(--primary);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  }
+  .summary-toggle button:hover:not(.active) {
+    color: var(--text);
   }
   .summary-text {
     font-size: 0.85rem;
@@ -1076,8 +1108,20 @@ function calculate() {
     </div>
 
     <div class="summary-card">
-      <h3>סיכום קליני</h3>
-      <div class="summary-text">${buildSummary({
+      <div class="summary-header">
+        <h3>סיכום קליני</h3>
+        <div class="summary-toggle">
+          <button class="active" onclick="toggleSummary('short', this)">תמצית</button>
+          <button onclick="toggleSummary('long', this)">מפורט</button>
+        </div>
+      </div>
+      <div class="summary-text" id="summary-short">${buildSummaryShort({
+        anonId, gender, ageText, ageLabel,
+        morningAvg, playAvg, socialAvg, totalAvg,
+        inhAvg, wmAvg, flexAvg,
+        c, scores
+      })}</div>
+      <div class="summary-text" id="summary-long" style="display:none;">${buildSummaryLong({
         anonId, gender, ageText, ageLabel,
         morningAvg, playAvg, socialAvg, totalAvg,
         inhAvg, wmAvg, flexAvg,
@@ -1170,7 +1214,96 @@ function scoreRow(id, label, score, cutoff, cardItems, scores, type) {
   ${drillHtml}`;
 }
 
-function buildSummary(d) {
+function toggleSummary(mode, btn) {
+  const shortDiv = document.getElementById("summary-short");
+  const longDiv = document.getElementById("summary-long");
+  const buttons = btn.parentElement.querySelectorAll("button");
+  buttons.forEach(b => b.classList.remove("active"));
+  btn.classList.add("active");
+  if (mode === "short") {
+    shortDiv.style.display = "block";
+    longDiv.style.display = "none";
+  } else {
+    shortDiv.style.display = "none";
+    longDiv.style.display = "block";
+  }
+}
+
+function buildSummaryShort(d) {
+  const belowCutoff = (s, c) => s < c;
+  const efLabels = { inh: "עכבה", wm: "זיכרון עבודה", flex: "גמישות מחשבתית" };
+  const routineLabels = { morning: "בוקר וערב", play: "פנאי ומשחק", social: "שגרה חברתית" };
+
+  const routineData = [
+    { key: "morning", label: "בוקר וערב", score: d.morningAvg, cutoff: d.c.morning },
+    { key: "play", label: "פנאי ומשחק", score: d.playAvg, cutoff: d.c.play },
+    { key: "social", label: "שגרה חברתית", score: d.socialAvg, cutoff: d.c.social },
+  ];
+  const efData = [
+    { key: "wm", label: "זיכרון עבודה", score: d.wmAvg, cutoff: d.c.wm },
+    { key: "inh", label: "עכבה", score: d.inhAvg, cutoff: d.c.inh },
+    { key: "flex", label: "גמישות מחשבתית", score: d.flexAvg, cutoff: d.c.flex },
+  ];
+
+  const weakRoutines = routineData.filter(r => belowCutoff(r.score, r.cutoff));
+  const okRoutines = routineData.filter(r => !belowCutoff(r.score, r.cutoff));
+  const weakEFs = efData.filter(e => belowCutoff(e.score, e.cutoff));
+  const okEFs = efData.filter(e => !belowCutoff(e.score, e.cutoff));
+  const totalBelow = belowCutoff(d.totalAvg, d.c.total);
+
+  let s = "";
+
+  // Status dots — compact overview
+  s += `<div style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:12px;">`;
+  routineData.forEach(r => {
+    const below = belowCutoff(r.score, r.cutoff);
+    const color = below ? "var(--red)" : "var(--green)";
+    s += `<span style="font-size:0.82rem;"><span style="color:${color};">●</span> ${r.label} ${r.score.toFixed(2)}</span>`;
+  });
+  s += `<span style="color:#cbd5e1;">|</span>`;
+  efData.forEach(e => {
+    const below = belowCutoff(e.score, e.cutoff);
+    const color = below ? "var(--red)" : "var(--green)";
+    s += `<span style="font-size:0.82rem;"><span style="color:${color};">●</span> ${e.label} ${e.score.toFixed(2)}</span>`;
+  });
+  s += `</div>`;
+
+  // Takeaway box
+  s += `<p style="font-size:0.9rem; font-weight:500; background:#f8fafc; padding:12px; border-radius:8px; border-right:3px solid ${totalBelow ? 'var(--red)' : 'var(--green)'};">`;
+  if (totalBelow) {
+    if (weakEFs.length === 3) {
+      s += `ע"פ שאלון ה-EFORTS, הילד/ה מציג/ה קושי בניהול עצמי של שגרות יום-יום על רקע קשיים בכל שלושת התפקודים הניהוליים. `;
+      s += `מומלץ להתמקד בבניית שגרות מובנות עם תמיכה חיצונית, ובמיוחד ב${weakRoutines.map(r => r.label).join(" וב")}.`;
+    } else if (weakEFs.length > 0) {
+      s += `ע"פ שאלון ה-EFORTS, הילד/ה מציג/ה קושי בניהול עצמי של שגרות, בדגש על ${weakRoutines.map(r => r.label).join(" ו")}. `;
+      s += `הקושי נובע בעיקר מ${weakEFs.map(e => e.label).join(" ומ")}`;
+      if (okEFs.length > 0) {
+        s += `, בעוד ש${okEFs.map(e => e.label).join(" ו")} ${okEFs.length === 1 ? 'מהווה' : 'מהווים'} חוזקה יחסית`;
+      }
+      s += `.`;
+    } else {
+      s += `ע"פ שאלון ה-EFORTS, הציון הכולל מתחת לחתך. הקושי מתבטא בעיקר ב${weakRoutines.map(r => r.label).join(" וב")}. `;
+      s += `התפקודים הניהוליים בטווח התקין — ייתכן שהקושי קשור לגורמים סביבתיים או חווייתיים.`;
+    }
+  } else {
+    if (weakEFs.length > 0) {
+      s += `ע"פ שאלון ה-EFORTS, הציון הכולל בטווח התקין, אך נמצא קושי ב${weakEFs.map(e => e.label).join(" וב")}. `;
+      s += `מומלץ לעקוב אחר תחומים אלה ולשקול התערבות ממוקדת.`;
+    } else if (weakRoutines.length > 0) {
+      s += `ע"פ שאלון ה-EFORTS, הציון הכולל בטווח התקין, אך שגרת ${weakRoutines.map(r => r.label).join(" ו")} מתחת לחתך. `;
+      s += `מומלץ לבחון גורמים סביבתיים או חווייתיים בשגרות אלו.`;
+    } else {
+      s += `ע"פ שאלון ה-EFORTS, הניהול העצמי של שגרות יום-יום והתפקודים הניהוליים תקינים ביחס לגיל.`;
+    }
+  }
+  s += `</p>`;
+
+  s += `<p style="font-size:0.75rem; color:#94a3b8; text-align:center; margin-top:8px; margin-bottom:0;">לפירוט מלא עם פריטים תומכים — לחצו על "מפורט"</p>`;
+
+  return s;
+}
+
+function buildSummaryLong(d) {
   const belowCutoff = (s, c) => s < c;
   const efLabels = { inh: "עכבה", wm: "זיכרון עבודה", flex: "גמישות מחשבתית" };
   const routineLabels = { morning: "בוקר וערב", play: "פנאי ומשחק", social: "שגרה חברתית" };
@@ -1286,7 +1419,7 @@ function buildSummary(d) {
       // Contrast: where this EF IS working
       if (efStrong.length > 0) {
         s += `<p style="margin-right:16px; font-size:0.82rem; color:var(--green);">לעומת זאת, ${ef.label} בא לידי ביטוי חיובי ב: `;
-        s += efStrong.map(i => `"${i.text.substring(0, 40)}..." (${routineLabels[i.routine]})`).join("; ");
+        s += efStrong.map(i => `"${i.text}" (${routineLabels[i.routine]})`).join("; ");
         s += `</p>`;
       }
     } else {
@@ -1303,7 +1436,7 @@ function buildSummary(d) {
     s += `הקשיים ב`;
     s += weakEFs.map(e => `<strong>${e.label}</strong>`).join(" וב");
     s += ` באים לידי ביטוי בעיקר ב`;
-    s += weakRoutines.map(r => `שגרת ${r.label}`).join(" וב");
+    s += weakRoutines.map(r => r.key === "social" ? `השגרה החברתית` : `שגרת ${r.label}`).join(" וב");
     s += `. `;
 
     // Specific patterns
@@ -1349,7 +1482,7 @@ function buildSummary(d) {
       s += `<p style="font-size:0.85rem;">`;
       s += `<strong>חוזקות:</strong> `;
       if (okRoutines.length > 0) {
-        s += `שגרת ${okRoutines.map(r => r.label).join(" ו")} בטווח התקין`;
+        s += `${okRoutines.map(r => r.key === "social" ? "השגרה החברתית" : "שגרת " + r.label).join(" ו")} בטווח התקין`;
         if (okEFs.length > 0) s += `, `;
       }
       if (okEFs.length > 0) {
@@ -1421,6 +1554,16 @@ async function printResults() {
   const origStates = [];
   drilldowns.forEach(el => { origStates.push(el.style.display); el.style.display = "block"; });
 
+  // Show long summary for PDF, hide toggle buttons
+  const shortSummary = document.getElementById("summary-short");
+  const longSummary = document.getElementById("summary-long");
+  const summaryToggle = document.querySelector(".summary-toggle");
+  const origShort = shortSummary.style.display;
+  const origLong = longSummary.style.display;
+  shortSummary.style.display = "none";
+  longSummary.style.display = "block";
+  if (summaryToggle) summaryToggle.style.display = "none";
+
   const actionBtns = document.querySelector(".result-actions");
   actionBtns.style.display = "none";
 
@@ -1472,6 +1615,9 @@ async function printResults() {
   }
 
   drilldowns.forEach((el, i) => el.style.display = origStates[i]);
+  shortSummary.style.display = origShort;
+  longSummary.style.display = origLong;
+  if (summaryToggle) summaryToggle.style.display = "flex";
   actionBtns.style.display = "flex";
   btn.disabled = false;
   btn.textContent = "שמור כ-PDF";
