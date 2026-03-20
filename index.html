@@ -92,7 +92,9 @@
     border-bottom: 1px solid #f0f0f0;
     transition: background 0.15s;
   }
-  .item-row:hover { background: #fafbfc; }
+  .item-row:nth-child(even) { background: #f7f8fa; }
+  .item-row:nth-child(odd) { background: #fff; }
+  .item-row:hover { background: #eef4fb; }
   .item-row:last-child { border-bottom: none; }
   .item-num {
     font-weight: 700;
@@ -138,22 +140,42 @@
     border-color: #3498db;
   }
   /* Scale headers */
-  .scale-header {
+  .scale-header-row {
     display: flex;
-    justify-content: space-between;
-    padding: 4px 8px;
-    margin-bottom: 4px;
+    align-items: flex-end;
+    gap: 8px;
+    padding: 8px 8px 6px;
+    border-bottom: 2px solid #e0e0e0;
+    margin-bottom: 2px;
   }
-  .scale-labels {
+  .sh-num { min-width: 28px; }
+  .sh-text { flex: 1; }
+  .sh-labels {
     display: flex;
     gap: 4px;
     direction: ltr;
-    font-size: 0.65rem;
-    color: #aaa;
   }
-  .scale-labels span {
+  .sh-label {
     width: 36px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+  }
+  .sh-label-text {
+    font-size: 0.6rem;
+    color: #888;
     text-align: center;
+    line-height: 1.15;
+    writing-mode: vertical-rl;
+    transform: rotate(180deg);
+    white-space: nowrap;
+    height: 70px;
+  }
+  .sh-label-num {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: #999;
   }
 
   /* Calculate button */
@@ -420,11 +442,14 @@ function buildForm() {
       </select>
     </div>`;
     html += `<div class="routine-instruction">${r.instruction}</div>`;
-    html += `<div class="scale-header"><span></span><div class="scale-labels">`;
-    scaleLabels.forEach((l, i) => {
-      html += `<span>${i+1}</span>`;
-    });
-    html += `</div></div>`;
+    html += `<div class="scale-header-row">
+      <span class="sh-num"></span>
+      <span class="sh-text"></span>
+      <div class="sh-labels">
+        ${scaleLabels.map((l, i) => `<span class="sh-label"><span class="sh-label-text">${l}</span><span class="sh-label-num">${i+1}</span></span>`).join("")}
+      </div>
+      <span class="sh-num"></span>
+    </div>`;
 
     items.filter(it => it.num >= r.range[0] && it.num <= r.range[1]).forEach(item => {
       html += `<div class="item-row">
@@ -435,6 +460,8 @@ function buildForm() {
         html += `<input type="radio" name="q${item.num}" id="q${item.num}_${v}" value="${v}">`;
         html += `<label for="q${item.num}_${v}">${v}</label>`;
       }
+      html += `</div>
+        <span class="item-num">${item.num}</span>`;
       html += `</div></div>`;
     });
 
