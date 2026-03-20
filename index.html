@@ -1059,7 +1059,9 @@ function calculate() {
   const anonId = document.getElementById("anonId").value || "—";
   const ageText = document.getElementById("calcAge").textContent;
   const ageLabel = document.getElementById("ageGroupDisplay").textContent;
-  const gender = document.getElementById("childGender").value === "male" ? "זכר" : document.getElementById("childGender").value === "female" ? "נקבה" : "";
+  const genderRaw = document.getElementById("childGender").value;
+  const gender = genderRaw === "male" ? "זכר" : genderRaw === "female" ? "נקבה" : "";
+  const isMale = genderRaw === "male";
 
   const routineGroups = {
     morning: { items: items.filter(i => i.routine === "morning") },
@@ -1116,13 +1118,13 @@ function calculate() {
         </div>
       </div>
       <div class="summary-text" id="summary-short">${buildSummaryShort({
-        anonId, gender, ageText, ageLabel,
+        anonId, gender, isMale, ageText, ageLabel,
         morningAvg, playAvg, socialAvg, totalAvg,
         inhAvg, wmAvg, flexAvg,
         c, scores
       })}</div>
       <div class="summary-text" id="summary-long" style="display:none;">${buildSummaryLong({
-        anonId, gender, ageText, ageLabel,
+        anonId, gender, isMale, ageText, ageLabel,
         morningAvg, playAvg, socialAvg, totalAvg,
         inhAvg, wmAvg, flexAvg,
         c, scores
@@ -1231,8 +1233,11 @@ function toggleSummary(mode, btn) {
 
 function buildSummaryShort(d) {
   const belowCutoff = (s, c) => s < c;
-  const efLabels = { inh: "עכבה", wm: "זיכרון עבודה", flex: "גמישות מחשבתית" };
-  const routineLabels = { morning: "בוקר וערב", play: "פנאי ומשחק", social: "שגרה חברתית" };
+  const m = d.isMale; // true = boy, false = girl
+  const child = m ? "הילד" : "הילדה";
+  const shows = m ? "מציג" : "מציגה";
+  const hisAge = m ? "גילו" : "גילה";
+  const struggles = m ? "מתקשה" : "מתקשה";
 
   const routineData = [
     { key: "morning", label: "בוקר וערב", score: d.morningAvg, cutoff: d.c.morning },
@@ -1250,6 +1255,9 @@ function buildSummaryShort(d) {
   const weakEFs = efData.filter(e => belowCutoff(e.score, e.cutoff));
   const okEFs = efData.filter(e => !belowCutoff(e.score, e.cutoff));
   const totalBelow = belowCutoff(d.totalAvg, d.c.total);
+
+  // Get top 3 weakest items for quick evidence
+  const allWeak = items.filter(i => d.scores[i.num] <= 2).sort((a,b) => d.scores[a.num] - d.scores[b.num]).slice(0, 3);
 
   let s = "";
 
@@ -1272,10 +1280,10 @@ function buildSummaryShort(d) {
   s += `<p style="font-size:0.9rem; font-weight:500; background:#f8fafc; padding:12px; border-radius:8px; border-right:3px solid ${totalBelow ? 'var(--red)' : 'var(--green)'};">`;
   if (totalBelow) {
     if (weakEFs.length === 3) {
-      s += `ע"פ שאלון ה-EFORTS, הילד/ה מציג/ה קושי בניהול עצמי של שגרות יום-יום על רקע קשיים בכל שלושת התפקודים הניהוליים. `;
+      s += `ע"פ שאלון ה-EFORTS, ${child} ${shows} קושי בניהול עצמי של שגרות יום-יום על רקע קשיים בכל שלושת התפקודים הניהוליים. `;
       s += `מומלץ להתמקד בבניית שגרות מובנות עם תמיכה חיצונית, ובמיוחד ב${weakRoutines.map(r => r.label).join(" וב")}.`;
     } else if (weakEFs.length > 0) {
-      s += `ע"פ שאלון ה-EFORTS, הילד/ה מציג/ה קושי בניהול עצמי של שגרות, בדגש על ${weakRoutines.map(r => r.label).join(" ו")}. `;
+      s += `ע"פ שאלון ה-EFORTS, ${child} ${shows} קושי בניהול עצמי של שגרות, בדגש על ${weakRoutines.map(r => r.label).join(" ו")}. `;
       s += `הקושי נובע בעיקר מ${weakEFs.map(e => e.label).join(" ומ")}`;
       if (okEFs.length > 0) {
         s += `, בעוד ש${okEFs.map(e => e.label).join(" ו")} ${okEFs.length === 1 ? 'מהווה' : 'מהווים'} חוזקה יחסית`;
@@ -1293,10 +1301,31 @@ function buildSummaryShort(d) {
       s += `ע"פ שאלון ה-EFORTS, הציון הכולל בטווח התקין, אך שגרת ${weakRoutines.map(r => r.label).join(" ו")} מתחת לחתך. `;
       s += `מומלץ לבחון גורמים סביבתיים או חווייתיים בשגרות אלו.`;
     } else {
-      s += `ע"פ שאלון ה-EFORTS, הניהול העצמי של שגרות יום-יום והתפקודים הניהוליים תקינים ביחס לגיל.`;
+      s += `ע"פ שאלון ה-EFORTS, הניהול העצמי של שגרות יום-יום והתפקודים הניהוליים תקינים ביחס ל${hisAge}.`;
     }
   }
   s += `</p>`;
+
+  // Top weak items as quick evidence (if any)
+  if (allWeak.length > 0) {
+    s += `<p style="font-size:0.82rem; color:#334155; margin-top:8px;"><strong>פריטים בולטים:</strong></p>`;
+    s += `<ul style="font-size:0.82rem; margin-top:4px;">`;
+    allWeak.forEach(item => {
+      const scoreLabel = d.scores[item.num] === 1 ? "אף פעם" : "לעיתים רחוקות";
+      s += `<li>"${item.text}" — <strong>${scoreLabel}</strong></li>`;
+    });
+    s += `</ul>`;
+  }
+
+  // Strengths one-liner (if there are any)
+  if (okRoutines.length > 0 || okEFs.length > 0) {
+    const parts = [];
+    if (okRoutines.length > 0) parts.push(`${okRoutines.map(r => r.key === "social" ? "השגרה החברתית" : "שגרת " + r.label).join(" ו")}`);
+    if (okEFs.length > 0) parts.push(`${okEFs.map(e => e.label).join(" ו")}`);
+    if (totalBelow || weakEFs.length > 0 || weakRoutines.length > 0) {
+      s += `<p style="font-size:0.82rem; color:var(--green); margin-top:4px;"><strong>חוזקות:</strong> ${parts.join(", ")} — בטווח התקין.</p>`;
+    }
+  }
 
   s += `<p style="font-size:0.75rem; color:#94a3b8; text-align:center; margin-top:8px; margin-bottom:0;">לפירוט מלא עם פריטים תומכים — לחצו על "מפורט"</p>`;
 
@@ -1305,6 +1334,11 @@ function buildSummaryShort(d) {
 
 function buildSummaryLong(d) {
   const belowCutoff = (s, c) => s < c;
+  const m = d.isMale;
+  const child = m ? "הילד" : "הילדה";
+  const shows = m ? "מציג" : "מציגה";
+  const hisAge = m ? "גילו" : "גילה";
+  const heStruggles = m ? "מתקשה" : "מתקשה";
   const efLabels = { inh: "עכבה", wm: "זיכרון עבודה", flex: "גמישות מחשבתית" };
   const routineLabels = { morning: "בוקר וערב", play: "פנאי ומשחק", social: "שגרה חברתית" };
 
@@ -1340,7 +1374,7 @@ function buildSummaryLong(d) {
   s += `<p><strong>ממצא מרכזי:</strong> `;
   if (totalBelow) {
     s += `הציון הכולל (${d.totalAvg.toFixed(2)}) <span style="color:var(--red);">מתחת לציון החתך</span> (${d.c.total.toFixed(2)}), `;
-    s += `המעיד על קושי בניהול עצמי של שגרות יום-יום ביחס לבני גילו/ה.`;
+    s += `המעיד על קושי בניהול עצמי של שגרות יום-יום ביחס לבני ${hisAge}.`;
   } else {
     s += `הציון הכולל (${d.totalAvg.toFixed(2)}) בטווח התקין. הניהול העצמי של שגרות יום-יום תואם את הצפוי לגיל.`;
   }
@@ -1450,7 +1484,7 @@ function buildSummaryLong(d) {
       const sequenceItems = wmWeak.filter(i => [3, 11, 19].includes(i.num));
       const paceItems = wmWeak.filter(i => [2, 10, 18].includes(i.num));
 
-      if (initiationItems.length > 0) s += `הילד/ה מתקשה ביזימת פעילויות באופן עצמאי. `;
+      if (initiationItems.length > 0) s += `${child} ${heStruggles} ביזימת פעילויות באופן עצמאי. `;
       if (sequenceItems.length > 0) s += `קושי בזכירת רצף הפעילויות ובביצוען לפי הסדר. `;
       if (paceItems.length > 0) s += `צורך בתזכורות חוזרות מצד המבוגר לשמירה על קצב מתאים. `;
     }
@@ -1516,10 +1550,10 @@ function buildSummaryLong(d) {
 
   if (totalBelow) {
     if (weakEFs.length === 3) {
-      s += `ע"פ שאלון ה-EFORTS, הילד/ה מציג/ה קושי בניהול עצמי של שגרות יום-יום על רקע קשיים בכל שלושת התפקודים הניהוליים. `;
+      s += `ע"פ שאלון ה-EFORTS, ${child} ${shows} קושי בניהול עצמי של שגרות יום-יום על רקע קשיים בכל שלושת התפקודים הניהוליים. `;
       s += `מומלץ להתמקד בבניית שגרות מובנות עם תמיכה חיצונית, ובמיוחד ב${weakRoutines.map(r => r.label).join(" וב")}.`;
     } else if (weakEFs.length > 0) {
-      s += `ע"פ שאלון ה-EFORTS, הילד/ה מציג/ה קושי בניהול עצמי של שגרות, בדגש על ${weakRoutines.map(r => r.label).join(" ו")}. `;
+      s += `ע"פ שאלון ה-EFORTS, ${child} ${shows} קושי בניהול עצמי של שגרות, בדגש על ${weakRoutines.map(r => r.label).join(" ו")}. `;
       s += `הקושי נובע בעיקר מ${weakEFs.map(e => e.label).join(" ומ")}`;
       if (okEFs.length > 0) {
         s += `, בעוד ש${okEFs.map(e => e.label).join(" ו")} ${okEFs.length === 1 ? 'מהווה' : 'מהווים'} חוזקה יחסית`;
