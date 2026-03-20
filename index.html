@@ -404,6 +404,53 @@
     margin-bottom: 4px;
   }
 
+  .back-btn {
+    display: block;
+    width: 100%;
+    padding: 12px;
+    margin-top: 8px;
+    background: #3498db;
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  .back-btn:hover { background: #2980b9; }
+
+  /* Custom tooltips */
+  .has-tooltip {
+    position: relative;
+    cursor: help;
+  }
+  .has-tooltip .tooltip-text {
+    visibility: hidden;
+    opacity: 0;
+    position: absolute;
+    z-index: 100;
+    background: #333;
+    color: #fff;
+    padding: 10px 14px;
+    border-radius: 8px;
+    font-size: 0.78rem;
+    line-height: 1.6;
+    width: 240px;
+    text-align: right;
+    bottom: 110%;
+    left: 50%;
+    transform: translateX(-50%);
+    transition: opacity 0.2s;
+    pointer-events: none;
+    white-space: pre-line;
+  }
+  .has-tooltip:hover .tooltip-text,
+  .has-tooltip:focus .tooltip-text {
+    visibility: visible;
+    opacity: 1;
+  }
+
   .section-divider {
     grid-column: 1 / -1;
     text-align: center;
@@ -743,9 +790,14 @@ document.addEventListener("DOMContentLoaded", () => {
 
 // ===== CALCULATE =====
 function calculate() {
+  const birthDate = document.getElementById("birthDate").value;
+  if (!birthDate) {
+    showWarning("יש להזין תאריך לידה לפני חישוב הציונים");
+    return;
+  }
   const ageGroup = document.getElementById("ageGroup").value;
   if (!ageGroup) {
-    showWarning("יש לבחור קבוצת גיל לפני חישוב הציונים");
+    showWarning("הגיל מחוץ לטווח (3-11) — לא ניתן לחשב ציונים");
     return;
   }
 
@@ -840,6 +892,7 @@ function calculate() {
     </div>
 
     <button class="pdf-btn" onclick="printResults()">שמור כ-PDF / הדפס</button>
+    <button class="back-btn" onclick="goBack()">חזרה לשאלון — לשנות תשובות</button>
   `;
 
   resultsDiv.style.display = "block";
@@ -898,9 +951,13 @@ function resultCard(id, label, score, cutoff, cardItems, scores, type) {
 
   return `<div class="result-card ${status} ${isTotal ? 'full-width' : ''} ${hasDetails ? 'clickable' : ''}" ${hasDetails ? `onclick="toggleDrill('${id}')"` : ''}>
     <div class="result-label">${label} ${hasDetails ? '<span class="drill-arrow" id="arrow_' + id + '">&#9660;</span>' : ''}</div>
-    <div class="result-score" title="ממוצע על סולם 1-5:\n1.0-2.0 = קושי משמעותי (אף פעם / לעיתים רחוקות)\n2.0-3.0 = מתחת לממוצע\n3.0-4.0 = בטווח הממוצע\n4.0-5.0 = חזק (לעיתים קרובות / תמיד)">${score.toFixed(2)}</div>
+    <div class="result-score has-tooltip" tabindex="0">${score.toFixed(2)}<span class="tooltip-text">ממוצע על סולם 1-5:
+1.0-2.0 = קושי משמעותי
+2.0-3.0 = מתחת לממוצע
+3.0-4.0 = בטווח הממוצע
+4.0-5.0 = חזק</span></div>
     <div class="result-interp">${interp}</div>
-    <div class="result-cutoff" title="ציון חתך = 1.5 סטיות תקן מתחת לממוצע הנורמטיבי לקבוצת הגיל">ציון חתך: ${cutoff.toFixed(2)}</div>
+    <div class="result-cutoff has-tooltip" tabindex="0">ציון חתך: ${cutoff.toFixed(2)}<span class="tooltip-text">ציון חתך = 1.5 סטיות תקן מתחת לממוצע הנורמטיבי לקבוצת הגיל. ציון מתחת לחתך מעיד על חשד לעיכוב.</span></div>
     <div class="result-status">${statusText}</div>
     ${detailsHtml}
   </div>`;
@@ -1083,6 +1140,12 @@ function showWarning(msg) {
 }
 function hideWarning() {
   document.getElementById("warning").style.display = "none";
+}
+
+function goBack() {
+  document.getElementById("results").style.display = "none";
+  document.getElementById("resetRow").style.display = "none";
+  document.getElementById("questionnaire").scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
 function resetForm() {
