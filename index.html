@@ -1300,7 +1300,7 @@ function buildSummary(d) {
     const morningBelow = belowCutoff(d.morningAvg, d.c.morning);
     if (morningBelow) {
       s += `<p style="font-size:0.85rem; margin-bottom:10px;">`;
-      s += `<strong>שגרת בוקר וערב</strong> היא ${weakRoutines.length > 1 && morningWeak.length >= socialWeak.length ? "התחום החלש ביותר" : "מתחת לחתך"}. `;
+      s += `<strong>שגרת בוקר וערב</strong> (${d.morningAvg.toFixed(2)}, חתך ${d.c.morning.toFixed(2)}) היא ${weakRoutines.length > 1 && morningWeak.length >= socialWeak.length ? "התחום החלש ביותר" : "מתחת לחתך"}. `;
 
       // Weave in WM items — initiation, sequence, pace
       const initItems = morningWeak.filter(i => [1, 9].includes(i.num));
@@ -1345,7 +1345,7 @@ function buildSummary(d) {
     const socialBelow = belowCutoff(d.socialAvg, d.c.social);
     if (socialBelow) {
       s += `<p style="font-size:0.85rem; margin-bottom:10px;">`;
-      s += `<strong>במישור החברתי</strong> — `;
+      s += `<strong>במישור החברתי</strong> (${d.socialAvg.toFixed(2)}, חתך ${d.c.social.toFixed(2)}) — `;
 
       // Check for the "never" outlier (item 24 is often the lowest)
       const socialItem24 = d.scores[24];
@@ -1382,7 +1382,7 @@ function buildSummary(d) {
     const playBelow = belowCutoff(d.playAvg, d.c.play);
     if (playBelow) {
       s += `<p style="font-size:0.85rem; margin-bottom:10px;">`;
-      s += `<strong>פנאי ומשחק</strong> גם מתחת לחתך. `;
+      s += `<strong>פנאי ומשחק</strong> (${d.playAvg.toFixed(2)}, חתך ${d.c.play.toFixed(2)}) גם מתחת לחתך. `;
       if (playWeak.length > 0) {
         const examples = playWeak.slice(0, 2).map(i => {
           if (i.num === 17) return `לא ${m ? "בוחר" : "בוחרת"} משחקים ${m ? "ביוזמתו" : "ביוזמתה"}`;
@@ -1395,7 +1395,7 @@ function buildSummary(d) {
       s += `</p>`;
     } else if (okRoutines.some(r => r.key === "play")) {
       s += `<p style="font-size:0.85rem; margin-bottom:10px;">`;
-      s += `<strong>פנאי ומשחק</strong> בטווח התקין`;
+      s += `<strong>פנאי ומשחק</strong> (${d.playAvg.toFixed(2)}, חתך ${d.c.play.toFixed(2)}) בטווח התקין`;
       // Weave in what works
       const playStrongExamples = [];
       if (playStrong.some(i => i.num === 17)) playStrongExamples.push(`${m ? "בוחר" : "בוחרת"} משחקים ${m ? "ביוזמתו" : "ביוזמתה"}`);
@@ -1409,9 +1409,12 @@ function buildSummary(d) {
     }
 
   } else {
-    // All routines OK — brief note
+    // All routines OK — list each with score
     s += `<p style="font-size:0.85rem; margin-bottom:10px;">`;
-    s += `כל השגרות בטווח התקין. `;
+    s += `כל השגרות בטווח התקין: `;
+    s += `בוקר וערב (${d.morningAvg.toFixed(2)}), `;
+    s += `פנאי ומשחק (${d.playAvg.toFixed(2)}), `;
+    s += `שגרה חברתית (${d.socialAvg.toFixed(2)}). `;
     const allMid = midItems(items);
     if (allMid.length > 3) {
       s += `${allMid.length} פריטים דורגו "לפעמים" — ייתכן שכדאי לעקוב אחריהם.`;
@@ -1428,7 +1431,7 @@ function buildSummary(d) {
 
     // Weak EFs — explain what each means in plain language
     if (wmBelow) {
-      s += `<strong>זיכרון עבודה ↓</strong> — `;
+      s += `<strong>זיכרון עבודה ↓</strong> (${d.wmAvg.toFixed(2)}, חתך ${d.c.wm.toFixed(2)}) — `;
       const wmExplanations = [];
       const wmWeak = weakItems(items.filter(i => i.ef === "wm"));
       if (wmWeak.some(i => [1, 9, 17].includes(i.num))) wmExplanations.push(`${doesnt} ${m ? "מתניע" : "מתניעה"} לבד`);
@@ -1439,7 +1442,7 @@ function buildSummary(d) {
       s += `. `;
     }
     if (flexBelow) {
-      s += `<strong>גמישות מחשבתית ↓</strong> — `;
+      s += `<strong>גמישות מחשבתית ↓</strong> (${d.flexAvg.toFixed(2)}, חתך ${d.c.flex.toFixed(2)}) — `;
       const flexExplanations = [];
       const flexWeak = weakItems(items.filter(i => i.ef === "flex"));
       if (flexWeak.some(i => [5, 13, 28].includes(i.num))) flexExplanations.push(`${doesnt} ${m ? "פותר" : "פותרת"} בעיות שצצות`);
@@ -1449,7 +1452,7 @@ function buildSummary(d) {
       s += `. `;
     }
     if (inhBelow) {
-      s += `<strong>עכבה ↓</strong> — `;
+      s += `<strong>עכבה ↓</strong> (${d.inhAvg.toFixed(2)}, חתך ${d.c.inh.toFixed(2)}) — `;
       const inhExplanations = [];
       const inhWeak = weakItems(items.filter(i => i.ef === "inh"));
       if (inhWeak.some(i => [6, 14].includes(i.num))) inhExplanations.push(`${m ? "מוסח" : "מוסחת"} מגירויים`);
@@ -1461,7 +1464,7 @@ function buildSummary(d) {
 
     // Intact EFs — explain what that MEANS (the interpretive line)
     if (okEFs.length > 0) {
-      s += `<br><strong>${okEFs.map(e => e.label).join(" ו")} ${okEFs.length === 1 ? "תקין" : "תקינים"}</strong> — `;
+      s += `<br><strong>${okEFs.map(e => `${e.label} (${e.score.toFixed(2)})`).join(" ו")} ${okEFs.length === 1 ? "תקין" : "תקינים"}</strong> — `;
 
       // Generate an interpretive line based on which EFs are intact
       if (!inhBelow && (wmBelow || flexBelow)) {
@@ -1491,13 +1494,13 @@ function buildSummary(d) {
   if (weakEFs.length === 0 && weakRoutines.length > 0) {
     s += `<p style="font-weight:700; color:var(--primary); font-size:0.88rem; margin-bottom:6px;">מה מניע את זה?</p>`;
     s += `<p style="font-size:0.85rem;">`;
-    s += `כל התפקודים הניהוליים בטווח התקין. הקושי בשגרות ייתכן שנובע מגורמים סביבתיים, חווייתיים, או הרגלים — לא מבעיה בתפקודים הניהוליים עצמם.`;
+    s += `כל התפקודים הניהוליים בטווח התקין: עכבה (${d.inhAvg.toFixed(2)}), זיכרון עבודה (${d.wmAvg.toFixed(2)}), גמישות מחשבתית (${d.flexAvg.toFixed(2)}). הקושי בשגרות ייתכן שנובע מגורמים סביבתיים, חווייתיים, או הרגלים — לא מבעיה בתפקודים הניהוליים עצמם.`;
     s += `</p>`;
   }
 
   // All OK — no block 3 needed
   if (weakEFs.length === 0 && weakRoutines.length === 0) {
-    s += `<p style="font-size:0.85rem; margin-top:8px;">כל התפקודים הניהוליים תקינים ביחס לגיל.</p>`;
+    s += `<p style="font-size:0.85rem; margin-top:8px;">כל התפקודים הניהוליים תקינים ביחס לגיל: עכבה (${d.inhAvg.toFixed(2)}), זיכרון עבודה (${d.wmAvg.toFixed(2)}), גמישות מחשבתית (${d.flexAvg.toFixed(2)}).</p>`;
   }
 
   return s;
