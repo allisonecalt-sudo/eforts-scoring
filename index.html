@@ -727,8 +727,24 @@
           </select>
         </div>
         <div class="info-field">
-          <label for="birthDate">תאריך לידה</label>
-          <input type="date" id="birthDate">
+          <label>תאריך לידה</label>
+          <div style="display:flex; gap:8px; direction:ltr;">
+            <select id="birthDay" style="flex:1; padding:8px; border:1px solid var(--border); border-radius:8px; font-family:inherit; font-size:0.9rem;">
+              <option value="">יום</option>
+            </select>
+            <select id="birthMonth" style="flex:1.2; padding:8px; border:1px solid var(--border); border-radius:8px; font-family:inherit; font-size:0.9rem;">
+              <option value="">חודש</option>
+              <option value="0">ינואר</option><option value="1">פברואר</option>
+              <option value="2">מרץ</option><option value="3">אפריל</option>
+              <option value="4">מאי</option><option value="5">יוני</option>
+              <option value="6">יולי</option><option value="7">אוגוסט</option>
+              <option value="8">ספטמבר</option><option value="9">אוקטובר</option>
+              <option value="10">נובמבר</option><option value="11">דצמבר</option>
+            </select>
+            <select id="birthYear" style="flex:1; padding:8px; border:1px solid var(--border); border-radius:8px; font-family:inherit; font-size:0.9rem;">
+              <option value="">שנה</option>
+            </select>
+          </div>
         </div>
         <div class="info-field">
           <label>גיל</label>
@@ -871,7 +887,7 @@ function updateProgress() {
 
 // ===== AGE =====
 function updateAge() {
-  const birthInput = document.getElementById("birthDate").value;
+  const birthInput = getBirthDateValue();
   const fillInput = document.getElementById("fillDate").value;
   if (!birthInput || !fillInput) return;
 
@@ -916,7 +932,7 @@ function saveForm() {
   const data = {
     anonId: document.getElementById("anonId").value,
     gender: document.getElementById("childGender").value,
-    birthDate: document.getElementById("birthDate").value,
+    birthDate: getBirthDateValue(),
     fillDate: document.getElementById("fillDate").value,
     companions: {
       morning: document.getElementById("companion_morning")?.value || "",
@@ -941,7 +957,7 @@ function loadForm() {
   const data = JSON.parse(raw);
   if (data.anonId) document.getElementById("anonId").value = data.anonId;
   if (data.gender) document.getElementById("childGender").value = data.gender;
-  if (data.birthDate) document.getElementById("birthDate").value = data.birthDate;
+  if (data.birthDate) setBirthDateValue(data.birthDate);
   if (data.fillDate) document.getElementById("fillDate").value = data.fillDate;
   if (data.companions) {
     ["morning", "play", "social"].forEach(k => {
@@ -959,17 +975,55 @@ function loadForm() {
   updateProgress();
 }
 
+function populateBirthDropdowns() {
+  const dayEl = document.getElementById("birthDay");
+  for (let d = 1; d <= 31; d++) {
+    const opt = document.createElement("option");
+    opt.value = d; opt.textContent = d;
+    dayEl.appendChild(opt);
+  }
+  const yearEl = document.getElementById("birthYear");
+  const currentYear = new Date().getFullYear();
+  for (let y = currentYear; y >= currentYear - 15; y--) {
+    const opt = document.createElement("option");
+    opt.value = y; opt.textContent = y;
+    yearEl.appendChild(opt);
+  }
+}
+
+function getBirthDateValue() {
+  const d = document.getElementById("birthDay").value;
+  const m = document.getElementById("birthMonth").value;
+  const y = document.getElementById("birthYear").value;
+  if (!d || m === "" || !y) return "";
+  const mm = String(parseInt(m) + 1).padStart(2, "0");
+  const dd = String(d).padStart(2, "0");
+  return `${y}-${mm}-${dd}`;
+}
+
+function setBirthDateValue(dateStr) {
+  if (!dateStr) return;
+  const parts = dateStr.split("-");
+  if (parts.length !== 3) return;
+  document.getElementById("birthYear").value = parseInt(parts[0]);
+  document.getElementById("birthMonth").value = parseInt(parts[1]) - 1;
+  document.getElementById("birthDay").value = parseInt(parts[2]);
+}
+
 document.addEventListener("DOMContentLoaded", () => {
+  populateBirthDropdowns();
   buildForm();
   document.getElementById("fillDate").valueAsDate = new Date();
   loadForm();
-  document.getElementById("birthDate").addEventListener("change", updateAge);
+  document.getElementById("birthDay").addEventListener("change", updateAge);
+  document.getElementById("birthMonth").addEventListener("change", updateAge);
+  document.getElementById("birthYear").addEventListener("change", updateAge);
   document.getElementById("fillDate").addEventListener("change", updateAge);
 });
 
 // ===== CALCULATE =====
 function calculate() {
-  const birthDate = document.getElementById("birthDate").value;
+  const birthDate = getBirthDateValue();
   if (!birthDate) {
     showWarning("יש להזין תאריך לידה לפני חישוב הציונים");
     return;
@@ -1603,7 +1657,9 @@ function resetForm() {
   document.querySelectorAll('input[type="radio"]').forEach(r => r.checked = false);
   document.getElementById("anonId").value = "";
   document.getElementById("childGender").value = "";
-  document.getElementById("birthDate").value = "";
+  document.getElementById("birthDay").value = "";
+  document.getElementById("birthMonth").value = "";
+  document.getElementById("birthYear").value = "";
   document.getElementById("calcAge").textContent = "—";
   document.getElementById("calcAge").className = "computed";
   document.getElementById("ageGroupDisplay").textContent = "—";
