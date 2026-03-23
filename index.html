@@ -726,13 +726,13 @@
             <option value="female">נקבה</option>
           </select>
         </div>
-        <div class="info-field">
+        <div class="info-field" style="grid-column: 1 / -1;">
           <label>תאריך לידה</label>
-          <div style="display:flex; gap:8px; direction:ltr;">
-            <select id="birthDay" style="flex:1; padding:8px; border:1px solid var(--border); border-radius:8px; font-family:inherit; font-size:0.9rem;">
+          <div style="display:flex; gap:10px; direction:ltr;">
+            <select id="birthDay" style="flex:1; padding:10px 12px; border:1.5px solid var(--border); border-radius:8px; font-family:inherit; font-size:0.9rem; background:#fafbfc;">
               <option value="">יום</option>
             </select>
-            <select id="birthMonth" style="flex:1.2; padding:8px; border:1px solid var(--border); border-radius:8px; font-family:inherit; font-size:0.9rem;">
+            <select id="birthMonth" style="flex:1.5; padding:10px 12px; border:1.5px solid var(--border); border-radius:8px; font-family:inherit; font-size:0.9rem; background:#fafbfc;">
               <option value="">חודש</option>
               <option value="0">ינואר</option><option value="1">פברואר</option>
               <option value="2">מרץ</option><option value="3">אפריל</option>
@@ -741,7 +741,7 @@
               <option value="8">ספטמבר</option><option value="9">אוקטובר</option>
               <option value="10">נובמבר</option><option value="11">דצמבר</option>
             </select>
-            <select id="birthYear" style="flex:1; padding:8px; border:1px solid var(--border); border-radius:8px; font-family:inherit; font-size:0.9rem;">
+            <select id="birthYear" style="flex:1; padding:10px 12px; border:1.5px solid var(--border); border-radius:8px; font-family:inherit; font-size:0.9rem; background:#fafbfc;">
               <option value="">שנה</option>
             </select>
           </div>
@@ -755,9 +755,25 @@
           <div class="computed" id="ageGroupDisplay">—</div>
           <input type="hidden" id="ageGroup">
         </div>
-        <div class="info-field">
-          <label for="fillDate">תאריך מילוי</label>
-          <input type="date" id="fillDate">
+        <div class="info-field" style="grid-column: 1 / -1;">
+          <label>תאריך מילוי</label>
+          <div style="display:flex; gap:10px; direction:ltr;">
+            <select id="fillDay" style="flex:1; padding:10px 12px; border:1.5px solid var(--border); border-radius:8px; font-family:inherit; font-size:0.9rem; background:#fafbfc;">
+              <option value="">יום</option>
+            </select>
+            <select id="fillMonth" style="flex:1.5; padding:10px 12px; border:1.5px solid var(--border); border-radius:8px; font-family:inherit; font-size:0.9rem; background:#fafbfc;">
+              <option value="">חודש</option>
+              <option value="0">ינואר</option><option value="1">פברואר</option>
+              <option value="2">מרץ</option><option value="3">אפריל</option>
+              <option value="4">מאי</option><option value="5">יוני</option>
+              <option value="6">יולי</option><option value="7">אוגוסט</option>
+              <option value="8">ספטמבר</option><option value="9">אוקטובר</option>
+              <option value="10">נובמבר</option><option value="11">דצמבר</option>
+            </select>
+            <select id="fillYear" style="flex:1; padding:10px 12px; border:1.5px solid var(--border); border-radius:8px; font-family:inherit; font-size:0.9rem; background:#fafbfc;">
+              <option value="">שנה</option>
+            </select>
+          </div>
         </div>
       </div>
     </div>
@@ -888,7 +904,7 @@ function updateProgress() {
 // ===== AGE =====
 function updateAge() {
   const birthInput = getBirthDateValue();
-  const fillInput = document.getElementById("fillDate").value;
+  const fillInput = getFillDateValue();
   if (!birthInput || !fillInput) return;
 
   const birth = new Date(birthInput);
@@ -933,7 +949,7 @@ function saveForm() {
     anonId: document.getElementById("anonId").value,
     gender: document.getElementById("childGender").value,
     birthDate: getBirthDateValue(),
-    fillDate: document.getElementById("fillDate").value,
+    fillDate: getFillDateValue(),
     companions: {
       morning: document.getElementById("companion_morning")?.value || "",
       play: document.getElementById("companion_play")?.value || "",
@@ -958,7 +974,7 @@ function loadForm() {
   if (data.anonId) document.getElementById("anonId").value = data.anonId;
   if (data.gender) document.getElementById("childGender").value = data.gender;
   if (data.birthDate) setBirthDateValue(data.birthDate);
-  if (data.fillDate) document.getElementById("fillDate").value = data.fillDate;
+  if (data.fillDate) setFillDateValue(data.fillDate);
   if (data.companions) {
     ["morning", "play", "social"].forEach(k => {
       const el = document.getElementById("companion_" + k);
@@ -1010,15 +1026,78 @@ function setBirthDateValue(dateStr) {
   document.getElementById("birthDay").value = parseInt(parts[2]);
 }
 
+function populateFillDropdowns() {
+  const dayEl = document.getElementById("fillDay");
+  for (let d = 1; d <= 31; d++) {
+    const opt = document.createElement("option");
+    opt.value = d; opt.textContent = d;
+    dayEl.appendChild(opt);
+  }
+  const yearEl = document.getElementById("fillYear");
+  const currentYear = new Date().getFullYear();
+  for (let y = currentYear; y >= currentYear - 3; y--) {
+    const opt = document.createElement("option");
+    opt.value = y; opt.textContent = y;
+    yearEl.appendChild(opt);
+  }
+}
+
+function getFillDateValue() {
+  const d = document.getElementById("fillDay").value;
+  const m = document.getElementById("fillMonth").value;
+  const y = document.getElementById("fillYear").value;
+  if (!d || m === "" || !y) return "";
+  const mm = String(parseInt(m) + 1).padStart(2, "0");
+  const dd = String(d).padStart(2, "0");
+  return `${y}-${mm}-${dd}`;
+}
+
+function setFillDateValue(dateStr) {
+  if (!dateStr) return;
+  const parts = dateStr.split("-");
+  if (parts.length !== 3) return;
+  document.getElementById("fillYear").value = parseInt(parts[0]);
+  document.getElementById("fillMonth").value = parseInt(parts[1]) - 1;
+  document.getElementById("fillDay").value = parseInt(parts[2]);
+}
+
+function setFillDateToToday() {
+  const now = new Date();
+  document.getElementById("fillDay").value = now.getDate();
+  document.getElementById("fillMonth").value = now.getMonth();
+  document.getElementById("fillYear").value = now.getFullYear();
+}
+
 document.addEventListener("DOMContentLoaded", () => {
   populateBirthDropdowns();
+  populateFillDropdowns();
   buildForm();
-  document.getElementById("fillDate").valueAsDate = new Date();
+  setFillDateToToday();
   loadForm();
   document.getElementById("birthDay").addEventListener("change", updateAge);
   document.getElementById("birthMonth").addEventListener("change", updateAge);
   document.getElementById("birthYear").addEventListener("change", updateAge);
-  document.getElementById("fillDate").addEventListener("change", updateAge);
+  document.getElementById("fillDay").addEventListener("change", updateAge);
+  document.getElementById("fillMonth").addEventListener("change", updateAge);
+  document.getElementById("fillYear").addEventListener("change", updateAge);
+
+  // Auto-save on any change
+  document.querySelectorAll('input[type="radio"]').forEach(r => {
+    r.addEventListener("change", () => { saveForm(); updateProgress(); });
+  });
+  document.querySelectorAll("#anonId, #childGender, #birthDay, #birthMonth, #birthYear, #fillDay, #fillMonth, #fillYear").forEach(el => {
+    el.addEventListener("change", saveForm);
+  });
+
+  // Auto-calculate on load if form has saved answers
+  const saved = localStorage.getItem("eforts_save");
+  if (saved) {
+    const data = JSON.parse(saved);
+    if (data.answers && Object.keys(data.answers).length === items.length && data.birthDate) {
+      updateAge();
+      setTimeout(calculate, 100);
+    }
+  }
 });
 
 // ===== CALCULATE =====
@@ -1384,10 +1463,14 @@ function buildSummary(d) {
       s += `<p style="font-size:0.85rem; margin-bottom:10px;">`;
       s += `<strong>פנאי ומשחק</strong> (${d.playAvg.toFixed(2)}, חתך ${d.c.play.toFixed(2)}) גם מתחת לחתך. `;
       if (playWeak.length > 0) {
-        const examples = playWeak.slice(0, 2).map(i => {
-          if (i.num === 17) return `לא ${m ? "בוחר" : "בוחרת"} משחקים ${m ? "ביוזמתו" : "ביוזמתה"}`;
-          if (i.num === 22) return `לא ${m ? "מתכנן" : "מתכננת"} לפני שמתחיל`;
-          if (i.num === 23) return `${m ? "עובר" : "עוברת"} ממשחק למשחק ללא סיום`;
+        const examples = playWeak.map(i => {
+          if (i.num === 17) return `לא ${m ? "בוחר" : "בוחרת"} משחקים ${m ? "ביוזמתו" : "ביוזמתה"} (פריט ${i.num})`;
+          if (i.num === 18) return `לא ${m ? "משחק" : "משחקת"} בקצב מתאים (פריט ${i.num})`;
+          if (i.num === 19) return `לא ${m ? "משחק" : "משחקת"} לפי שלבי המשחק בסדר (פריט ${i.num})`;
+          if (i.num === 20) return `לא ${m ? "משחק" : "משחקת"} לפי כללי המשחק (פריט ${i.num})`;
+          if (i.num === 21) return `${m ? "מוסח" : "מוסחת"} במהלך משחק — ${m ? "מסתובב" : "מסתובבת"} או ${m ? "נוגע" : "נוגעת"} במשחקים אחרים (פריט ${i.num})`;
+          if (i.num === 22) return `לא ${m ? "מתכנן" : "מתכננת"} לפני שמתחיל (פריט ${i.num})`;
+          if (i.num === 23) return `${m ? "עובר" : "עוברת"} ממשחק למשחק ללא סיום (פריט ${i.num})`;
           return `קושי בפריט ${i.num}`;
         });
         s += examples.join("; ") + `. `;
@@ -1431,7 +1514,7 @@ function buildSummary(d) {
 
     // Weak EFs — explain what each means in plain language
     if (wmBelow) {
-      s += `<strong>זיכרון עבודה ↓</strong> (${d.wmAvg.toFixed(2)}, חתך ${d.c.wm.toFixed(2)}) — `;
+      s += `<strong>זיכרון עבודה</strong> (${d.wmAvg.toFixed(2)}, חתך ${d.c.wm.toFixed(2)}) — `;
       const wmExplanations = [];
       const wmWeak = weakItems(items.filter(i => i.ef === "wm"));
       if (wmWeak.some(i => [1, 9, 17].includes(i.num))) wmExplanations.push(`${doesnt} ${m ? "מתניע" : "מתניעה"} לבד`);
@@ -1442,7 +1525,7 @@ function buildSummary(d) {
       s += `. `;
     }
     if (flexBelow) {
-      s += `<strong>גמישות מחשבתית ↓</strong> (${d.flexAvg.toFixed(2)}, חתך ${d.c.flex.toFixed(2)}) — `;
+      s += `<strong>גמישות מחשבתית</strong> (${d.flexAvg.toFixed(2)}, חתך ${d.c.flex.toFixed(2)}) — `;
       const flexExplanations = [];
       const flexWeak = weakItems(items.filter(i => i.ef === "flex"));
       if (flexWeak.some(i => [5, 13, 28].includes(i.num))) flexExplanations.push(`${doesnt} ${m ? "פותר" : "פותרת"} בעיות שצצות`);
@@ -1452,7 +1535,7 @@ function buildSummary(d) {
       s += `. `;
     }
     if (inhBelow) {
-      s += `<strong>עכבה ↓</strong> (${d.inhAvg.toFixed(2)}, חתך ${d.c.inh.toFixed(2)}) — `;
+      s += `<strong>עכבה</strong> (${d.inhAvg.toFixed(2)}, חתך ${d.c.inh.toFixed(2)}) — `;
       const inhExplanations = [];
       const inhWeak = weakItems(items.filter(i => i.ef === "inh"));
       if (inhWeak.some(i => [6, 14].includes(i.num))) inhExplanations.push(`${m ? "מוסח" : "מוסחת"} מגירויים`);
@@ -1667,7 +1750,7 @@ function resetForm() {
   document.getElementById("ageGroupDisplay").textContent = "—";
   document.getElementById("ageGroupDisplay").className = "computed";
   document.getElementById("ageGroup").value = "";
-  document.getElementById("fillDate").valueAsDate = new Date();
+  setFillDateToToday();
   ["morning", "play", "social"].forEach(k => {
     const el = document.getElementById("companion_" + k);
     if (el) el.value = "";
