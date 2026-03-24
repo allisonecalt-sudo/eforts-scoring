@@ -5,8 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>EFORTS — קידוד שאלון</title>
 <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<!-- PDF generated via browser print dialog — no heavy libraries needed -->
 <style>
   :root {
     --blue: #0077b6;
@@ -1309,6 +1308,16 @@ function buildSummary(d) {
   const shows = m ? "מציג" : "מציגה";
   const hisAge = m ? "גילו" : "גילה";
 
+  // Helper: format item references like (פריט 17, ציון 2 — לעיתים רחוקות)
+  const scoreLabel = ["", "אף פעם", "לעיתים רחוקות", "לפעמים", "לעיתים קרובות", "תמיד"];
+  const ref = (nums) => {
+    const matched = (Array.isArray(nums) ? nums : [nums]).filter(n => d.scores[n] !== undefined);
+    if (matched.length === 0) return "";
+    return " (" + matched.map(n => `פריט ${n}: ${scoreLabel[d.scores[n]]}`).join("; ") + ")";
+  };
+  // Helper: get matching item numbers from a filtered list
+  const matchNums = (itemList, filterNums) => itemList.filter(i => filterNums.includes(i.num)).map(i => i.num);
+
   const routineData = [
     { key: "morning", label: "בוקר וערב", score: d.morningAvg, cutoff: d.c.morning },
     { key: "play", label: "פנאי ומשחק", score: d.playAvg, cutoff: d.c.play },
@@ -1428,19 +1437,19 @@ function buildSummary(d) {
 
       if (initItems.length > 0) {
         const when = initItems.length > 1 ? "בבוקר ובערב" : initItems[0].num <= 9 && initItems[0].num >= 1 ? "בבוקר" : "בערב";
-        difficulties.push(`לא ${m ? "מתחיל" : "מתחילה"} ${when} פעילויות ${m ? "ביוזמתו" : "ביוזמתה"} (כמו התלבשות, צחצוח שיניים, לבישת פיג׳מה)`);
+        difficulties.push(`לא ${m ? "מתחיל" : "מתחילה"} ${when} פעילויות ${m ? "ביוזמתו" : "ביוזמתה"} (כמו התלבשות, צחצוח שיניים, לבישת פיג׳מה)${ref(initItems.map(i => i.num))}`);
       }
       if (paceItems.length > 0) {
-        difficulties.push(`${m ? "צריך" : "צריכה"} תזכורות חוזרות כדי לשמור על קצב`);
+        difficulties.push(`${m ? "צריך" : "צריכה"} תזכורות חוזרות כדי לשמור על קצב${ref(paceItems.map(i => i.num))}`);
       }
       if (seqItems.length > 0) {
-        difficulties.push(`לא ${m ? "זוכר" : "זוכרת"} את רצף הפעילויות (מה עושים קודם, מה אחר כך)`);
+        difficulties.push(`לא ${m ? "זוכר" : "זוכרת"} את רצף הפעילויות (מה עושים קודם, מה אחר כך)${ref(seqItems.map(i => i.num))}`);
       }
       if (rulesItems.length > 0) {
-        difficulties.push(`לא ${m ? "מתארגן" : "מתארגנת"} לפי כללי הבית (כמו שטיפת ידיים, פינוי צלחת, הנחת בגדים)`);
+        difficulties.push(`לא ${m ? "מתארגן" : "מתארגנת"} לפי כללי הבית (כמו שטיפת ידיים, פינוי צלחת, הנחת בגדים)${ref(rulesItems.map(i => i.num))}`);
       }
       if (qualityItems.length > 0) {
-        difficulties.push(`לא ${m ? "מקפיד" : "מקפידה"} על איכות הביצוע (כמו בדיקה שהבגדים לא הפוכים)`);
+        difficulties.push(`לא ${m ? "מקפיד" : "מקפידה"} על איכות הביצוע (כמו בדיקה שהבגדים לא הפוכים)${ref(qualityItems.map(i => i.num))}`);
       }
 
       if (difficulties.length > 0) {
@@ -1450,9 +1459,10 @@ function buildSummary(d) {
       // Strengths
       if (morningStrong.length > 0) {
         const strengths = [];
-        if (morningStrong.some(i => [8, 16].includes(i.num))) strengths.push(`${m ? "מסיים" : "מסיימת"} מה ש${m ? "מתחיל" : "מתחילה"}`);
-        if (morningStrong.some(i => [6, 14].includes(i.num))) strengths.push(`${m ? "מצליח" : "מצליחה"} להתעלם מגירויים מסיחים`);
-        if (morningStrong.some(i => [5, 13].includes(i.num))) strengths.push(`${m ? "פותר" : "פותרת"} בעיות שצצות`);
+        if (morningStrong.some(i => [8, 16].includes(i.num))) strengths.push(`${m ? "מסיים" : "מסיימת"} מה ש${m ? "מתחיל" : "מתחילה"}${ref(matchNums(morningStrong, [8, 16]))}`);
+        if (morningStrong.some(i => [6, 14].includes(i.num))) strengths.push(`${m ? "מצליח" : "מצליחה"} להתעלם מגירויים מסיחים${ref(matchNums(morningStrong, [6, 14]))}`);
+        if (morningStrong.some(i => [5, 13].includes(i.num))) strengths.push(`${m ? "פותר" : "פותרת"} בעיות שצצות${ref(matchNums(morningStrong, [5, 13]))}`);
+
         if (strengths.length > 0) {
           s += `חוזקות: ${strengths.join(", ")}. `;
         }
@@ -1467,13 +1477,14 @@ function buildSummary(d) {
       s += `<strong>פנאי ומשחק:</strong> `;
 
       const difficulties = [];
-      if (playWeak.some(i => i.num === 17)) difficulties.push(`לא ${m ? "בוחר" : "בוחרת"} משחקים ${m ? "ביוזמתו" : "ביוזמתה"}`);
-      if (playWeak.some(i => i.num === 22)) difficulties.push(`לא ${m ? "מתכנן" : "מתכננת"} לפני תחילת משחק (לא ${m ? "מדמיין" : "מדמיינת"} מה ${m ? "רוצה" : "רוצה"} לבנות או לצייר)`);
-      if (playWeak.some(i => i.num === 18)) difficulties.push(`לא ${m ? "משחק" : "משחקת"} בקצב מתאים`);
-      if (playWeak.some(i => i.num === 19)) difficulties.push(`לא ${m ? "משחק" : "משחקת"} לפי שלבי המשחק בסדר הנכון`);
-      if (playWeak.some(i => i.num === 20)) difficulties.push(`${m ? "מתקשה" : "מתקשה"} לשחק לפי כללים (כמו לחכות לתור)`);
-      if (playWeak.some(i => i.num === 21)) difficulties.push(`${m ? "מוסח" : "מוסחת"} במהלך משחק — ${m ? "מסתובב" : "מסתובבת"} בחדר או ${m ? "נוגע" : "נוגעת"} במשחקים אחרים`);
-      if (playWeak.some(i => i.num === 23)) difficulties.push(`${m ? "עובר" : "עוברת"} ממשחק למשחק בלי לסיים`);
+      if (playWeak.some(i => i.num === 17)) difficulties.push(`לא ${m ? "בוחר" : "בוחרת"} משחקים ${m ? "ביוזמתו" : "ביוזמתה"}${ref(17)}`);
+      if (playWeak.some(i => i.num === 22)) difficulties.push(`לא ${m ? "מתכנן" : "מתכננת"} לפני תחילת משחק (לא ${m ? "מדמיין" : "מדמיינת"} מה ${m ? "רוצה" : "רוצה"} לבנות או לצייר)${ref(22)}`);
+      if (playWeak.some(i => i.num === 18)) difficulties.push(`לא ${m ? "משחק" : "משחקת"} בקצב מתאים${ref(18)}`);
+      if (playWeak.some(i => i.num === 19)) difficulties.push(`לא ${m ? "משחק" : "משחקת"} לפי שלבי המשחק בסדר הנכון${ref(19)}`);
+      if (playWeak.some(i => i.num === 20)) difficulties.push(`${m ? "מתקשה" : "מתקשה"} לשחק לפי כללים (כמו לחכות לתור)${ref(20)}`);
+      if (playWeak.some(i => i.num === 21)) difficulties.push(`${m ? "מוסח" : "מוסחת"} במהלך משחק — ${m ? "מסתובב" : "מסתובבת"} בחדר או ${m ? "נוגע" : "נוגעת"} במשחקים אחרים${ref(21)}`);
+      if (playWeak.some(i => i.num === 23)) difficulties.push(`${m ? "עובר" : "עוברת"} ממשחק למשחק בלי לסיים${ref(23)}`);
+
 
       if (difficulties.length > 0) {
         s += difficulties.join("; ") + `. `;
@@ -1481,9 +1492,10 @@ function buildSummary(d) {
 
       if (playStrong.length > 0) {
         const strengths = [];
-        if (playStrong.some(i => i.num === 17)) strengths.push(`${m ? "בוחר" : "בוחרת"} משחקים ${m ? "ביוזמתו" : "ביוזמתה"}`);
-        if (playStrong.some(i => i.num === 23)) strengths.push(`${m ? "מסיים" : "מסיימת"} משחק לפני שעובר`);
-        if (playStrong.some(i => i.num === 22)) strengths.push(`${m ? "מתכנן" : "מתכננת"} מראש`);
+        if (playStrong.some(i => i.num === 17)) strengths.push(`${m ? "בוחר" : "בוחרת"} משחקים ${m ? "ביוזמתו" : "ביוזמתה"}${ref(17)}`);
+        if (playStrong.some(i => i.num === 23)) strengths.push(`${m ? "מסיים" : "מסיימת"} משחק לפני שעובר${ref(23)}`);
+        if (playStrong.some(i => i.num === 22)) strengths.push(`${m ? "מתכנן" : "מתכננת"} מראש${ref(22)}`);
+
         if (strengths.length > 0) {
           s += `חוזקות: ${strengths.join(", ")}. `;
         }
@@ -1498,13 +1510,14 @@ function buildSummary(d) {
       s += `<strong>שגרה חברתית:</strong> `;
 
       const difficulties = [];
-      if (d.scores[24] <= 2) difficulties.push(`לא ${m ? "יוזם" : "יוזמת"} אינטראקציות חברתיות (כמו הזמנת חבר הביתה)`);
-      if (d.scores[28] <= 2) difficulties.push(`${m ? "מתקשה" : "מתקשה"} לפתור בעיות שעולות במשחק חברתי`);
-      if (d.scores[29] <= 2) difficulties.push(`לא ${m ? "חושב" : "חושבת"} על תגובות אפשריות לפני שמגיב בעימות`);
-      if (d.scores[30] <= 2) difficulties.push(`לא ${m ? "חושב" : "חושבת"} על ההשפעה של תגובותיו על חברים`);
-      if (d.scores[25] <= 2) difficulties.push(`${m ? "מתקשה" : "מתקשה"} ללמוד מהתנסויות חברתיות שליליות`);
-      if (d.scores[26] <= 2) difficulties.push(`${m ? "מביע" : "מביעה"} כעס או תסכול באופן מוגזם במשחק חברתי`);
-      if (d.scores[27] <= 2) difficulties.push(`לא ${m ? "משחק" : "משחקת"} לפי הכללים המקובלים בקבוצה`);
+      if (d.scores[24] <= 2) difficulties.push(`לא ${m ? "יוזם" : "יוזמת"} אינטראקציות חברתיות (כמו הזמנת חבר הביתה)${ref(24)}`);
+      if (d.scores[28] <= 2) difficulties.push(`${m ? "מתקשה" : "מתקשה"} לפתור בעיות שעולות במשחק חברתי${ref(28)}`);
+      if (d.scores[29] <= 2) difficulties.push(`לא ${m ? "חושב" : "חושבת"} על תגובות אפשריות לפני שמגיב בעימות${ref(29)}`);
+      if (d.scores[30] <= 2) difficulties.push(`לא ${m ? "חושב" : "חושבת"} על ההשפעה של תגובותיו על חברים${ref(30)}`);
+      if (d.scores[25] <= 2) difficulties.push(`${m ? "מתקשה" : "מתקשה"} ללמוד מהתנסויות חברתיות שליליות${ref(25)}`);
+      if (d.scores[26] <= 2) difficulties.push(`${m ? "מביע" : "מביעה"} כעס או תסכול באופן מוגזם במשחק חברתי${ref(26)}`);
+      if (d.scores[27] <= 2) difficulties.push(`לא ${m ? "משחק" : "משחקת"} לפי הכללים המקובלים בקבוצה${ref(27)}`);
+
 
       if (difficulties.length > 0) {
         s += difficulties.join("; ") + `. `;
@@ -1513,10 +1526,10 @@ function buildSummary(d) {
       const socialMid = midItems(socialItems);
       if (socialMid.length > 0 && socialWeak.length < socialItems.length) {
         const midAreas = [];
-        if (socialMid.some(i => i.num === 26)) midAreas.push("ויסות כעס");
-        if (socialMid.some(i => i.num === 27)) midAreas.push("שמירה על כללים");
-        if (socialMid.some(i => i.num === 25)) midAreas.push("למידה מטעויות");
-        if (socialMid.some(i => i.num === 29)) midAreas.push("חשיבה לפני תגובה");
+        if (socialMid.some(i => i.num === 26)) midAreas.push(`ויסות כעס${ref(26)}`);
+        if (socialMid.some(i => i.num === 27)) midAreas.push(`שמירה על כללים${ref(27)}`);
+        if (socialMid.some(i => i.num === 25)) midAreas.push(`למידה מטעויות${ref(25)}`);
+        if (socialMid.some(i => i.num === 29)) midAreas.push(`חשיבה לפני תגובה${ref(29)}`);
         if (midAreas.length > 0) {
           s += `תחומים גבוליים ("לפעמים"): ${midAreas.join(", ")}. `;
         }
@@ -1547,11 +1560,11 @@ function buildSummary(d) {
         s += `<strong>זיכרון עבודה</strong> (${d.wmAvg.toFixed(2)}, חתך ${d.c.wm.toFixed(2)}): `;
         const wmExplanations = [];
         const wmWeak = weakItems(items.filter(i => i.ef === "wm"));
-        if (wmWeak.some(i => [1, 9].includes(i.num))) wmExplanations.push(`לא ${m ? "מתניע" : "מתניעה"} שגרות בוקר/ערב באופן עצמאי`);
-        if (wmWeak.some(i => [2, 10, 18].includes(i.num))) wmExplanations.push(`${m ? "צריך" : "צריכה"} תזכורות חוזרות לשמירה על קצב`);
-        if (wmWeak.some(i => [3, 11, 19].includes(i.num))) wmExplanations.push(`לא ${m ? "מחזיק" : "מחזיקה"} רצף פעילויות`);
-        if (wmWeak.some(i => [4, 12, 20, 27].includes(i.num))) wmExplanations.push(`לא ${m ? "מתארגן" : "מתארגנת"} לפי כללים`);
-        if (wmWeak.some(i => [7, 15].includes(i.num))) wmExplanations.push(`לא ${m ? "בודק" : "בודקת"} איכות ביצוע`);
+        if (wmWeak.some(i => [1, 9].includes(i.num))) wmExplanations.push(`לא ${m ? "מתניע" : "מתניעה"} שגרות בוקר/ערב באופן עצמאי${ref(matchNums(wmWeak, [1, 9]))}`);
+        if (wmWeak.some(i => [2, 10, 18].includes(i.num))) wmExplanations.push(`${m ? "צריך" : "צריכה"} תזכורות חוזרות לשמירה על קצב${ref(matchNums(wmWeak, [2, 10, 18]))}`);
+        if (wmWeak.some(i => [3, 11, 19].includes(i.num))) wmExplanations.push(`לא ${m ? "מחזיק" : "מחזיקה"} רצף פעילויות${ref(matchNums(wmWeak, [3, 11, 19]))}`);
+        if (wmWeak.some(i => [4, 12, 20, 27].includes(i.num))) wmExplanations.push(`לא ${m ? "מתארגן" : "מתארגנת"} לפי כללים${ref(matchNums(wmWeak, [4, 12, 20, 27]))}`);
+        if (wmWeak.some(i => [7, 15].includes(i.num))) wmExplanations.push(`לא ${m ? "בודק" : "בודקת"} איכות ביצוע${ref(matchNums(wmWeak, [7, 15]))}`);
         s += wmExplanations.length > 0 ? wmExplanations.join("; ") : "ציון מתחת לחתך";
         s += `. `;
       }
@@ -1559,10 +1572,10 @@ function buildSummary(d) {
         s += `<strong>עכבה</strong> (${d.inhAvg.toFixed(2)}, חתך ${d.c.inh.toFixed(2)}): `;
         const inhExplanations = [];
         const inhWeak = weakItems(items.filter(i => i.ef === "inh"));
-        if (inhWeak.some(i => [6, 14].includes(i.num))) inhExplanations.push(`${m ? "מוסח" : "מוסחת"} מגירויים חיצוניים (כמו טלוויזיה ברקע)`);
-        if (inhWeak.some(i => [8, 16, 23].includes(i.num))) inhExplanations.push(`לא ${m ? "מסיים" : "מסיימת"} פעילויות — ${m ? "עובר" : "עוברת"} לדבר אחר באמצע`);
-        if (inhWeak.some(i => [26].includes(i.num))) inhExplanations.push(`${m ? "מביע" : "מביעה"} כעס באופן מוגזם`);
-        if (inhWeak.some(i => [29, 30].includes(i.num))) inhExplanations.push(`${m ? "מגיב" : "מגיבה"} בלי לעצור לחשוב`);
+        if (inhWeak.some(i => [6, 14].includes(i.num))) inhExplanations.push(`${m ? "מוסח" : "מוסחת"} מגירויים חיצוניים (כמו טלוויזיה ברקע)${ref(matchNums(inhWeak, [6, 14]))}`);
+        if (inhWeak.some(i => [8, 16, 23].includes(i.num))) inhExplanations.push(`לא ${m ? "מסיים" : "מסיימת"} פעילויות — ${m ? "עובר" : "עוברת"} לדבר אחר באמצע${ref(matchNums(inhWeak, [8, 16, 23]))}`);
+        if (inhWeak.some(i => [26].includes(i.num))) inhExplanations.push(`${m ? "מביע" : "מביעה"} כעס באופן מוגזם${ref(26)}`);
+        if (inhWeak.some(i => [29, 30].includes(i.num))) inhExplanations.push(`${m ? "מגיב" : "מגיבה"} בלי לעצור לחשוב${ref(matchNums(inhWeak, [29, 30]))}`);
         s += inhExplanations.length > 0 ? inhExplanations.join("; ") : "ציון מתחת לחתך";
         s += `. `;
       }
@@ -1570,10 +1583,10 @@ function buildSummary(d) {
         s += `<strong>גמישות מחשבתית</strong> (${d.flexAvg.toFixed(2)}, חתך ${d.c.flex.toFixed(2)}): `;
         const flexExplanations = [];
         const flexWeak = weakItems(items.filter(i => i.ef === "flex"));
-        if (flexWeak.some(i => [5, 13].includes(i.num))) flexExplanations.push(`${m ? "מתקשה" : "מתקשה"} לפתור בעיות שצצות בשגרה (כמו חפץ חסר)`);
-        if (flexWeak.some(i => [28].includes(i.num))) flexExplanations.push(`${m ? "מתקשה" : "מתקשה"} לפתור אי-הסכמות חברתיות`);
-        if (flexWeak.some(i => [22].includes(i.num))) flexExplanations.push(`לא ${m ? "מתכנן" : "מתכננת"} מראש לפני פעילות`);
-        if (flexWeak.some(i => [17, 24].includes(i.num))) flexExplanations.push(`לא ${m ? "יוזם" : "יוזמת"} פעילויות באופן עצמאי`);
+        if (flexWeak.some(i => [5, 13].includes(i.num))) flexExplanations.push(`${m ? "מתקשה" : "מתקשה"} לפתור בעיות שצצות בשגרה (כמו חפץ חסר)${ref(matchNums(flexWeak, [5, 13]))}`);
+        if (flexWeak.some(i => [28].includes(i.num))) flexExplanations.push(`${m ? "מתקשה" : "מתקשה"} לפתור אי-הסכמות חברתיות${ref(28)}`);
+        if (flexWeak.some(i => [22].includes(i.num))) flexExplanations.push(`לא ${m ? "מתכנן" : "מתכננת"} מראש לפני פעילות${ref(22)}`);
+        if (flexWeak.some(i => [17, 24].includes(i.num))) flexExplanations.push(`לא ${m ? "יוזם" : "יוזמת"} פעילויות באופן עצמאי${ref(matchNums(flexWeak, [17, 24]))}`);
         s += flexExplanations.length > 0 ? flexExplanations.join("; ") : "ציון מתחת לחתך";
         s += `. `;
       }
@@ -1585,11 +1598,13 @@ function buildSummary(d) {
 
         if (!inhBelow && (wmBelow || flexBelow)) {
           s += `${child} לא ${m ? "אימפולסיבי" : "אימפולסיבית"}`;
-          if (strongItems(items.filter(i => i.ef === "inh")).some(i => [8, 16].includes(i.num))) {
-            s += `, ${m ? "מסיים" : "מסיימת"} מה ש${m ? "מתחיל" : "מתחילה"} (כשמישהו עוזר ${m ? "לו" : "לה"} להתחיל)`;
+          const inhStrong816 = strongItems(items.filter(i => i.ef === "inh")).filter(i => [8, 16].includes(i.num));
+          if (inhStrong816.length > 0) {
+            s += `, ${m ? "מסיים" : "מסיימת"} מה ש${m ? "מתחיל" : "מתחילה"} (כשמישהו עוזר ${m ? "לו" : "לה"} להתחיל)${ref(inhStrong816.map(i => i.num))}`;
           }
-          if (strongItems(items.filter(i => i.ef === "inh")).some(i => [6, 14].includes(i.num))) {
-            s += `, ולא ${m ? "מוסח" : "מוסחת"} מגירויים חיצוניים`;
+          const inhStrong614 = strongItems(items.filter(i => i.ef === "inh")).filter(i => [6, 14].includes(i.num));
+          if (inhStrong614.length > 0) {
+            s += `, ולא ${m ? "מוסח" : "מוסחת"} מגירויים חיצוניים${ref(inhStrong614.map(i => i.num))}`;
           }
           s += `. הקושי הוא בהתנעה ובארגון עצמי, לא בשליטה עצמית.`;
         } else if (!wmBelow && (inhBelow || flexBelow)) {
@@ -1664,62 +1679,160 @@ async function printResults() {
   btn.disabled = true;
   btn.textContent = "...יוצר PDF";
 
-  const drilldowns = document.querySelectorAll(".drilldown");
-  const origStates = [];
-  drilldowns.forEach(el => { origStates.push(el.style.display); el.style.display = "block"; });
-
-  const actionBtns = document.querySelector(".result-actions");
-  actionBtns.style.display = "none";
-
   try {
-    const resultsEl = document.getElementById("results");
-    const canvas = await html2canvas(resultsEl, {
-      scale: 2,
-      useCORS: true,
-      backgroundColor: "#f0f4f8",
-      scrollY: -window.scrollY
+    // Gather all data from the current results
+    const anonId = document.getElementById("anonId").value || "—";
+    const gender = document.getElementById("childGender").value === "male" ? "זכר" : "נקבה";
+    const ageText = document.getElementById("calcAge").textContent;
+    const ageLabel = document.getElementById("ageGroupDisplay").textContent;
+    const ageGroup = document.getElementById("ageGroup").value;
+    const c = cutoffs[ageGroup];
+
+    const scores = {};
+    items.forEach(item => {
+      const checked = document.querySelector(`input[name="q${item.num}"]:checked`);
+      if (checked) scores[item.num] = parseInt(checked.value);
     });
 
-    const imgData = canvas.toDataURL("image/png");
-    const { jsPDF } = window.jspdf;
-    const pdf = new jsPDF("p", "mm", "a4");
+    const morningAvg = avg(items.filter(i => i.routine === "morning").map(i => scores[i.num]));
+    const playAvg = avg(items.filter(i => i.routine === "play").map(i => scores[i.num]));
+    const socialAvg = avg(items.filter(i => i.routine === "social").map(i => scores[i.num]));
+    const totalAvg = avg([morningAvg, playAvg, socialAvg]);
+    const inhAvg = avg(items.filter(i => i.ef === "inh").map(i => scores[i.num]));
+    const wmAvg = avg(items.filter(i => i.ef === "wm").map(i => scores[i.num]));
+    const flexAvg = avg(items.filter(i => i.ef === "flex").map(i => scores[i.num]));
 
-    const pageW = pdf.internal.pageSize.getWidth();
-    const pageH = pdf.internal.pageSize.getHeight();
-    const margin = 10;
-    const imgW = pageW - margin * 2;
-    const imgH = (canvas.height * imgW) / canvas.width;
+    const isMale = document.getElementById("childGender").value === "male";
+    const summaryHtml = buildSummary({
+      anonId, gender, isMale, ageText, ageLabel,
+      morningAvg, playAvg, socialAvg, totalAvg,
+      inhAvg, wmAvg, flexAvg, c, scores
+    });
 
-    let remainH = imgH;
-    const pageContentH = pageH - margin * 2;
+    // Score level helpers
+    const scoreNames = ["", "אף פעם", "לעיתים רחוקות", "לפעמים", "לעיתים קרובות", "תמיד"];
+    const _efLabels = { inh: "עכבה", wm: "זיכרון עבודה", flex: "גמישות מחשבתית" };
+    const _routineLabels = { morning: "בוקר וערב", play: "פנאי ומשחק", social: "שגרה חברתית" };
 
-    if (imgH <= pageContentH) {
-      pdf.addImage(imgData, "PNG", margin, margin, imgW, imgH);
-    } else {
-      let srcY = 0;
-      while (remainH > 0) {
-        const sliceH = Math.min(remainH, pageContentH);
-        const sliceCanvas = document.createElement("canvas");
-        sliceCanvas.width = canvas.width;
-        sliceCanvas.height = (sliceH / imgH) * canvas.height;
-        const ctx = sliceCanvas.getContext("2d");
-        ctx.drawImage(canvas, 0, srcY, canvas.width, sliceCanvas.height, 0, 0, canvas.width, sliceCanvas.height);
-        const sliceData = sliceCanvas.toDataURL("image/png");
-        if (srcY > 0) pdf.addPage();
-        pdf.addImage(sliceData, "PNG", margin, margin, imgW, sliceH);
-        srcY += sliceCanvas.height;
-        remainH -= sliceH;
-      }
-    }
+    // Group items by score level
+    const weakItems = items.filter(i => scores[i.num] <= 2).sort((a,b) => scores[a.num] - scores[b.num]);
+    const midItems = items.filter(i => scores[i.num] === 3);
+    const strongItems = items.filter(i => scores[i.num] >= 4).sort((a,b) => scores[b.num] - scores[a.num]);
 
-    const anonId = document.getElementById("anonId").value || "eforts";
-    pdf.save(`EFORTS_${anonId}_${new Date().toISOString().slice(0,10)}.pdf`);
+    const levelText = (sc, ct) => sc < ct ? "מתחת לחתך ⚠" : sc <= 3 ? "מתחת לממוצע" : "בטווח התקין ✓";
+    const levelColor = (sc, ct) => sc < ct ? "#c0392b" : sc <= 3 ? "#d35400" : "#27ae60";
+
+    // Build score rows for the table
+    const scoreTableRows = [
+      { label: "בוקר וערב", sc: morningAvg, ct: c.morning },
+      { label: "פנאי ומשחק", sc: playAvg, ct: c.play },
+      { label: "שגרה חברתית", sc: socialAvg, ct: c.social },
+      { label: "ציון כולל", sc: totalAvg, ct: c.total },
+    ];
+    const efTableRows = [
+      { label: "עכבה", sc: inhAvg, ct: c.inh },
+      { label: "זיכרון עבודה", sc: wmAvg, ct: c.wm },
+      { label: "גמישות מחשבתית", sc: flexAvg, ct: c.flex },
+    ];
+
+    const buildScoreTable = (rows) => rows.map(r =>
+      `<tr>
+        <td style="padding:4px 10px;font-weight:600;text-align:right;">${r.label}</td>
+        <td style="padding:4px 10px;text-align:center;color:${levelColor(r.sc, r.ct)};font-weight:700;">${r.sc.toFixed(2)}</td>
+        <td style="padding:4px 10px;text-align:center;color:#666;">${r.ct.toFixed(2)}</td>
+        <td style="padding:4px 10px;text-align:center;color:${levelColor(r.sc, r.ct)};">${levelText(r.sc, r.ct)}</td>
+      </tr>`
+    ).join("");
+
+    const buildItemRows = (itemList, bgColor) => itemList.map(item =>
+      `<tr style="background:${bgColor};">
+        <td style="padding:4px 8px;text-align:center;color:#888;font-size:11px;">${item.num}</td>
+        <td style="padding:4px 8px;text-align:right;font-size:11px;line-height:1.5;">${item.text}</td>
+        <td style="padding:4px 8px;text-align:center;font-size:11px;">${_routineLabels[item.routine]}</td>
+        <td style="padding:4px 8px;text-align:center;font-size:11px;">${_efLabels[item.ef] || "—"}</td>
+        <td style="padding:4px 8px;text-align:center;font-weight:700;font-size:12px;color:${scores[item.num] <= 2 ? '#c0392b' : scores[item.num] === 3 ? '#d35400' : '#27ae60'};">${scores[item.num]}</td>
+        <td style="padding:4px 8px;text-align:center;font-size:10px;color:#888;">${scoreNames[scores[item.num]]}</td>
+      </tr>`
+    ).join("");
+
+    // Strip HTML tags from summary for clean text
+    const summaryText = summaryHtml
+      .replace(/<br\s*\/?>/gi, "\n")
+      .replace(/<\/p>/gi, "\n\n")
+      .replace(/<[^>]+>/g, "")
+      .replace(/\n{3,}/g, "\n\n")
+      .trim();
+
+    // Build a minimal, print-optimized HTML document
+    const printHtml = `<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;600;700&display=swap');
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Heebo', sans-serif; direction: rtl; color: #1a202c; line-height: 1.6; padding: 20px; max-width: 800px; margin: 0 auto; }
+  h1 { text-align: center; font-size: 18px; margin-bottom: 4px; }
+  .meta { text-align: center; font-size: 12px; color: #666; margin-bottom: 16px; }
+  .section-title { font-size: 14px; font-weight: 700; color: #0077b6; margin: 16px 0 8px; padding-bottom: 4px; border-bottom: 2px solid #0077b6; }
+  table { width: 100%; border-collapse: collapse; margin-bottom: 12px; }
+  th { background: #f0f4f8; padding: 6px 10px; font-size: 11px; font-weight: 600; color: #444; text-align: center; border-bottom: 2px solid #ddd; }
+  td { border-bottom: 1px solid #eee; }
+  .summary-box { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px; margin-bottom: 16px; font-size: 12px; line-height: 1.8; white-space: pre-line; }
+  .group-header { font-size: 12px; font-weight: 700; padding: 6px 10px; margin-top: 8px; }
+  .group-weak { color: #c0392b; background: #fff5f5; }
+  .group-mid { color: #d35400; background: #fffbeb; }
+  .group-strong { color: #27ae60; background: #f0fdf4; }
+  .footer { text-align: center; font-size: 10px; color: #aaa; margin-top: 20px; padding-top: 10px; border-top: 1px solid #eee; }
+  @media print { body { padding: 10px; } }
+</style>
+</head>
+<body>
+  <h1>תוצאות שאלון EFORTS</h1>
+  <div class="meta">מזהה: ${anonId} | ${gender} | ${ageText} | קבוצת גיל: ${ageLabel} | תאריך: ${new Date().toLocaleDateString("he-IL")}</div>
+
+  <div class="section-title">ציונים</div>
+  <table>
+    <tr><th style="text-align:right;">תחום</th><th>ציון</th><th>חתך</th><th>מצב</th></tr>
+    ${buildScoreTable(scoreTableRows)}
+    <tr><td colspan="4" style="padding:2px;border:none;"></td></tr>
+    <tr><th style="text-align:right;">תפקוד ניהולי</th><th>ציון</th><th>חתך</th><th>מצב</th></tr>
+    ${buildScoreTable(efTableRows)}
+  </table>
+
+  <div class="section-title">סיכום קליני</div>
+  <div class="summary-box">${summaryText}</div>
+
+  <div class="section-title">פירוט פריטים לפי רמת ציון</div>
+  <table>
+    <tr><th style="width:30px;">#</th><th style="text-align:right;">פריט</th><th style="width:80px;">שגרה</th><th style="width:80px;">תפקוד</th><th style="width:40px;">ציון</th><th style="width:70px;">רמה</th></tr>
+    ${weakItems.length > 0 ? `<tr><td colspan="6" class="group-header group-weak">קושי (ציון 1-2) — ${weakItems.length} פריטים</td></tr>` + buildItemRows(weakItems, "#fff5f5") : ""}
+    ${midItems.length > 0 ? `<tr><td colspan="6" class="group-header group-mid">בינוני (ציון 3) — ${midItems.length} פריטים</td></tr>` + buildItemRows(midItems, "#fffbeb") : ""}
+    ${strongItems.length > 0 ? `<tr><td colspan="6" class="group-header group-strong">חזק (ציון 4-5) — ${strongItems.length} פריטים</td></tr>` + buildItemRows(strongItems, "#f0fdf4") : ""}
+  </table>
+
+  <div class="footer">
+    EFORTS — Frisch & Rosenblum, 2014 | ציון חתך = 1.5 סטיות תקן מתחת לממוצע הנורמטיבי | פריטים 10 ו-11 לא נכללים בסולמות הניהוליים
+  </div>
+</body>
+</html>`;
+
+    // Open a clean print window — user saves as PDF via browser print dialog
+    const printWindow = window.open("", "_blank", "width=800,height=900");
+    printWindow.document.open();
+    printWindow.document.write(printHtml);
+    printWindow.document.close();
+
+    // Wait for fonts to load, then trigger print
+    setTimeout(() => {
+      printWindow.focus();
+      printWindow.print();
+    }, 600);
+
   } catch(e) {
     alert("שגיאה ביצירת PDF: " + e.message);
   }
 
-  drilldowns.forEach((el, i) => el.style.display = origStates[i]);
-  actionBtns.style.display = "flex";
   btn.disabled = false;
   btn.textContent = "שמור כ-PDF";
 }
