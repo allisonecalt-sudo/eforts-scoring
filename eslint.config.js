@@ -35,13 +35,19 @@ module.exports = [
       },
     },
     rules: {
-      'no-unused-vars': ['warn', { argsIgnorePattern: '^_' }],
+      'no-unused-vars': [
+        'warn',
+        {
+          argsIgnorePattern: '^_',
+          varsIgnorePattern: '^(toggleDrill|goBack|resetForm|printResults|copyResultsForAI)$',
+        },
+      ],
       'no-undef': 'error',
       'no-redeclare': 'error',
       'no-constant-condition': 'warn',
       'no-debugger': 'error',
       'no-duplicate-case': 'error',
-      'eqeqeq': ['warn', 'smart'],
+      eqeqeq: ['warn', 'smart'],
       'no-eval': 'error',
       'no-implied-eval': 'error',
     },

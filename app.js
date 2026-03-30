@@ -168,9 +168,6 @@ const cutoffs = {
   '8-11': { morning: 2.76, play: 3.55, social: 3.04, total: 3.28, inh: 2.84, wm: 3.37, flex: 3.07 },
 };
 
-const routineNames = { morning: 'בוקר וערב', play: 'פנאי ומשחק', social: 'שגרה חברתית' };
-const efNames = { inh: 'עכבה', wm: 'זיכרון עבודה', flex: 'גמישות מחשבתית' };
-
 // ===== BUILD FORM =====
 function buildForm() {
   const container = document.getElementById('questionnaire');
@@ -664,7 +661,6 @@ function scoreRow(id, label, score, cutoff, cardItems, scores, type) {
   }
 
   const scoreTip = `ממוצע על סולם 1-5:\n1.0-2.0 = קושי משמעותי\n2.0-3.0 = מתחת לממוצע\n3.0-4.0 = בטווח הממוצע\n4.0-5.0 = חזק`;
-  const cutoffTip = `ציון חתך = 1.5 סטיות תקן מתחת לממוצע הנורמטיבי לקבוצת הגיל.\nציון מתחת לחתך מעיד על חשד לעיכוב.`;
 
   return `<div class="score-row ${hasDetails ? '' : 'no-drill'}" ${hasDetails ? `onclick="toggleDrill('${id}')"` : ''}>
     <div class="score-row-top">
@@ -716,7 +712,6 @@ function buildSummary(d) {
   ];
 
   const weakRoutines = routineData.filter((r) => belowCutoff(r.score, r.cutoff));
-  const okRoutines = routineData.filter((r) => !belowCutoff(r.score, r.cutoff));
   const weakEFs = efData.filter((e) => belowCutoff(e.score, e.cutoff));
   const okEFs = efData.filter((e) => !belowCutoff(e.score, e.cutoff));
   const totalBelow = belowCutoff(d.totalAvg, d.c.total);
@@ -1103,7 +1098,6 @@ function copyResultsForAI() {
   const ageText = document.getElementById('calcAge').textContent;
   const ageLabel = document.getElementById('ageGroupDisplay').textContent;
   const efLabels = { inh: 'עכבה', wm: 'זיכרון עבודה', flex: 'גמישות מחשבתית' };
-  const routineLabels = { morning: 'בוקר וערב', play: 'פנאי ומשחק', social: 'שגרה חברתית' };
 
   // Collect all scores
   const scores = {};
