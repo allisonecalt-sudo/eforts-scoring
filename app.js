@@ -1094,9 +1094,11 @@ function buildSummary(d) {
 }
 
 function copyResultsForAI() {
-  const gender = document.getElementById('childGender').value === 'male' ? 'זכר' : 'נקבה';
+  const genderRaw = document.getElementById('childGender').value;
+  const gender = genderRaw === 'male' ? 'זכר' : 'נקבה';
   const ageText = document.getElementById('calcAge').textContent;
   const ageLabel = document.getElementById('ageGroupDisplay').textContent;
+  const ageGroup = document.getElementById('ageGroup').value;
   const efLabels = { inh: 'עכבה', wm: 'זיכרון עבודה', flex: 'גמישות מחשבתית' };
 
   // Collect all scores
@@ -1106,10 +1108,48 @@ function copyResultsForAI() {
     if (checked) scores[item.num] = parseInt(checked.value);
   });
 
-  const scoreNames = ['', 'אף פעם', 'לעיתים רחוקות', 'לפעמים', 'לעיתים קרובות', 'תמיד'];
+  // Compute averages
+  const morningItems = items.filter((i) => i.routine === 'morning').map((i) => scores[i.num]);
+  const playItems = items.filter((i) => i.routine === 'play').map((i) => scores[i.num]);
+  const socialItems = items.filter((i) => i.routine === 'social').map((i) => scores[i.num]);
+  const morningAvg = avg(morningItems);
+  const playAvg = avg(playItems);
+  const socialAvg = avg(socialItems);
+  const totalAvg = avg([morningAvg, playAvg, socialAvg]);
+  const inhAvg = avg(items.filter((i) => i.ef === 'inh').map((i) => scores[i.num]));
+  const wmAvg = avg(items.filter((i) => i.ef === 'wm').map((i) => scores[i.num]));
+  const flexAvg = avg(items.filter((i) => i.ef === 'flex').map((i) => scores[i.num]));
+  const c = cutoffs[ageGroup];
 
-  let text = `שאלון EFORTS — נתונים לניתוח\n`;
-  text += `${gender} | ${ageText} | קבוצת גיל: ${ageLabel}\n\n`;
+  const companions = {
+    morning: document.getElementById('companion_morning')?.value || '',
+    play: document.getElementById('companion_play')?.value || '',
+    social: document.getElementById('companion_social')?.value || '',
+  };
+  const compLabels = { mom: 'אמא', dad: 'אבא', both: 'שני ההורים', other: 'אחר' };
+
+  const scoreNames = ['', 'אף פעם', 'לעיתים רחוקות', 'לפעמים', 'לעיתים קרובות', 'תמיד'];
+  const status = (val, cut) => (val >= cut ? 'בטווח התקין' : 'מתחת לציון החתך');
+
+  let text = `שאלון EFORTS — נתונים לניתוח קליני\n`;
+  text += `══════════════════════════════════\n\n`;
+
+  text += `רקע על הכלי:\n`;
+  text += `EFORTS (Executive Functions in Occupational Routines Tool for Screening) הוא שאלון סינון לתפקודים ניהוליים בשגרות יומיומיות, מיועד לילדים בגילאי 3-11. הסולם: 1 (אף פעם) עד 5 (תמיד). ציון גבוה = תפקוד טוב יותר. ציון חתך = 1.5 סטיות תקן מתחת לממוצע הנורמטיבי — מתחתיו יש חשד לעיכוב. פריטים 10 ו-11 לא נכללים בחישוב הסולמות הניהוליים.\n\n`;
+
+  text += `פרטי הילד:\n`;
+  text += `  מין: ${gender} | גיל: ${ageText} | קבוצת גיל נורמטיבית: ${ageLabel}\n\n`;
+
+  text += `ציונים מחושבים (ממוצע | ציון חתך | מצב):\n`;
+  text += `  שגרות:\n`;
+  text += `    בוקר וערב:    ${morningAvg.toFixed(2)} | חתך: ${c.morning} | ${status(morningAvg, c.morning)}\n`;
+  text += `    פנאי ומשחק:   ${playAvg.toFixed(2)} | חתך: ${c.play} | ${status(playAvg, c.play)}\n`;
+  text += `    שגרה חברתית:  ${socialAvg.toFixed(2)} | חתך: ${c.social} | ${status(socialAvg, c.social)}\n`;
+  text += `    ציון כולל:     ${totalAvg.toFixed(2)} | חתך: ${c.total} | ${status(totalAvg, c.total)}\n`;
+  text += `  סולמות תפקודים ניהוליים:\n`;
+  text += `    עכבה:          ${inhAvg.toFixed(2)} | חתך: ${c.inh} | ${status(inhAvg, c.inh)}\n`;
+  text += `    זיכרון עבודה:  ${wmAvg.toFixed(2)} | חתך: ${c.wm} | ${status(wmAvg, c.wm)}\n`;
+  text += `    גמישות מחשבתית: ${flexAvg.toFixed(2)} | חתך: ${c.flex} | ${status(flexAvg, c.flex)}\n\n`;
 
   // All 30 items with scores
   text += `פריטים וציונים:\n`;
@@ -1119,7 +1159,10 @@ function copyResultsForAI() {
     { key: 'social', label: 'שגרה חברתית', range: [24, 30] },
   ];
   routines.forEach((r) => {
-    text += `\n${r.label}:\n`;
+    const comp = companions[r.key]
+      ? ` (ממלא: ${compLabels[companions[r.key]] || companions[r.key]})`
+      : '';
+    text += `\n${r.label}${comp}:\n`;
     items
       .filter((i) => i.num >= r.range[0] && i.num <= r.range[1])
       .forEach((item) => {
@@ -1129,7 +1172,7 @@ function copyResultsForAI() {
       });
   });
 
-  text += `\nכתוב סיכום קליני בעברית על סמך הנתונים. תאר מה קורה ביום-יום, מה מניע את הקשיים, ומה תקין. שלב את הפריטים כראיות בתוך המשפטים, לא כרשימה נפרדת.`;
+  text += `\nהנחיות לניתוח:\nכתוב סיכום קליני בעברית על סמך הנתונים. תאר מה קורה ביום-יום של הילד, מה מניע את הקשיים (תפקודים ניהוליים), ומה תקין. שלב את הפריטים כראיות בתוך המשפטים, לא כרשימה נפרדת. התייחס לציוני החתך בפרשנות — ציון קרוב לחתך מלמד שונה מציון רחוק ממנו.`;
 
   navigator.clipboard.writeText(text).then(() => {
     const btn = document.getElementById('copyAiBtn');
