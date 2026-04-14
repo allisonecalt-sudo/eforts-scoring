@@ -591,7 +591,7 @@ function calculate() {
         scores,
       })}</div>
       <div style="background:#eef6ff; border:1px solid #c5ddf5; border-radius:8px; padding:10px 14px; margin-top:14px;">
-        <span style="font-size:0.82rem; color:#334155;">💡 לסיכום קליני מפורט יותר — ניתן להשתמש ב-Copilot במחשב העבודה או בכלי AI אחר</span>
+        <span style="font-size:0.82rem; color:#334155;">💡 לסיכום קליני מפורט יותר — לחצ/י "הורד ל-AI" והעל/י את הקובץ לכלי AI (Claude, ChatGPT, Copilot)</span>
       </div>
       <div class="summary-note">
         ציון חתך = 1.5 סטיות תקן מתחת לממוצע הנורמטיבי. ציון מתחת לחתך מעיד על חשד לעיכוב.
@@ -601,6 +601,7 @@ function calculate() {
 
     <div class="result-actions">
       <button class="btn btn-pdf" onclick="printResults()">שמור כ-PDF</button>
+      <button class="btn btn-ai" onclick="downloadForAI()">הורד ל-AI</button>
       <button class="btn btn-back" onclick="goBack()">חזרה לשאלון</button>
       <button class="btn btn-danger" onclick="resetForm()">שאלון חדש</button>
     </div>
@@ -1093,7 +1094,7 @@ function buildSummary(d) {
   return s;
 }
 
-function copyResultsForAI() {
+function downloadForAI() {
   const genderRaw = document.getElementById('childGender').value;
   const gender = genderRaw === 'male' ? 'זכר' : 'נקבה';
   const ageText = document.getElementById('calcAge').textContent;
@@ -1174,15 +1175,15 @@ function copyResultsForAI() {
 
   text += `\nהנחיות לניתוח:\nכתוב סיכום קליני בעברית על סמך הנתונים. תאר מה קורה ביום-יום של הילד, מה מניע את הקשיים (תפקודים ניהוליים), ומה תקין. שלב את הפריטים כראיות בתוך המשפטים, לא כרשימה נפרדת. התייחס לציוני החתך בפרשנות — ציון קרוב לחתך מלמד שונה מציון רחוק ממנו.`;
 
-  navigator.clipboard.writeText(text).then(() => {
-    const btn = document.getElementById('copyAiBtn');
-    btn.textContent = 'הועתק!';
-    btn.style.background = 'var(--green)';
-    setTimeout(() => {
-      btn.textContent = 'העתק נתונים';
-      btn.style.background = 'var(--primary)';
-    }, 2000);
-  });
+  const anonId = document.getElementById('anonId').value || 'eforts';
+  const date = new Date().toISOString().slice(0, 10);
+  const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `EFORTS_${anonId}_${date}.txt`;
+  a.click();
+  URL.revokeObjectURL(url);
 }
 
 async function printResults() {

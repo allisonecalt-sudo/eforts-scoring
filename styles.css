@@ -437,6 +437,13 @@ body {
   background: #c4b5fd;
   cursor: wait;
 }
+.btn-ai {
+  background: #0891b2;
+  color: #fff;
+}
+.btn-ai:hover {
+  background: #0e7490;
+}
 .btn-back {
   background: #e2e8f0;
   color: var(--text);

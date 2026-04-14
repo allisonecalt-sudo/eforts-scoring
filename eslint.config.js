@@ -30,6 +30,8 @@ module.exports = [
         KeyboardEvent: 'readonly',
         MouseEvent: 'readonly',
         TouchEvent: 'readonly',
+        Blob: 'readonly',
+        URL: 'readonly',
         // Supabase CDN global
         supabase: 'readonly',
       },
@@ -39,7 +41,7 @@ module.exports = [
         'warn',
         {
           argsIgnorePattern: '^_',
-          varsIgnorePattern: '^(toggleDrill|goBack|resetForm|printResults|copyResultsForAI)$',
+          varsIgnorePattern: '^(toggleDrill|goBack|resetForm|printResults|downloadForAI)$',
         },
       ],
       'no-undef': 'error',
