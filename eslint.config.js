@@ -80,6 +80,7 @@ module.exports = [
         buildSummary: 'readonly',
         calculate: 'readonly',
         updateAge: 'readonly',
+        buildExportText: 'readonly',
       },
     },
     rules: {

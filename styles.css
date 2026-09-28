@@ -592,6 +592,9 @@ body {
 .score-value.warn {
   color: var(--red);
 }
+.score-value.mid {
+  color: var(--amber);
+}
 
 /* Gauge bar */
 .gauge {
@@ -645,15 +648,6 @@ body {
   font-size: 0.78rem;
   font-weight: 500;
 }
-.score-interp.ok {
-  color: var(--green);
-}
-.score-interp.warn {
-  color: var(--red);
-}
-.score-interp.mid {
-  color: var(--amber);
-}
 .score-status {
   font-size: 0.72rem;
   padding: 3px 10px;
@@ -667,6 +661,10 @@ body {
 .score-status.warn {
   background: #ffebee;
   color: var(--red);
+}
+.score-status.mid {
+  background: #fff8e1;
+  color: var(--amber);
 }
 
 /* ===== DRILLDOWN ===== */

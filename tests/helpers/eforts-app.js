@@ -166,6 +166,31 @@ async function fillAndCalculate(page, { sex, ageYearsBack, ageMonthsBack, itemSc
   );
 }
 
+// Slices one score row (from its toggleDrill onclick to its drilldown div)
+// and returns the value / gauge / status signals scoreRow() rendered.
+function extractRowSignals(resultsHtml, id) {
+  const start = resultsHtml.indexOf(`toggleDrill('${id}')`);
+  if (start === -1) throw new Error(`Row ${id} not found in results HTML`);
+  const end = resultsHtml.indexOf(`id="drill_${id}"`, start);
+  const rowHtml = resultsHtml.slice(start, end === -1 ? undefined : end);
+  const pick = (re) => {
+    const m = rowHtml.match(re);
+    if (!m) throw new Error(`${re} not found in row ${id}:\n${rowHtml}`);
+    return m;
+  };
+  const value = pick(/score-value (\w+)">([\d.]+)</);
+  const gauge = pick(/gauge-fill (\w+)"/);
+  const status = pick(/score-status (\w+)">([^<]+)</);
+  return {
+    rowHtml,
+    score: value[2],
+    valueCls: value[1],
+    gaugeCls: gauge[1],
+    statusCls: status[1],
+    statusText: status[2],
+  };
+}
+
 module.exports = {
   APP_PATH,
   AGE_BAND_KEY,
@@ -174,4 +199,5 @@ module.exports = {
   getItemsAndCutoffs,
   setAgeEdge,
   fillAndCalculate,
+  extractRowSignals,
 };
