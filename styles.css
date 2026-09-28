@@ -462,30 +462,37 @@ body {
 .btn-danger:hover {
   background: #fecaca;
 }
+/* Item 22: one primary action (Save PDF); the rest outlined/secondary so
+   the row reads as one clear choice, not four equal buttons. "שאלון חדש"
+   (.btn-danger, above) stays visually distinct — it's the destructive one. */
 .btn-pdf {
-  background: #6d28d9;
+  background: var(--blue);
   color: #fff;
 }
 .btn-pdf:hover {
-  background: #5b21b6;
+  background: #005f8a;
 }
 .btn-pdf:disabled {
-  background: #c4b5fd;
+  background: #8fc2db;
   cursor: wait;
 }
 .btn-ai {
-  background: #0891b2;
-  color: #fff;
+  background: #fff;
+  color: var(--text);
+  border: 1.5px solid var(--border);
 }
 .btn-ai:hover {
-  background: #0e7490;
+  background: #f8fafc;
+  border-color: #cbd5e1;
 }
 .btn-back {
-  background: #e2e8f0;
+  background: #fff;
   color: var(--text);
+  border: 1.5px solid var(--border);
 }
 .btn-back:hover {
-  background: #cbd5e1;
+  background: #f8fafc;
+  border-color: #cbd5e1;
 }
 .btn:disabled {
   opacity: 0.5;
@@ -810,6 +817,7 @@ body {
 }
 .result-actions .btn {
   flex: 1;
+  white-space: nowrap;
 }
 
 /* ===== TOOLTIPS ===== */
@@ -924,6 +932,18 @@ body {
   }
   .score-legend {
     display: none;
+  }
+}
+
+/* Item 22: 4 result-action buttons in a row got tight enough to wrap their
+   labels onto two lines ("שמור כ-" / "PDF"). A 2x2 grid reads cleanly. */
+@media (max-width: 400px) {
+  .result-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+  .result-actions .btn {
+    flex: unset;
   }
 }
 
