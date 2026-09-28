@@ -765,6 +765,9 @@ function buildSummary(d) {
   };
 
   const efNames = { wm: 'זיכרון עבודה', inh: 'עכבה', flex: 'גמישות מחשבתית' };
+  // FX1-r2 fix 3: definite-article forms, used only when a strength
+  // sentence is framed through its EF ("בתחום ה...", Carmit's C50 form).
+  const efNamesDef = { wm: 'זיכרון העבודה', inh: 'העכבה', flex: 'הגמישות המחשבתית' };
 
   // canon B3: morning/evening twin pairs that may be cited together in one
   // clause when both are weak (or the non-anchor twin scores exactly 3 —
@@ -967,7 +970,14 @@ function buildSummary(d) {
           attribution =
             repeatCount % 2 === 0
               ? `גם כאן נראה כי הקושי התפקודי קשור לקושי ב${efNames[ef]}, כמו למשל — ${examples}.`
-              : `ונראה מממצאי השאלון כי הקושי המנמיך את תפקודו בתחום זה הוא הקושי ב${efNames[ef]}, וזה מתבטא ב${examples}.`;
+              : // FX1-r2 fix 2: don't open a new sentence with "ו" right after
+                // a period — dropped the leading ו. FX1-r2 fix 1: "מתבטא ב..."
+                // needs a "בכך ש{pronoun}..." clause before a verb-phrase
+                // description, not a bare ב-prefix glued onto the verb
+                // itself ("מתבטא במביע" is ungrammatical). Also fixes the
+                // "תפקודו" hardcode the FX1 check's §5 female-form audit
+                // flagged: gendered via g().
+                `נראה מממצאי השאלון כי הקושי המנמיך את ${g('תפקודו', 'תפקודה')} בתחום זה הוא הקושי ב${efNames[ef]}, וזה מתבטא בכך ש${g('הוא', 'היא')} ${examples}.`;
           repeatCount++;
         } else {
           attribution = `נראה כי הקושי התפקודי מושפע מקושי ב${efNames[ef]}, כמו למשל — ${examples}.`;
@@ -979,7 +989,10 @@ function buildSummary(d) {
         if (efStatusMap[ef2] === 'close') {
           // canon rule 16: lead EF below cutoff + second EF close to its
           // own cutoff — the lead gets "לרוב", the second is softened.
-          attribution = `נראה כי הקושי התפקודי נובע לרוב מקושי ב${efNames[ef1]} כמו למשל ${ex1}, ולעיתים על רקע קושי ב${efNames[ef2]}, כפי שמתבטא ב${ex2}.`;
+          // FX1-r2 fix 1: same grammar class as the repeated-EF branch above
+          // — "כפי שמתבטא ב..." needs the "בכך ש{pronoun}..." clause before
+          // a verb-phrase description ("מתבטא בזקוק" is ungrammatical).
+          attribution = `נראה כי הקושי התפקודי נובע לרוב מקושי ב${efNames[ef1]} כמו למשל ${ex1}, ולעיתים על רקע קושי ב${efNames[ef2]}, כפי שמתבטא בכך ש${g('הוא', 'היא')} ${ex2}.`;
         } else {
           // canon rule 16: two EFs both below their own cutoffs share equal
           // weight — no "בעיקר" on the first.
@@ -1004,11 +1017,31 @@ function buildSummary(d) {
       });
       if (eligibleStrong.length > 0) {
         const sPhrases = eligibleStrong.slice(0, 3).map((i) => strengthPhrase[i.num]);
-        const joined =
-          sPhrases.length > 1
-            ? sPhrases.slice(0, -1).join(', ') + ' ו' + sPhrases[sPhrases.length - 1]
-            : sPhrases[0];
-        p += `לצד זאת, ${g('הוא', 'היא')} ${joined}.`;
+        // FX1-r2 fix 3: frame the strength through its EF, Carmit's C50
+        // form ("בתחום זה נראה כי היכולת שלו בתחום ה[EF] באה לידי ביטוי,
+        // והוא [strength] וכן [strength]") — generalized to any strength
+        // set that shares a single EF, not just flexibility/play. Each
+        // strengthPhrase entry already carries its own gendered verb, so no
+        // separate lead verb is needed; a mixed-EF strength set (no model
+        // case) falls back to the old EF-agnostic phrasing.
+        const strongEfKeys = [
+          ...new Set(
+            eligibleStrong
+              .slice(0, 3)
+              .map((i) => i.ef)
+              .filter(Boolean),
+          ),
+        ];
+        if (strongEfKeys.length === 1) {
+          const efLabel = efNamesDef[strongEfKeys[0]];
+          p += `בתחום זה נראה כי היכולת ${g('שלו', 'שלה')} בתחום ${efLabel} באה לידי ביטוי, ו${g('הוא', 'היא')} ${sPhrases.join(' וכן ')}.`;
+        } else {
+          const joined =
+            sPhrases.length > 1
+              ? sPhrases.slice(0, -1).join(', ') + ' ו' + sPhrases[sPhrases.length - 1]
+              : sPhrases[0];
+          p += `לצד זאת, ${g('הוא', 'היא')} ${joined}.`;
+        }
       }
       // canon B4 (last line): with no eligible strength, write nothing —
       // don't reach for a filler.
@@ -1024,6 +1057,14 @@ function buildSummary(d) {
     let efPara = 'בהסתכלות על תפקודים ניהוליים ספציפיים, ';
     if (weakEFs.length > 0) {
       efPara += `הקושי הבולט הינו ב${weakEFs.map((e) => `${e.label} (${got} ציון ${fmt(e.score)} כאשר ציון החתך הוא ${fmt(e.cutoff)})`).join(' וב')}`;
+      // FX1-r2 fix 4 (canon B5 MUST, §F 9): state each below-cutoff EF's
+      // status in WORDS, not only numbers — keep the numbers as they are
+      // above. Singular for one weak EF (Carmit's own C32 words); pluralized
+      // the same way when more than one EF is below cutoff.
+      efPara +=
+        weakEFs.length === 1
+          ? `; ואכן הציון בתפקוד זה נמוך מציון החתך`
+          : `; ואכן הציונים בתפקודים אלו נמוכים מציון החתך`;
       if (okEFs.length > 0) {
         const okDesc = okEFs.map((e) =>
           e.score - e.cutoff < 0.15
