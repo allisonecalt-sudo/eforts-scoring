@@ -75,6 +75,84 @@ function fmtScore(score, cutoff) {
 // grouping, so "one item" never reads like a bare item number.
 const nItems = (n) => (n === 1 ? 'פריט אחד' : `${n} פריטים`);
 
+// FX2 (Gemini review item 4 + FX2-strength-nouns-spec §A): the 30 noun
+// phrases named in מומלץ when a strength item is woven in, instead of the
+// vague fallback "במשימות אחרות". Masculine and feminine are identical —
+// the only gendered words stay in the frame (כוחותיו/כוחותיה, לו/לה) —
+// so these plain strings carry no g(). Items n and n+8 (n = 1-8) share one
+// noun on purpose (strengthNoun[n] === strengthNoun[n + 8]), so a twin pair
+// can merge into one "בשגרת הבוקר והערב" entry (see strengthNounSlot below).
+// Top-level (not inside buildSummary) so a test can call it via
+// page.evaluate, per the spec.
+const strengthNoun = {
+  1: 'התנעה עצמאית',
+  2: 'שמירה על קצב ללא תזכורות',
+  3: 'זכירת רצף הפעילויות',
+  4: 'התארגנות לפי כללי הבית',
+  5: 'פתרון בעיות',
+  6: 'התעלמות מגירויים מסיחים',
+  7: 'הקפדה על איכות הביצוע',
+  8: 'סיום פעילות לפני מעבר לאחרת',
+  9: 'התנעה עצמאית',
+  10: 'שמירה על קצב ללא תזכורות',
+  11: 'זכירת רצף הפעילויות',
+  12: 'התארגנות לפי כללי הבית',
+  13: 'פתרון בעיות',
+  14: 'התעלמות מגירויים מסיחים',
+  15: 'הקפדה על איכות הביצוע',
+  16: 'סיום פעילות לפני מעבר לאחרת',
+  17: 'יוזמה',
+  18: 'שמירה על קצב מתאים',
+  19: 'התקדמות לפי סדר השלבים',
+  20: 'הקפדה על הכללים',
+  21: 'התמקדות',
+  22: 'תכנון',
+  23: 'סיום פעילות לפני מעבר לאחרת',
+  24: 'יוזמה',
+  25: 'למידה מהתנסויות',
+  26: 'הימנעות מהבעה מוגזמת של כעס',
+  27: 'השתתפות לפי כללי הקבוצה',
+  28: 'פתרון בעיות',
+  29: 'שקילת תגובות אפשריות',
+  30: 'חשיבה לפני תגובה',
+};
+const NOUN_SUFFIX = {
+  am: 'בשגרת הבוקר',
+  pm: 'בשגרת הערב',
+  ampm: 'בשגרת הבוקר והערב',
+  play: 'במשחק',
+  social: 'במצבים חברתיים',
+};
+// joinHe: 1 item -> "A", 2 -> "A וB", 3+ -> "A, B וC". Every part already
+// starts with "ב", so the result reads "…וב…".
+const joinHe = (parts) =>
+  parts.length === 1 ? parts[0] : parts.slice(0, -1).join(', ') + ' ו' + parts[parts.length - 1];
+
+// FX2-strength-nouns-spec §B: `woven` is the ordered list of item numbers
+// the routine paragraphs already wove in as strengths (buildSummary pushes
+// into it — see the eligibleStrong block below). This turns that same list
+// into the מומלץ noun-phrase slot: group by context (am/pm/play/social),
+// merging a morning/evening twin pair into one "ampm" entry, cap at 3,
+// then join.
+function strengthNounSlot(woven) {
+  const ctxOf = (n) => (n <= 8 ? 'am' : n <= 16 ? 'pm' : n <= 23 ? 'play' : 'social');
+  const entries = [];
+  for (const n of woven) {
+    if (n >= 9 && n <= 16 && woven.includes(n - 8)) continue; // merged into its morning twin
+    entries.push({
+      noun: strengthNoun[n],
+      ctx: n <= 8 && woven.includes(n + 8) ? 'ampm' : ctxOf(n),
+    });
+  }
+  const groups = [];
+  for (const e of entries.slice(0, 3)) {
+    let g = groups.find((x) => x.ctx === e.ctx);
+    if (!g) groups.push((g = { ctx: e.ctx, nouns: [] }));
+    g.nouns.push('ב' + e.noun);
+  }
+  return groups.length ? joinHe(groups.map((g) => joinHe(g.nouns) + ' ' + NOUN_SUFFIX[g.ctx])) : '';
+}
+
 // ===== BUILD FORM =====
 function buildForm() {
   const container = document.getElementById('questionnaire');
@@ -793,15 +871,15 @@ function buildSummary(d) {
   s += header('תמונה כללית');
   let intro = `על פי דיווח ההורים בשאלון ה-EFORTS, `;
   if (totalBelow && weakRoutines.length === 3) {
-    intro += `עולה קושי בניהול עצמאי של שגרות היום-יום ביחס לבני ${hisAge} (${got} ציון כולל ${fmt(d.totalAvg)} כאשר ציון החתך הוא ${fmt(d.c.total)}). התפקוד בשלוש השגרות (בוקר וערב, פנאי ומשחק ושגרה חברתית) נמוך מהמצופה ${g('לגילו', 'לגילה')}.`;
+    intro += `עולה קושי בניהול עצמאי של שגרות היום-יום ביחס לבני ${hisAge} (${got} ציון כולל ${fmtScore(d.totalAvg, d.c.total)} כאשר ציון החתך הוא ${fmt(d.c.total)}). התפקוד בשלוש השגרות (בוקר וערב, פנאי ומשחק ושגרה חברתית) נמוך מהמצופה ${g('לגילו', 'לגילה')}.`;
   } else if (totalBelow) {
-    intro += `עולה קושי בניהול עצמאי של שגרות היום-יום ביחס לבני ${hisAge} (${got} ציון כולל ${fmt(d.totalAvg)} כאשר ציון החתך הוא ${fmt(d.c.total)}), בעיקר ${weakRoutines.map((r) => r.inName).join(' ו')}.`;
+    intro += `עולה קושי בניהול עצמאי של שגרות היום-יום ביחס לבני ${hisAge} (${got} ציון כולל ${fmtScore(d.totalAvg, d.c.total)} כאשר ציון החתך הוא ${fmt(d.c.total)}), בעיקר ${weakRoutines.map((r) => r.inName).join(' ו')}.`;
   } else if (weakRoutines.length > 0 || weakEFs.length > 0) {
     // canon F-4 / table row "Total in norm, profile weak": name "ציון כולל"
     // (not just the bare number) and LINK the weak routine to the EF behind
     // it ("נראה על רקע קושי ב...") instead of a flat comma list mixing
     // routines and EFs together.
-    intro += `הציון הכולל הינו בתחום הנורמה (${got} ציון כולל ${fmt(d.totalAvg)} כאשר ציון החתך הוא ${fmt(d.c.total)}), אך מניתוח הפרופיל `;
+    intro += `הציון הכולל הינו בתחום הנורמה (${got} ציון כולל ${fmtScore(d.totalAvg, d.c.total)} כאשר ציון החתך הוא ${fmt(d.c.total)}), אך מניתוח הפרופיל `;
     if (weakRoutines.length > 0) {
       intro += `עולים קשיים ${weakRoutines.map((r) => r.inName).join(' ו')}`;
       if (weakEFs.length > 0) {
@@ -818,7 +896,9 @@ function buildSummary(d) {
     // frequency label, rule 3) and invented a "רמה גבולית" concept the
     // canon explicitly flags; removed rather than replaced, per the
     // canon's own default.
-    intro += `הניהול העצמאי של שגרות היום-יום תקין ביחס לבני ${hisAge} (ציון כולל ${fmt(d.totalAvg)}, ציון חתך ${fmt(d.c.total)}).`;
+    // Gemini review item 6: "תקין" / "ציון חתך" (no ה) are off-canon —
+    // canon C2 bans "תקין לגמרי" and requires "ציון החתך" throughout.
+    intro += `הניהול העצמאי של שגרות היום-יום בטווח הנורמה ביחס לבני ${hisAge} (ציון כולל ${fmtScore(d.totalAvg, d.c.total)}, ציון החתך ${fmt(d.c.total)}).`;
   }
   s += para(intro);
 
@@ -853,6 +933,10 @@ function buildSummary(d) {
     // attribution verb bank in §B1).
     const usedEFs = new Set();
     let repeatCount = 0;
+    // FX2-strength-nouns-spec §B: the ordered union of every routine
+    // paragraph's woven-in strengths (item numbers, paragraph order) — fed
+    // to strengthNounSlot() below for the מומלץ fallback (item 4).
+    const woven = [];
 
     weakRoutines.forEach((r, idx) => {
       const rItems = items.filter((i) => i.routine === r.key);
@@ -863,7 +947,7 @@ function buildSummary(d) {
 
       let p;
       if (mergedFirstWeakPrefix && idx === 0) {
-        p = `${mergedFirstWeakPrefix}נמוך מציון החתך (${got} ציון ${fmt(r.score)} כאשר ציון החתך הוא ${fmt(r.cutoff)}). `;
+        p = `${mergedFirstWeakPrefix}נמוך מציון החתך (${got} ציון ${fmtScore(r.score, r.cutoff)} כאשר ציון החתך הוא ${fmt(r.cutoff)}). `;
       } else {
         // canon rule 13 / 0b#5: "באופן משמעותי" only at a gap >= 0.50, and
         // it's never required; otherwise plain. "במעט" is never correct —
@@ -873,7 +957,7 @@ function buildSummary(d) {
           gap >= 0.5
             ? `הציון מורה על תפקוד נמוך באופן משמעותי מהמצופה ${g('לגילו', 'לגילה')}`
             : `הציון נמוך מציון החתך`;
-        p = `${r.inName} ${severity} (${got} ציון ${fmt(r.score)} כאשר ציון החתך הוא ${fmt(r.cutoff)}). `;
+        p = `${r.inName} ${severity} (${got} ציון ${fmtScore(r.score, r.cutoff)} כאשר ציון החתך הוא ${fmt(r.cutoff)}). `;
       }
 
       // Group this routine's weak items by EF function, then drop any EF
@@ -933,7 +1017,7 @@ function buildSummary(d) {
           // the attribution verb bank instead of repeating "מושפע" again.
           attribution =
             repeatCount % 2 === 0
-              ? `גם כאן נראה כי הקושי התפקודי קשור לקושי ב${efNames[ef]}, כמו למשל — ${examples}.`
+              ? `גם כאן נראה כי הקושי התפקודי קשור לקושי ב${efNames[ef]}, כמו למשל – ${examples}.`
               : // FX1-r2 fix 2: don't open a new sentence with "ו" right after
                 // a period — dropped the leading ו. FX1-r2 fix 1: "מתבטא ב..."
                 // needs a "בכך ש{pronoun}..." clause before a verb-phrase
@@ -944,7 +1028,7 @@ function buildSummary(d) {
                 `נראה מממצאי השאלון כי הקושי המנמיך את ${g('תפקודו', 'תפקודה')} בתחום זה הוא הקושי ב${efNames[ef]}, וזה מתבטא בכך ש${g('הוא', 'היא')} ${examples}.`;
           repeatCount++;
         } else {
-          attribution = `נראה כי הקושי התפקודי מושפע מקושי ב${efNames[ef]}, כמו למשל — ${examples}.`;
+          attribution = `נראה כי הקושי התפקודי מושפע מקושי ב${efNames[ef]}, כמו למשל – ${examples}.`;
         }
       } else if (chosen.length === 2) {
         const [ef1, ef2] = chosen;
@@ -956,11 +1040,16 @@ function buildSummary(d) {
           // FX1-r2 fix 1: same grammar class as the repeated-EF branch above
           // — "כפי שמתבטא ב..." needs the "בכך ש{pronoun}..." clause before
           // a verb-phrase description ("מתבטא בזקוק" is ungrammatical).
-          attribution = `נראה כי הקושי התפקודי נובע לרוב מקושי ב${efNames[ef1]} כמו למשל ${ex1}, ולעיתים על רקע קושי ב${efNames[ef2]}, כפי שמתבטא בכך ש${g('הוא', 'היא')} ${ex2}.`;
+          // Gemini review item 5: the "כמו למשל" dash was missing on this
+          // path (model 32 had none) — one form everywhere now: "– " (en
+          // dash, spaced).
+          attribution = `נראה כי הקושי התפקודי נובע לרוב מקושי ב${efNames[ef1]} כמו למשל – ${ex1}, ולעיתים על רקע קושי ב${efNames[ef2]}, כפי שמתבטא בכך ש${g('הוא', 'היא')} ${ex2}.`;
         } else {
           // canon rule 16: two EFs both below their own cutoffs share equal
           // weight — no "בעיקר" on the first.
-          attribution = `נראה כי הקושי התפקודי מושפע מקושי ב${efNames[ef1]}, כמו למשל — ${ex1}, וכן מקושי ב${efNames[ef2]}, שמתבטא בין השאר בכך ש-${anonId} ${ex2}.`;
+          // Gemini review item 2: a pronoun replaces the number mid-sentence
+          // ("בכך ש-50 מוסח" read like the number was the subject).
+          attribution = `נראה כי הקושי התפקודי מושפע מקושי ב${efNames[ef1]}, כמו למשל – ${ex1}, וכן מקושי ב${efNames[ef2]}, שמתבטא בין השאר בכך ש${g('הוא', 'היא')} ${ex2}.`;
         }
       }
       chosen.forEach((ef) => usedEFs.add(ef));
@@ -980,7 +1069,29 @@ function buildSummary(d) {
         return true;
       });
       if (eligibleStrong.length > 0) {
-        const sPhrases = eligibleStrong.slice(0, 3).map((i) => strengthPhrase[i.num]);
+        // FX2-strength-nouns-spec §B step 1: feed the מומלץ noun-phrase
+        // slot from the SAME items this paragraph already wove in as
+        // strengths, in the SAME order/cap it uses (item order, first 3) —
+        // pushed from the raw list (both twin numbers, when both are
+        // strong) so strengthNounSlot's own twin-merge (step 2) can see
+        // both and produce one "…והערב" entry instead of two.
+        woven.push(...eligibleStrong.slice(0, 3).map((i) => i.num));
+
+        // Twin-pair duplication bug (FX2 spec "Seen while specifying"):
+        // both twins of a pair (e.g. items 6 + 14) share one strengthPhrase
+        // string — without this, a strong twin pair printed the SAME
+        // infinitive twice ("...מצליח להתעלם מגירויים מסיחים וכן להתעלם
+        // מגירויים מסיחים"). Dedupe by phrase text before capping at 3, so
+        // the sentence never repeats itself and a 3rd, distinct strength
+        // gets the freed slot.
+        const seenPhrases = new Set();
+        const dedupedStrong = eligibleStrong.filter((i) => {
+          const phrase = strengthPhrase[i.num];
+          if (seenPhrases.has(phrase)) return false;
+          seenPhrases.add(phrase);
+          return true;
+        });
+        const sPhrases = dedupedStrong.slice(0, 3).map((i) => strengthPhrase[i.num]);
         // FX1-r2 fix 3: frame the strength through its EF, Carmit's C50
         // form ("בתחום זה נראה כי היכולת שלו בתחום ה[EF] באה לידי ביטוי,
         // והוא [strength] וכן [strength]") — generalized to any strength
@@ -990,7 +1101,7 @@ function buildSummary(d) {
         // case) falls back to the old EF-agnostic phrasing.
         const strongEfKeys = [
           ...new Set(
-            eligibleStrong
+            dedupedStrong
               .slice(0, 3)
               .map((i) => i.ef)
               .filter(Boolean),
@@ -1018,28 +1129,47 @@ function buildSummary(d) {
     // to end with are gone — rule 35's grounding failures (e.g. "זוכר
     // רצפים ומתניע לבד" while this same summary cites item 9/1 as weak two
     // paragraphs up) came from exactly this kind of invented claim.
+    // Gemini review item 1: prose in Carmit's own shape (C32, canon B5),
+    // not a table row — no semicolons and no dashes, "ואכן" follows a
+    // comma not a period (canon F36), and efStatusMap (already computed
+    // above) is read instead of re-deriving the 0.15 "close" line a
+    // second time here.
+    const efStatusText = (e) =>
+      efStatusMap[e.key] === 'close' ? 'קרוב לציון החתך' : 'גבוה מציון החתך';
+    const joinEfClauses = (arr) => arr.join(', ו');
     let efPara = 'בהסתכלות על תפקודים ניהוליים ספציפיים, ';
-    if (weakEFs.length > 0) {
-      efPara += `הקושי הבולט הינו ב${weakEFs.map((e) => `${e.label} (${got} ציון ${fmt(e.score)} כאשר ציון החתך הוא ${fmt(e.cutoff)})`).join(' וב')}`;
-      // FX1-r2 fix 4 (canon B5 MUST, §F 9): state each below-cutoff EF's
-      // status in WORDS, not only numbers — keep the numbers as they are
-      // above. Singular for one weak EF (Carmit's own C32 words); pluralized
-      // the same way when more than one EF is below cutoff.
-      efPara +=
-        weakEFs.length === 1
-          ? `; ואכן הציון בתפקוד זה נמוך מציון החתך`
-          : `; ואכן הציונים בתפקודים אלו נמוכים מציון החתך`;
+    if (weakEFs.length === 1) {
+      const e = weakEFs[0];
+      efPara += `נראה כי הקושי הבולט יותר הוא בתפקוד הניהולי ${e.label}, ואכן הציון בתפקוד זה נמוך מציון החתך (${got} ציון ${fmtScore(e.score, e.cutoff)} כאשר ציון החתך הוא ${fmt(e.cutoff)}).`;
       if (okEFs.length > 0) {
-        const okDesc = okEFs.map((e) =>
-          e.score - e.cutoff < 0.15
-            ? `${e.label} — ציון קרוב לציון החתך`
-            : `${e.label} — ציון גבוה מציון החתך`,
-        );
-        efPara += `; בתפקודים האחרים: ${okDesc.join(', ')}`;
+        const okClauses = okEFs.map((o) => `הציון ב${o.label} ${efStatusText(o)}`);
+        efPara += ` בתפקודים האחרים המנותחים בשאלון, ${joinEfClauses(okClauses)}.`;
       }
-      efPara += '.';
+    } else if (weakEFs.length === 2) {
+      const [e1, e2] = weakEFs;
+      efPara += `נראה כי הקושי הבולט הוא ב${e1.label} וב${e2.label}, ואכן הציונים בתפקודים אלו נמוכים מציון החתך (ב${e1.label} ${got} ציון ${fmtScore(e1.score, e1.cutoff)} כאשר ציון החתך הוא ${fmt(e1.cutoff)}, וב${e2.label} ${got} ציון ${fmtScore(e2.score, e2.cutoff)} כאשר ציון החתך הוא ${fmt(e2.cutoff)}).`;
+      if (okEFs.length > 0) {
+        const e3 = okEFs[0];
+        efPara += ` הציון בתפקוד השלישי שנבדק בשאלון, ${e3.label}, ${efStatusText(e3)}.`;
+      }
+    } else if (weakEFs.length === 3) {
+      // Three weak EFs (no model case, canon E11): extend the two-EF
+      // template naturally rather than invent a new shape.
+      const names = weakEFs.map((e) => e.label);
+      const namesJoined = names.slice(0, -1).join(', ') + ' ו' + names[names.length - 1];
+      const scoresJoined = weakEFs
+        .map(
+          (e) =>
+            `ב${e.label} ${got} ציון ${fmtScore(e.score, e.cutoff)} כאשר ציון החתך הוא ${fmt(e.cutoff)}`,
+        )
+        .join(', ');
+      efPara += `נראה כי הקושי הבולט הוא ב${namesJoined}, ואכן הציונים בתפקודים אלו נמוכים מציון החתך (${scoresJoined}).`;
     } else {
-      efPara += `כל התפקודים הניהוליים בטווח התקין (עכבה ${fmt(d.inhAvg)}, זיכרון עבודה ${fmt(d.wmAvg)}, גמישות מחשבתית ${fmt(d.flexAvg)}). ייתכן שהקושי בשגרות נובע מגורמים סביבתיים, חווייתיים או הרגלים — ולא מקושי בתפקודים הניהוליים עצמם.`;
+      // Gemini review item 6: "בטווח התקין" is off-canon (canon C2 wants
+      // "בטווח הנורמה"); the "— ולא מקושי..." clause is dropped rather than
+      // rephrased — no model case, full wording waits on the authors
+      // (canon E11).
+      efPara += `כל התפקודים הניהוליים בטווח הנורמה (עכבה ${fmtScore(d.inhAvg, d.c.inh)}, זיכרון עבודה ${fmtScore(d.wmAvg, d.c.wm)}, גמישות מחשבתית ${fmtScore(d.flexAvg, d.c.flex)}). ייתכן שהקושי בשגרות נובע מגורמים סביבתיים, חווייתיים או הרגלים.`;
     }
     s += para(efPara);
 
@@ -1051,13 +1181,23 @@ function buildSummary(d) {
     } else {
       rec += ', תוך ניתוח דרישות המטלה והסביבה והתאמת השגרה בבית';
     }
-    rec += '. ';
     if (strongItemsAll.length >= 2) {
       // canon D "Strengths" part: motivation + small successes + recruiting
       // strengths from an easier routine toward the harder ones, named with
       // the anonymous number — never "הילד" (rule 25).
+      // Gemini review item 3: "כמו כן מומלץ לשים דגש" repeated the
+      // מ-ל-צ root right after "מומלץ על טיפול" — Carmit's C32 wording
+      // ("תוך שימת דגש על") folds this into ONE sentence instead.
+      // Gemini review item 4 / FX2-strength-nouns-spec: when in-norm
+      // routines exist, keep naming them (unchanged, §C precedence 1);
+      // otherwise, name the real strength items instead of the vague
+      // fallback (§C precedence 2); "במשימות אחרות" only when neither
+      // applies (§C precedence 3, Carmit's own C32 wording).
       const strengthRoutines = okRoutines.map((r) => r.inName).join(' ו');
-      rec += `כמו כן מומלץ לשים דגש על גיוס מוטיבציה של ${anonId}, איסוף חוויות של הצלחה גם אם קטנות, וגיוס ${g('כוחותיו', 'כוחותיה')} המתבטאים ${strengthRoutines || 'במשימות אחרות'} אל המשימות שקשות ${g('לו', 'לה')} יותר.`;
+      const strengthSlot = strengthRoutines || strengthNounSlot(woven) || 'במשימות אחרות';
+      rec += `, תוך שימת דגש על גיוס מוטיבציה של ${anonId}, איסוף חוויות של הצלחה גם אם קטנות, וגיוס ${g('כוחותיו', 'כוחותיה')} המתבטאים ${strengthSlot} אל המשימות שקשות ${g('לו', 'לה')} יותר.`;
+    } else {
+      rec += '.';
     }
     s += para(rec);
   }

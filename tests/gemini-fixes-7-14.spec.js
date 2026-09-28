@@ -94,15 +94,17 @@ test('item 8: an anonId with HTML renders literally in results + summary; the ex
   page,
 }) => {
   await gotoApp(page);
-  // All-2s reliably drives buildSummary() into the two-below-EF branch
-  // (app.js buildSummary(), the "וכן מקושי ב...בכך ש-${anonId}" clause)
-  // for the morning routine, so anonId is embedded in the summary text
-  // itself, not just the results-meta line.
+  // FX2 (Gemini review item 2) replaced the one place the two-below-EF
+  // routine clause embedded anonId mid-sentence ("בכך ש-${anonId}") with a
+  // pronoun — so all-2s no longer puts anonId inside buildSummary()'s own
+  // output. The מומלץ paragraph's "גיוס מוטיבציה של ${anonId}" clause is
+  // now the only spot that does, and it only renders when >=2 items score
+  // 4-5 (FX2 spec §C), so two items are bumped to 4 to reach it.
   const html = await fillAndCalculate(page, {
     sex: 'male',
     ageYearsBack: 5,
     ageMonthsBack: 0,
-    itemScores: allTwos(),
+    itemScores: { ...allTwos(), 17: 4, 22: 4 },
     anonId: '<b>x</b>',
   });
 
