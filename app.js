@@ -1581,9 +1581,10 @@ async function printResults() {
   .print-header { text-align: center; margin-bottom: 12px; }
   .print-header-logos { display: flex; align-items: flex-end; justify-content: center; gap: 14px; margin-bottom: 8px; }
   .print-header-logos img { height: 28px; width: auto; max-width: 100px; object-fit: contain; }
-  .print-header-title { font-size: 14px; font-weight: 700; color: #1a202c; margin-top: 8px; line-height: 1.4; }
-  .print-header-authors { font-size: 13px; font-weight: 700; color: #1a202c; margin-top: 4px; }
+  .print-header-title { font-size: 15px; font-weight: 700; color: #1a202c; margin-top: 8px; line-height: 1.4; }
+  .print-header-authors { font-size: 12px; font-weight: 700; color: #1a202c; margin-top: 6px; }
   .print-header-lab { font-size: 10px; font-weight: 500; color: #64748b; margin-top: 1px; }
+  .print-header-citation { font-size: 9px; font-weight: 300; color: #64748b; margin-top: 3px; }
   .print-header-credit { font-size: 9px; font-weight: 300; color: #94a3b8; margin-top: 4px; line-height: 1.4; }
   .section-title { font-size: 14px; font-weight: 700; color: #0077b6; margin: 16px 0 8px; padding-bottom: 4px; border-bottom: 2px solid #0077b6; }
   table { width: 100%; border-collapse: collapse; margin-bottom: 12px; }
@@ -1607,9 +1608,10 @@ async function printResults() {
       <img src="assets/chap.png" alt="המעבדה לתפקוד אנושי מורכב (CHAP)">
       <img src="assets/clalit.svg" alt="שירותי בריאות כללית">
     </div>
-    <div class="print-header-title">שאלון למדידת יכולת הניהול העצמי של ילדים בשגרות היום יום — Frisch &amp; Rosenblum, 2014</div>
+    <div class="print-header-title">שאלון למדידת יכולת הניהול העצמי של ילדים בשגרות היום יום</div>
     <div class="print-header-authors">כרמית פריש ופרופ' שרה רוזנבלום, אוניברסיטת חיפה</div>
     <div class="print-header-lab">המעבדה לתפקוד אנושי מורכב (CHAP), אוניברסיטת חיפה</div>
+    <div class="print-header-citation">Frisch &amp; Rosenblum, 2014</div>
     <div class="print-header-credit">תהליך מחשוב השאלון בוצע ע"י אליסון אלט, מרפאה בעיסוק בשירותי בריאות כללית מחוז ירושלים, בתיאום ואישור המחברות.</div>
   </div>
   <h1>תוצאות שאלון EFORTS</h1>
