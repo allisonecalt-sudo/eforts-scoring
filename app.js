@@ -686,9 +686,12 @@ function buildSummary(d) {
   const belowCutoff = (s, c) => s < c;
   const m = d.isMale;
   const g = (male, female) => (m ? male : female);
-  const child = g('הילד', 'הילדה');
   const hisAge = g('גילו', 'גילה');
   const got = g('קיבל', 'קיבלה');
+  // canon C4: never "הילד/הילדה" — the anonymous number replaces it
+  // everywhere a noun-subject is needed; pronouns (g('הוא','היא')) cover
+  // the rest.
+  const anonId = d.anonId || '—';
 
   // Short clinical phrasings per item — difficulty direction (score 1-2)
   const diffPhrase = {
@@ -699,7 +702,10 @@ function buildSummary(d) {
     5: 'מתקשה לפתור בעיות שמתעוררות במהלך השגרה',
     6: `${g('מוסח', 'מוסחת')} מגירויים חיצוניים ורעשי רקע`,
     7: 'מתקשה להקפיד על איכות הביצוע',
-    8: `${g('עובר', 'עוברת')} לפעילות אחרת מבלי לסיים`,
+    // canon B3 twins table: 8↔16 are the same content ("finishes without
+    // switching") and must share one phrase so the twin-merge (below) can
+    // fire for them — before this fix they had different text and never merged.
+    8: `${g('עובר', 'עוברת')} לפעילות אחרת באמצע, מבלי לסיים את הקודמת`,
     9: 'מתקשה להתניע את שגרת הערב באופן עצמאי',
     10: `${g('זקוק', 'זקוקה')} לתזכורות חוזרות כדי לשמור על קצב בערב`,
     11: 'מתקשה לזכור את רצף פעילויות הערב',
@@ -707,7 +713,7 @@ function buildSummary(d) {
     13: 'מתקשה לפתור בעיות שמתעוררות במהלך השגרה',
     14: `${g('מוסח', 'מוסחת')} מגירויים חיצוניים ורעשי רקע`,
     15: 'מתקשה לשים לב לאיכות הביצוע',
-    16: `${g('עובר', 'עוברת')} לדבר אחר באמצע פעילות`,
+    16: `${g('עובר', 'עוברת')} לפעילות אחרת באמצע, מבלי לסיים את הקודמת`,
     17: 'מתקשה ליזום בחירת משחק',
     18: 'מתקשה לשחק בקצב מתאים',
     19: 'מתקשה להחזיק רצף פעילות ולשחק לפי שלבי המשחק בסדר הנכון',
@@ -724,41 +730,62 @@ function buildSummary(d) {
     30: `${g('מגיב', 'מגיבה')} לפני ש${g('עוצר', 'עוצרת')} לחשוב`,
   };
 
-  // Strength direction (score 4-5)
+  // Strength direction (score 4-5).
+  // canon F-36 / FX1 re-check: every phrase is an INFINITIVE, governed by one
+  // "מצליח/ה" that the frame supplies ("והוא מצליח ליזום… וכן לתכנן…", Carmit's
+  // C50 form). Infinitives carry no gender; only suffixes/participles do.
   const strengthPhrase = {
-    1: `${g('מתניע', 'מתניעה')} את שגרת הבוקר באופן עצמאי`,
-    2: `${g('שומר', 'שומרת')} על קצב ללא תזכורות`,
-    3: `${g('זוכר', 'זוכרת')} את רצף הפעילויות`,
-    4: `${g('מתארגן', 'מתארגנת')} לפי כללי הבית`,
-    5: `${g('פותר', 'פותרת')} בעיות שצצות במהלך השגרה`,
-    6: `${g('מצליח', 'מצליחה')} להתעלם מגירויים מסיחים`,
-    7: `${g('מקפיד', 'מקפידה')} על איכות הביצוע`,
-    8: `${g('מסיים', 'מסיימת')} פעילויות ש${g('התחיל', 'התחילה')}`,
-    9: `${g('מתניע', 'מתניעה')} את שגרת הערב באופן עצמאי`,
-    10: `${g('שומר', 'שומרת')} על קצב בפעילויות הערב`,
-    11: `${g('זוכר', 'זוכרת')} את רצף פעילויות הערב`,
-    12: `${g('מתארגן', 'מתארגנת')} לפי כללי הבית בערב`,
-    13: `${g('פותר', 'פותרת')} בעיות שצצות במהלך השגרה`,
-    14: `${g('מצליח', 'מצליחה')} להתעלם מגירויים מסיחים`,
-    15: `${g('שם', 'שמה')} לב לאיכות הביצוע`,
-    16: `${g('מסיים', 'מסיימת')} פעילויות מבלי לעבור באמצע לאחרות`,
-    17: `${g('מצליח', 'מצליחה')} ליזום בחירת משחק`,
-    18: `${g('משחק', 'משחקת')} בקצב מתאים`,
-    19: `${g('משחק', 'משחקת')} לפי שלבי המשחק`,
-    20: `${g('משחק', 'משחקת')} לפי כללי המשחק`,
-    21: `${g('נשאר', 'נשארת')} ${g('ממוקד', 'ממוקדת')} במשחק`,
-    22: `${g('מתכנן את פעולותיו', 'מתכננת את פעולותיה')} מראש`,
-    23: `${g('מסיים', 'מסיימת')} משחק אחד לפני מעבר לאחר`,
-    24: `${g('יוזם', 'יוזמת')} אינטראקציה חברתית`,
-    25: `${g('לומד', 'לומדת')} מהתנסויות חברתיות`,
-    26: `${g('נמנע', 'נמנעת')} מהבעה מוגזמת של כעס במשחק חברתי`,
-    27: `${g('משתתף', 'משתתפת')} במשחק לפי כללי הקבוצה`,
-    28: `${g('פותר', 'פותרת')} בעיות שעולות במשחק חברתי`,
-    29: `${g('שוקל', 'שוקלת')} תגובות אפשריות לפני ש${g('מגיב', 'מגיבה')}`,
-    30: g('חושב על השפעת תגובותיו על חבריו', 'חושבת על השפעת תגובותיה על חברותיה'),
+    1: 'להתניע את שגרת הבוקר באופן עצמאי',
+    2: 'לשמור על קצב ללא תזכורות',
+    3: 'לזכור את רצף הפעילויות',
+    4: 'להתארגן לפי כללי הבית',
+    5: 'לפתור בעיות שצצות במהלך השגרה',
+    6: 'להתעלם מגירויים מסיחים',
+    7: 'להקפיד על איכות הביצוע',
+    8: `לסיים פעילויות ש${g('התחיל', 'התחילה')}`,
+    9: 'להתניע את שגרת הערב באופן עצמאי',
+    10: 'לשמור על קצב בפעילויות הערב',
+    11: 'לזכור את רצף פעילויות הערב',
+    12: 'להתארגן לפי כללי הבית בערב',
+    13: 'לפתור בעיות שצצות במהלך השגרה',
+    14: 'להתעלם מגירויים מסיחים',
+    15: 'לשים לב לאיכות הביצוע',
+    16: 'לסיים פעילויות מבלי לעבור באמצע לאחרות',
+    17: 'ליזום בחירת משחק',
+    18: 'לשחק בקצב מתאים',
+    19: 'לשחק לפי שלבי המשחק',
+    20: 'לשחק לפי כללי המשחק',
+    21: `להישאר ${g('ממוקד', 'ממוקדת')} במשחק`,
+    22: `לתכנן את ${g('פעולותיו', 'פעולותיה')} מראש`,
+    23: 'לסיים משחק אחד לפני מעבר לאחר',
+    24: 'ליזום אינטראקציה חברתית',
+    25: 'ללמוד מהתנסויות חברתיות',
+    26: 'להימנע מהבעה מוגזמת של כעס במשחק חברתי',
+    27: 'להשתתף במשחק לפי כללי הקבוצה',
+    28: 'לפתור בעיות שעולות במשחק חברתי',
+    29: `לשקול תגובות אפשריות לפני ש${g('מגיב', 'מגיבה')}`,
+    30: `לחשוב על השפעת ${g('תגובותיו על חבריו', 'תגובותיה על חברותיה')}`,
   };
 
   const efNames = { wm: 'זיכרון עבודה', inh: 'עכבה', flex: 'גמישות מחשבתית' };
+  // FX1-r2 fix 3: definite-article forms, used only when a strength
+  // sentence is framed through its EF ("בתחום ה...", Carmit's C50 form).
+  const efNamesDef = { wm: 'זיכרון העבודה', inh: 'העכבה', flex: 'הגמישות המחשבתית' };
+
+  // canon B3: morning/evening twin pairs that may be cited together in one
+  // clause when both are weak (or the non-anchor twin scores exactly 3 —
+  // rule 7, "a 3 may ride along"). 2↔10, 3↔11 are excluded because 10/11
+  // carry no EF; 7↔15 is excluded because the two items sit under different
+  // EFs. Only items 1-16 (morning/evening) have twins at all.
+  const twinOf = { 1: 9, 9: 1, 4: 12, 12: 4, 5: 13, 13: 5, 6: 14, 14: 6, 8: 16, 16: 8 };
+  const pairKey = (a, b) => [a, b].sort((x, y) => x - y).join('-');
+  const twinMergePhrase = {
+    '1-9': 'מתקשה ביוזמה של תחילת פעילות',
+    '4-12': 'קושי להתארגן על פי כללי הבית, כמו הנחת בגדים במקום ופינוי כלים',
+    '5-13': diffPhrase[5],
+    '6-14': diffPhrase[6],
+    '8-16': diffPhrase[8],
+  };
 
   const routineData = [
     { key: 'morning', inName: 'בשגרת בוקר וערב', score: d.morningAvg, cutoff: d.c.morning },
@@ -777,11 +804,21 @@ function buildSummary(d) {
   const okEFs = efData.filter((e) => !belowCutoff(e.score, e.cutoff));
   const totalBelow = belowCutoff(d.totalAvg, d.c.total);
 
-  const wmBelow = belowCutoff(d.wmAvg, d.c.wm);
-  const inhBelow = belowCutoff(d.inhAvg, d.c.inh);
-  const flexBelow = belowCutoff(d.flexAvg, d.c.flex);
+  // canon B2, the EF-status rule: below its own cutoff = primary attribution;
+  // within 0.15 above = "close" (secondary only, softened wording); more than
+  // 0.15 above = "clearly above" and may NEVER be used to explain a
+  // difficulty (rule 17) — it can only become a woven-in strength.
+  const efStatus = (e) => {
+    const diff = e.score - e.cutoff;
+    if (diff < 0) return 'below';
+    if (diff <= 0.15) return 'close';
+    return 'above';
+  };
+  const efStatusMap = {};
+  efData.forEach((e) => {
+    efStatusMap[e.key] = efStatus(e);
+  });
 
-  const midItemsAll = items.filter((i) => d.scores[i.num] === 3);
   const strongItemsAll = items.filter((i) => d.scores[i.num] >= 4);
 
   const fmt = (n) => n.toFixed(2);
@@ -793,17 +830,33 @@ function buildSummary(d) {
 
   // ===== תמונה כללית =====
   s += header('תמונה כללית');
-  let intro = `ע"פ דיווח ההורים בשאלון ה-EFORTS, `;
+  let intro = `על פי דיווח ההורים בשאלון ה-EFORTS, `;
   if (totalBelow && weakRoutines.length === 3) {
     intro += `עולה קושי בניהול עצמאי של שגרות היום-יום ביחס לבני ${hisAge} (${got} ציון כולל ${fmt(d.totalAvg)} כאשר ציון החתך הוא ${fmt(d.c.total)}). התפקוד בשלוש השגרות (בוקר וערב, פנאי ומשחק ושגרה חברתית) נמוך מהמצופה ${g('לגילו', 'לגילה')}.`;
   } else if (totalBelow) {
     intro += `עולה קושי בניהול עצמאי של שגרות היום-יום ביחס לבני ${hisAge} (${got} ציון כולל ${fmt(d.totalAvg)} כאשר ציון החתך הוא ${fmt(d.c.total)}), בעיקר ${weakRoutines.map((r) => r.inName).join(' ו')}.`;
   } else if (weakRoutines.length > 0 || weakEFs.length > 0) {
-    const weakAreas = [...weakRoutines.map((r) => r.inName), ...weakEFs.map((e) => 'ב' + e.label)];
-    intro += `הציון הכולל הינו בטווח הנורמה (${got} ${fmt(d.totalAvg)} כאשר ציון החתך הוא ${fmt(d.c.total)}), אך מניתוח הפרופיל עולים קשיים ${weakAreas.join(', ')}.`;
-  } else if (midItemsAll.length > 5) {
-    intro += `הניהול העצמאי של שגרות היום-יום תקין ביחס לבני ${hisAge} (ציון כולל ${fmt(d.totalAvg)}, ציון חתך ${fmt(d.c.total)}), אך ${midItemsAll.length} פריטים דורגו "לפעמים" — רמה גבולית המצדיקה מעקב.`;
+    // canon F-4 / table row "Total in norm, profile weak": name "ציון כולל"
+    // (not just the bare number) and LINK the weak routine to the EF behind
+    // it ("נראה על רקע קושי ב...") instead of a flat comma list mixing
+    // routines and EFs together.
+    intro += `הציון הכולל הינו בתחום הנורמה (${got} ציון כולל ${fmt(d.totalAvg)} כאשר ציון החתך הוא ${fmt(d.c.total)}), אך מניתוח הפרופיל `;
+    if (weakRoutines.length > 0) {
+      intro += `עולים קשיים ${weakRoutines.map((r) => r.inName).join(' ו')}`;
+      if (weakEFs.length > 0) {
+        intro += `, נראה על רקע קושי ב${weakEFs.map((e) => e.label).join(' וב')}`;
+      }
+    } else {
+      intro += `עולה קושי ב${weakEFs.map((e) => e.label).join(' וב')}`;
+    }
+    intro += '.';
   } else {
+    // canon table row "Nothing below cutoff" (ASK E11): the only stated
+    // default is "one in-norm sentence... none [else]" — no borderline/
+    // frequency-label text. The old branch here quoted "לפעמים" (a
+    // frequency label, rule 3) and invented a "רמה גבולית" concept the
+    // canon explicitly flags; removed rather than replaced, per the
+    // canon's own default.
     intro += `הניהול העצמאי של שגרות היום-יום תקין ביחס לבני ${hisAge} (ציון כולל ${fmt(d.totalAvg)}, ציון חתך ${fmt(d.c.total)}).`;
   }
   s += para(intro);
@@ -812,80 +865,209 @@ function buildSummary(d) {
   if (weakRoutines.length > 0 || weakEFs.length > 0) {
     s += header('משמעות קלינית');
 
-    // Mixed picture: name the in-norm routines first
+    // canon F-7 / table row "Total in norm, profile weak" (MUST, Carmit
+    // rule 6): fold "which routines are fine" into the FIRST weak routine's
+    // own score sentence (C32's exact form), so its below-cutoff status is
+    // said ONCE — not once here and again in its own paragraph below.
+    let mergedFirstWeakPrefix = null;
     if (okRoutines.length > 0 && weakRoutines.length > 0) {
-      s += para(
-        `ממצאי השאלון מורים על ציונים בטווח הנורמה ${okRoutines.map((r) => r.inName).join(' ו')}, בעוד שהציון ${weakRoutines.map((r) => r.inName).join(' ו')} נמוך מציון החתך.`,
-      );
+      if (!totalBelow) {
+        const first = weakRoutines[0];
+        mergedFirstWeakPrefix = `ממצאי השאלון מורים על ציונים בטווח הנורמה (גבוהים מציון החתך) ${okRoutines.map((r) => r.inName).join(' ו')}, והציון ${first.inName} `;
+      } else {
+        // canon table row "Total below, only 1-2 routines low" (SHOULD,
+        // deduced — no model verifies this exact mix). Credit the in-norm
+        // routine(s) once here and say nothing yet about the weak
+        // routine(s)' status — each gets its own paragraph below, so
+        // nothing is announced twice either way.
+        s += para(
+          `ממצאי השאלון מורים על ציונים בטווח הנורמה ${okRoutines.map((r) => r.inName).join(' ו')}.`,
+        );
+      }
     }
 
-    weakRoutines.forEach((r) => {
+    // Tracks which EFs have already been named in an earlier routine
+    // paragraph this summary, so a repeat gets a transition + a different
+    // verb instead of the same opener repeated (canon rule 22, the
+    // attribution verb bank in §B1).
+    const usedEFs = new Set();
+    let repeatCount = 0;
+
+    weakRoutines.forEach((r, idx) => {
       const rItems = items.filter((i) => i.routine === r.key);
       const rWeak = rItems
         .filter((i) => d.scores[i.num] <= 2)
         .sort((a, b) => d.scores[a.num] - d.scores[b.num]);
       const rStrong = rItems.filter((i) => d.scores[i.num] >= 4);
 
-      const gap = r.cutoff - r.score;
-      const severity =
-        gap >= 0.5
-          ? `הציון מורה על תפקוד נמוך באופן משמעותי מהמצופה ${g('לגילו', 'לגילה')}`
-          : gap < 0.2
-            ? `הציון נמוך במעט מציון החתך`
-            : `הציון מורה על תפקוד נמוך מהמצופה ${g('לגילו', 'לגילה')}`;
+      let p;
+      if (mergedFirstWeakPrefix && idx === 0) {
+        p = `${mergedFirstWeakPrefix}נמוך מציון החתך (${got} ציון ${fmt(r.score)} כאשר ציון החתך הוא ${fmt(r.cutoff)}). `;
+      } else {
+        // canon rule 13 / 0b#5: "באופן משמעותי" only at a gap >= 0.50, and
+        // it's never required; otherwise plain. "במעט" is never correct —
+        // Carmit wrote plain at a 0.14 gap in both her model cases.
+        const gap = r.cutoff - r.score;
+        const severity =
+          gap >= 0.5
+            ? `הציון מורה על תפקוד נמוך באופן משמעותי מהמצופה ${g('לגילו', 'לגילה')}`
+            : `הציון נמוך מציון החתך`;
+        p = `${r.inName} ${severity} (${got} ציון ${fmt(r.score)} כאשר ציון החתך הוא ${fmt(r.cutoff)}). `;
+      }
 
-      let p = `${r.inName} ${severity} (${got} ציון ${fmt(r.score)} כאשר ציון החתך הוא ${fmt(r.cutoff)}). `;
-
-      // Group this routine's weak items by EF function
+      // Group this routine's weak items by EF function, then drop any EF
+      // that is clearly above its OWN cutoff (canon B2 / rule 17) — that EF
+      // never explains a difficulty here no matter how many weak items in
+      // this routine happen to carry it; it can only become a strength below.
       const byEf = {};
       rWeak.forEach((i) => {
-        if (!i.ef) return;
+        if (!i.ef) return; // rule 21: items 10/11 are never EF evidence
         (byEf[i.ef] = byEf[i.ef] || []).push(i);
       });
-      // Lead with an EF that is below its cutoff overall, then by weak-item count
-      const efIsWeak = { inh: inhBelow, wm: wmBelow, flex: flexBelow };
-      const efOrder = Object.keys(byEf).sort(
+      const eligibleEfKeys = Object.keys(byEf).filter((ef) => efStatusMap[ef] !== 'above');
+      const statusRank = { below: 0, close: 1 };
+      const efOrder = eligibleEfKeys.sort(
         (a, b) =>
-          (efIsWeak[b] ? 1 : 0) - (efIsWeak[a] ? 1 : 0) ||
+          statusRank[efStatusMap[a]] - statusRank[efStatusMap[b]] ||
           byEf[b].length - byEf[a].length ||
           d.scores[byEf[a][0].num] - d.scores[byEf[b][0].num],
       );
-      const cite = (efItems) => {
-        const picked = efItems.slice(0, 2);
-        // Identical phrasing (e.g. items 6+14) — merge into one mention with both item numbers
-        if (picked.length === 2 && diffPhrase[picked[0].num] === diffPhrase[picked[1].num]) {
-          return `${diffPhrase[picked[0].num]} (פריט ${picked[0].num}; פריט ${picked[1].num})`;
+      const chosen = efOrder.slice(0, 2); // canon: max 2 EFs per routine paragraph
+
+      // canon B3: 1-2 examples per EF, lowest score first, merging a
+      // morning/evening twin into one clause when it's also weak (or rides
+      // along at exactly 3 — rule 7).
+      const buildExamples = (weakItemsForEf) => {
+        const used = new Set();
+        const examples = [];
+        for (const it of weakItemsForEf) {
+          if (examples.length >= 2) break;
+          if (used.has(it.num)) continue;
+          const twinNum = twinOf[it.num];
+          const twinScore = twinNum != null ? d.scores[twinNum] : undefined;
+          if (twinNum != null && !used.has(twinNum) && twinScore != null && twinScore <= 3) {
+            const key = pairKey(it.num, twinNum);
+            const phrase = twinMergePhrase[key];
+            if (phrase) {
+              const [a, b] = key.split('-').map(Number);
+              examples.push(`${phrase} (פריט ${a} ופריט ${b})`);
+              used.add(it.num);
+              used.add(twinNum);
+              continue;
+            }
+          }
+          examples.push(`${diffPhrase[it.num]} (פריט ${it.num})`);
+          used.add(it.num);
         }
-        return picked.map((i) => `${diffPhrase[i.num]} (פריט ${i.num})`).join(' או ');
+        return examples.join(' או ');
       };
 
-      if (efOrder.length > 0) {
-        const parts = efOrder.slice(0, 2).map((ef, idx) => {
-          if (idx === 0) {
-            return `נראה כי הקושי התפקודי מושפע ${efOrder.length > 1 ? 'בעיקר ' : ''}מקושי ב${efNames[ef]}, כמו למשל — ${cite(byEf[ef])}`;
-          }
-          return `וכן מקושי ב${efNames[ef]}, שמתבטא בין השאר בכך ש${child} ${cite(byEf[ef])}`;
-        });
-        p += parts.join(', ') + '. ';
+      let attribution = '';
+      if (chosen.length === 1) {
+        const ef = chosen[0];
+        const examples = buildExamples(byEf[ef]);
+        if (usedEFs.has(ef)) {
+          // canon rule 22: this EF was already named in an earlier
+          // paragraph — a transition + a different verb, rotating through
+          // the attribution verb bank instead of repeating "מושפע" again.
+          attribution =
+            repeatCount % 2 === 0
+              ? `גם כאן נראה כי הקושי התפקודי קשור לקושי ב${efNames[ef]}, כמו למשל — ${examples}.`
+              : // FX1-r2 fix 2: don't open a new sentence with "ו" right after
+                // a period — dropped the leading ו. FX1-r2 fix 1: "מתבטא ב..."
+                // needs a "בכך ש{pronoun}..." clause before a verb-phrase
+                // description, not a bare ב-prefix glued onto the verb
+                // itself ("מתבטא במביע" is ungrammatical). Also fixes the
+                // "תפקודו" hardcode the FX1 check's §5 female-form audit
+                // flagged: gendered via g().
+                `נראה מממצאי השאלון כי הקושי המנמיך את ${g('תפקודו', 'תפקודה')} בתחום זה הוא הקושי ב${efNames[ef]}, וזה מתבטא בכך ש${g('הוא', 'היא')} ${examples}.`;
+          repeatCount++;
+        } else {
+          attribution = `נראה כי הקושי התפקודי מושפע מקושי ב${efNames[ef]}, כמו למשל — ${examples}.`;
+        }
+      } else if (chosen.length === 2) {
+        const [ef1, ef2] = chosen;
+        const ex1 = buildExamples(byEf[ef1]);
+        const ex2 = buildExamples(byEf[ef2]);
+        if (efStatusMap[ef2] === 'close') {
+          // canon rule 16: lead EF below cutoff + second EF close to its
+          // own cutoff — the lead gets "לרוב", the second is softened.
+          // FX1-r2 fix 1: same grammar class as the repeated-EF branch above
+          // — "כפי שמתבטא ב..." needs the "בכך ש{pronoun}..." clause before
+          // a verb-phrase description ("מתבטא בזקוק" is ungrammatical).
+          attribution = `נראה כי הקושי התפקודי נובע לרוב מקושי ב${efNames[ef1]} כמו למשל ${ex1}, ולעיתים על רקע קושי ב${efNames[ef2]}, כפי שמתבטא בכך ש${g('הוא', 'היא')} ${ex2}.`;
+        } else {
+          // canon rule 16: two EFs both below their own cutoffs share equal
+          // weight — no "בעיקר" on the first.
+          attribution = `נראה כי הקושי התפקודי מושפע מקושי ב${efNames[ef1]}, כמו למשל — ${ex1}, וכן מקושי ב${efNames[ef2]}, שמתבטא בין השאר בכך ש-${anonId} ${ex2}.`;
+        }
       }
+      chosen.forEach((ef) => usedEFs.add(ef));
 
-      // Strengths within this routine
-      if (rStrong.length > 0) {
-        const sPhrases = rStrong.slice(0, 3).map((i) => strengthPhrase[i.num]);
-        const joined =
-          sPhrases.length > 1
-            ? sPhrases.slice(0, -1).join(', ') + ' ו' + sPhrases[sPhrases.length - 1]
-            : sPhrases[0];
-        p += `לצד זאת, ${g('הוא', 'היא')} ${joined}.`;
+      if (attribution) p += attribution + ' ';
+
+      // canon B4: a woven-in strength must come from an EF NOT blamed in
+      // this paragraph, and must not contradict a cited item OR that
+      // item's twin (e.g. "solves problems" is false when the twin item
+      // scored low, even if that twin itself wasn't cited here).
+      const blamedEFs = new Set(chosen);
+      const eligibleStrong = rStrong.filter((i) => {
+        if (i.ef && blamedEFs.has(i.ef)) return false;
+        const twinNum = twinOf[i.num];
+        const twinScore = twinNum != null ? d.scores[twinNum] : undefined;
+        if (twinScore != null && twinScore <= 2) return false;
+        return true;
+      });
+      if (eligibleStrong.length > 0) {
+        const sPhrases = eligibleStrong.slice(0, 3).map((i) => strengthPhrase[i.num]);
+        // FX1-r2 fix 3: frame the strength through its EF, Carmit's C50
+        // form ("בתחום זה נראה כי היכולת שלו בתחום ה[EF] באה לידי ביטוי,
+        // והוא [strength] וכן [strength]") — generalized to any strength
+        // set that shares a single EF, not just flexibility/play. Each
+        // strengthPhrase entry already carries its own gendered verb, so no
+        // separate lead verb is needed; a mixed-EF strength set (no model
+        // case) falls back to the old EF-agnostic phrasing.
+        const strongEfKeys = [
+          ...new Set(
+            eligibleStrong
+              .slice(0, 3)
+              .map((i) => i.ef)
+              .filter(Boolean),
+          ),
+        ];
+        if (strongEfKeys.length === 1) {
+          const efLabel = efNamesDef[strongEfKeys[0]];
+          p += `בתחום זה נראה כי היכולת ${g('שלו', 'שלה')} בתחום ${efLabel} באה לידי ביטוי, ו${g('הוא', 'היא')} ${g('מצליח', 'מצליחה')} ${sPhrases.join(' וכן ')}.`;
+        } else {
+          const joined =
+            sPhrases.length > 1
+              ? sPhrases.slice(0, -1).join(', ') + ' ו' + sPhrases[sPhrases.length - 1]
+              : sPhrases[0];
+          p += `לצד זאת, ${g('הוא', 'היא')} ${g('מצליח', 'מצליחה')} ${joined}.`;
+        }
       }
+      // canon B4 (last line): with no eligible strength, write nothing —
+      // don't reach for a filler.
 
-      s += para(p);
+      s += para(p.trim());
     });
 
-    // Cross-EF view
+    // Cross-EF view (canon B5): status in WORDS only, no behavioral claims
+    // the item data doesn't support. The three canned sentences this used
+    // to end with are gone — rule 35's grounding failures (e.g. "זוכר
+    // רצפים ומתניע לבד" while this same summary cites item 9/1 as weak two
+    // paragraphs up) came from exactly this kind of invented claim.
     let efPara = 'בהסתכלות על תפקודים ניהוליים ספציפיים, ';
     if (weakEFs.length > 0) {
       efPara += `הקושי הבולט הינו ב${weakEFs.map((e) => `${e.label} (${got} ציון ${fmt(e.score)} כאשר ציון החתך הוא ${fmt(e.cutoff)})`).join(' וב')}`;
+      // FX1-r2 fix 4 (canon B5 MUST, §F 9): state each below-cutoff EF's
+      // status in WORDS, not only numbers — keep the numbers as they are
+      // above. Singular for one weak EF (Carmit's own C32 words); pluralized
+      // the same way when more than one EF is below cutoff.
+      efPara +=
+        weakEFs.length === 1
+          ? `; ואכן הציון בתפקוד זה נמוך מציון החתך`
+          : `; ואכן הציונים בתפקודים אלו נמוכים מציון החתך`;
       if (okEFs.length > 0) {
         const okDesc = okEFs.map((e) =>
           e.score - e.cutoff < 0.15
@@ -894,14 +1076,7 @@ function buildSummary(d) {
         );
         efPara += `; בתפקודים האחרים: ${okDesc.join(', ')}`;
       }
-      efPara += '. ';
-      if (!inhBelow && (wmBelow || flexBelow)) {
-        efPara += `${child} לא ${g('אימפולסיבי', 'אימפולסיבית')} — הקושי הוא בהתנעה ובארגון עצמי, לא בשליטה עצמית.`;
-      } else if (!wmBelow && (inhBelow || flexBelow)) {
-        efPara += `${child} ${g('זוכר', 'זוכרת')} רצפים ו${g('מתניע', 'מתניעה')} לבד — הקושי הוא בעכבה ובהתמדה בפעילות, לא בזיכרון.`;
-      } else if (!flexBelow && (wmBelow || inhBelow)) {
-        efPara += `יכולת הגמישות המחשבתית באה לידי ביטוי — ${child} ${g('מצליח', 'מצליחה')} לפתור בעיות ולהסתגל לשינויים, והקושי הוא בביצוע עצמאי של השגרה.`;
-      }
+      efPara += '.';
     } else {
       efPara += `כל התפקודים הניהוליים בטווח התקין (עכבה ${fmt(d.inhAvg)}, זיכרון עבודה ${fmt(d.wmAvg)}, גמישות מחשבתית ${fmt(d.flexAvg)}). ייתכן שהקושי בשגרות נובע מגורמים סביבתיים, חווייתיים או הרגלים — ולא מקושי בתפקודים הניהוליים עצמם.`;
     }
@@ -917,7 +1092,11 @@ function buildSummary(d) {
     }
     rec += '. ';
     if (strongItemsAll.length >= 2) {
-      rec += `כמו כן מומלץ לגייס את הכוחות של ${child} כפי שעלו בשאלון, וללוות את התהליך באיסוף חוויות הצלחה, גם קטנות.`;
+      // canon D "Strengths" part: motivation + small successes + recruiting
+      // strengths from an easier routine toward the harder ones, named with
+      // the anonymous number — never "הילד" (rule 25).
+      const strengthRoutines = okRoutines.map((r) => r.inName).join(' ו');
+      rec += `כמו כן מומלץ לשים דגש על גיוס מוטיבציה של ${anonId}, איסוף חוויות של הצלחה גם אם קטנות, וגיוס ${g('כוחותיו', 'כוחותיה')} המתבטאים ${strengthRoutines || 'במשימות אחרות'} אל המשימות שקשות ${g('לו', 'לה')} יותר.`;
     }
     s += para(rec);
   }
