@@ -168,6 +168,32 @@ const cutoffs = {
   '8-11': { morning: 2.76, play: 3.55, social: 3.04, total: 3.28, inh: 2.84, wm: 3.37, flex: 3.07 },
 };
 
+// ===== STATUS (TM-spec §B) =====
+// One status per score, from the cutoff and nothing else. Every surface
+// that names or colors a score (card value, gauge, status pill, print
+// table, AI export) calls this. EF_CLOSE_MARGIN is the same 0.15 "close"
+// line buildSummary's efStatus uses (canon B2); routines and the total
+// stay binary (canon 0b#12).
+const EF_CLOSE_MARGIN = 0.15;
+function cutoffStatus(score, cutoff, kind) {
+  if (score < cutoff) return { key: 'below', cls: 'warn', text: 'נמוך מציון החתך' };
+  if (kind === 'ef' && score - cutoff <= EF_CLOSE_MARGIN) {
+    return { key: 'close', cls: 'mid', text: 'קרוב לציון החתך' };
+  }
+  return { key: 'norm', cls: 'ok', text: 'בטווח הנורמה' };
+}
+
+// Strips buildSummary()'s HTML down to plain text. Shared by the print
+// template and the AI export, so both carry the exact same summary text.
+function summaryHtmlToText(html) {
+  return html
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/p>/gi, '\n\n')
+    .replace(/<[^>]+>/g, '')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
 // ===== BUILD FORM =====
 function buildForm() {
   const container = document.getElementById('questionnaire');
@@ -225,7 +251,7 @@ function buildForm() {
         }
         const efNote =
           item.num === 10 || item.num === 11
-            ? `<span class="ef-note">לא בסולמות ניהוליים</span>`
+            ? `<span class="ef-note">לא כלול בתפקודים הניהוליים</span>`
             : '';
         html += `<div class="item-row">
         <span class="item-num">${item.num}</span>
@@ -276,7 +302,8 @@ function updateAge() {
 
   const totalYears = years + months / 12;
   const ageEl = document.getElementById('calcAge');
-  ageEl.textContent = `${years} שנים, ${months} חודשים`;
+  const monthsText = months === 0 ? '' : months === 1 ? ' וחודש' : ` ו-${months} חודשים`;
+  ageEl.textContent = `${years} שנים${monthsText}`;
   ageEl.className = 'computed';
 
   const ageGroupEl = document.getElementById('ageGroup');
@@ -296,7 +323,7 @@ function updateAge() {
     ageGroupDisplay.className = 'computed valid';
   } else {
     ageGroupEl.value = '';
-    ageGroupDisplay.textContent = 'מחוץ לטווח הגילאים';
+    ageGroupDisplay.textContent = 'מחוץ לטווח הגילים של השאלון (3.0–11.11)';
     ageGroupDisplay.className = 'computed invalid';
   }
 }
@@ -478,7 +505,7 @@ function calculate() {
   }
   const ageGroup = document.getElementById('ageGroup').value;
   if (!ageGroup) {
-    showWarning('הגיל מחוץ לטווח (3-11) — לא ניתן לחשב ציונים');
+    showWarning('הגיל מחוץ לטווח הגילים של השאלון (3.0–11.11) — לא ניתן לחשב ציונים');
     return;
   }
 
@@ -523,7 +550,7 @@ function calculate() {
   const ageText = document.getElementById('calcAge').textContent;
   const ageLabel = document.getElementById('ageGroupDisplay').textContent;
   const genderRaw = document.getElementById('childGender').value;
-  const gender = genderRaw === 'male' ? 'זכר' : genderRaw === 'female' ? 'נקבה' : '';
+  const gender = genderText(genderRaw);
   const isMale = genderRaw === 'male';
 
   const routineGroups = {
@@ -543,17 +570,17 @@ function calculate() {
   const resultsDiv = document.getElementById('results');
   resultsDiv.innerHTML = `
     <div class="results-header">
-      <h2>תוצאות EFORTS</h2>
-      <div class="results-meta">מזהה: ${anonId} | ${gender} | ${ageText} | קבוצת גיל: ${ageLabel}</div>
+      <h2>תוצאות שאלון EFORTS</h2>
+      <div class="results-meta">${patientNoun(genderRaw)} מס' ${anonId} | ${gender} | ${ageText} | קבוצת גיל: ${ageLabel}</div>
       <div class="results-hint">לחצ/י על כל שורה כדי לראות פירוט הפריטים</div>
       <div class="score-legend" style="margin-top:12px;">
-        <span class="score-legend-item"><span class="score-legend-dot" style="background:var(--green)"></span> בטווח התקין</span>
+        <span class="score-legend-item"><span class="score-legend-dot" style="background:var(--green)"></span> בטווח הנורמה</span>
         <span style="margin:0 6px;">|</span>
-        <span class="score-legend-item"><span class="score-legend-dot" style="background:var(--amber)"></span> מתחת לממוצע</span>
+        <span class="score-legend-item"><span class="score-legend-dot" style="background:var(--amber)"></span> קרוב לציון החתך (תפקודים ניהוליים)</span>
         <span style="margin:0 6px;">|</span>
-        <span class="score-legend-item"><span class="score-legend-dot" style="background:var(--red)"></span> מתחת לציון החתך</span>
+        <span class="score-legend-item"><span class="score-legend-dot" style="background:var(--red)"></span> נמוך מציון החתך</span>
         <span style="margin:0 6px;">|</span>
-        <span>▌ = ציון חתך</span>
+        <span>▌ = ציון החתך לקבוצת הגיל</span>
       </div>
     </div>
 
@@ -566,7 +593,7 @@ function calculate() {
     </div>
 
     <div class="score-group">
-      <div class="score-group-title">סולמות תפקודים ניהוליים</div>
+      <div class="score-group-title">ציוני תפקודים ניהוליים</div>
       ${scoreRow('inh', 'עכבה', inhAvg, c.inh, efGroups.inh.items, scores, 'ef')}
       ${scoreRow('wm', 'זיכרון עבודה', wmAvg, c.wm, efGroups.wm.items, scores, 'ef')}
       ${scoreRow('flex', 'גמישות מחשבתית', flexAvg, c.flex, efGroups.flex.items, scores, 'ef')}
@@ -591,11 +618,11 @@ function calculate() {
         scores,
       })}</div>
       <div style="background:#eef6ff; border:1px solid #c5ddf5; border-radius:8px; padding:10px 14px; margin-top:14px;">
-        <span style="font-size:0.82rem; color:#334155;">💡 לסיכום קליני מפורט יותר — לחצ/י "הורד ל-AI" והעל/י את הקובץ לכלי AI (Claude, ChatGPT, Copilot)</span>
+        <span style="font-size:0.82rem; color:#334155;">לשילוב ממצאי השאלון עם התמונה הקלינית מהמפגש: לחצ/י "הורד ל-AI", העל/י את הקובץ לכלי AI (Claude, ChatGPT, Copilot) ותאר/י לו מה נצפה. הכלי יכתוב רק את פסקת המטפל/ת, בלי לשנות ציונים או את הסיכום. אין להוסיף שם או ת״ז.</span>
       </div>
       <div class="summary-note">
-        ציון חתך = 1.5 סטיות תקן מתחת לממוצע הנורמטיבי. ציון מתחת לחתך מעיד על חשד לעיכוב.
-        <br>פריטים 10 ו-11 לא נכללים בחישוב הסולמות הניהוליים.
+        ציון החתך נקבע 1.5 סטיות תקן מתחת לממוצע של קבוצת הגיל (Frisch & Rosenblum, 2024). ציון נמוך מציון החתך מורה על חשד לקושי בתחום שנמדד בלבד: בשגרה או בתפקוד הניהולי.
+        <br>הציון הכולל הוא ממוצע שלושת ציוני השגרות. פריטים 10 ו-11 אינם נכללים בחישוב התפקודים הניהוליים.
       </div>
     </div>
 
@@ -612,14 +639,8 @@ function calculate() {
 }
 
 function scoreRow(id, label, score, cutoff, cardItems, scores, type) {
-  const isOk = score >= cutoff;
-  const cls = isOk ? 'ok' : 'warn';
-  const statusText = isOk ? 'בטווח התקין' : 'מתחת לחתך';
+  const st = cutoffStatus(score, cutoff, type);
   const hasDetails = cardItems.length > 0;
-  const interp =
-    score <= 2 ? 'קושי משמעותי' : score <= 3 ? 'מתחת לממוצע' : score <= 4 ? 'בטווח הממוצע' : 'חזק';
-  const interpCls = score <= 2 ? 'warn' : score <= 3 ? 'mid' : 'ok';
-  const gaugeCls = score <= 2 ? 'warn' : score <= 3 ? 'mid' : 'ok';
 
   // Gauge: score position on 1-5 scale
   const pct = ((score - 1) / 4) * 100;
@@ -629,7 +650,7 @@ function scoreRow(id, label, score, cutoff, cardItems, scores, type) {
   let drillHtml = '';
   if (hasDetails) {
     const efLabels = { inh: 'עכבה', wm: 'זיכרון עבודה', flex: 'גמישות מחשבתית' };
-    const routineLabels = { morning: 'בוקר/ערב', play: 'פנאי/משחק', social: 'חברתית' };
+    const routineLabels = { morning: 'בוקר וערב', play: 'פנאי ומשחק', social: 'שגרה חברתית' };
     const sorted = [...cardItems].sort((a, b) => scores[a.num] - scores[b.num]);
     const weak = sorted.filter((i) => scores[i.num] <= 2);
     const mid = sorted.filter((i) => scores[i.num] === 3);
@@ -637,16 +658,20 @@ function scoreRow(id, label, score, cutoff, cardItems, scores, type) {
 
     drillHtml = `<div class="drilldown" id="drill_${id}">
       <div class="drill-summary">
-        <span class="drill-badge weak">${weak.length} חלשים</span>
-        <span class="drill-badge mid">${mid.length} בינוניים</span>
-        <span class="drill-badge strong">${strong.length} חזקים</span>
+        <span class="drill-badge weak">ציון 1–2: ${weak.length}</span>
+        <span class="drill-badge mid">ציון 3: ${mid.length}</span>
+        <span class="drill-badge strong">ציון 4–5: ${strong.length}</span>
       </div>`;
 
     sorted.forEach((item) => {
       const s = scores[item.num];
       const rowCls = s <= 2 ? 'weak' : s === 3 ? 'mid' : 'strong';
       const tag =
-        type === 'routine' ? (item.ef ? efLabels[item.ef] : '—') : routineLabels[item.routine];
+        type === 'routine'
+          ? item.ef
+            ? efLabels[item.ef]
+            : 'לא כלול'
+          : routineLabels[item.routine];
       const dots = [1, 2, 3, 4, 5]
         .map((v) => `<span class="drill-dot ${v === s ? 'active-' + rowCls : ''}">${v}</span>`)
         .join('');
@@ -661,22 +686,37 @@ function scoreRow(id, label, score, cutoff, cardItems, scores, type) {
     drillHtml += `</div>`;
   }
 
-  const scoreTip = `ממוצע על סולם 1-5:\n1.0-2.0 = קושי משמעותי\n2.0-3.0 = מתחת לממוצע\n3.0-4.0 = בטווח הממוצע\n4.0-5.0 = חזק`;
+  // S-09: explains the cutoff, not the deleted absolute bands.
+  const tipScope = {
+    routine: 'ממוצע הפריטים בשגרה זו',
+    total: 'ממוצע שלושת ציוני השגרות',
+    ef: 'ממוצע הפריטים של תפקוד זה בשלוש השגרות (בלי פריטים 10 ו-11)',
+  }[type];
+  const tipBelow = {
+    routine: 'חשד לקושי בשגרה זו',
+    total: 'חשד לקושי בניהול העצמי של שגרות היום-יום',
+    ef: 'חשד לקושי בתפקוד ניהולי זה',
+  }[type];
+  const scoreTip =
+    `${tipScope}, בסולם 1–5 (ציון גבוה = תפקוד טוב יותר).\n` +
+    `ציון החתך לקבוצת הגיל: ${cutoff.toFixed(2)}\n` +
+    `נמוך מציון החתך = ${tipBelow}.` +
+    (type === 'ef' ? `\nקרוב לציון החתך = עד 0.15 מעליו.` : '');
 
   return `<div class="score-row ${hasDetails ? '' : 'no-drill'}" ${hasDetails ? `onclick="toggleDrill('${id}')"` : ''}>
     <div class="score-row-top">
       <div class="score-label">${label} ${hasDetails ? `<span class="arrow" id="arrow_${id}">&#9660;</span>` : ''}
         <span class="info-tip" tabindex="0" onclick="event.stopPropagation()">?<span class="tip-content">${scoreTip}</span></span>
       </div>
-      <div class="score-value ${cls}">${score.toFixed(2)}</div>
+      <div class="score-value ${st.cls}">${score.toFixed(2)}</div>
     </div>
     <div class="gauge">
-      <div class="gauge-fill ${gaugeCls}" style="width:${pct}%"></div>
+      <div class="gauge-fill ${st.cls}" style="width:${pct}%"></div>
       <div class="gauge-cutoff" style="right:${cutoffPct}%" data-label="חתך ${cutoff.toFixed(2)}"></div>
     </div>
     <div class="score-meta">
-      <span class="score-interp ${interpCls}">${interp}</span>
-      <span class="score-status ${cls}">${statusText}</span>
+      <span class="score-interp">ציון החתך: ${cutoff.toFixed(2)}</span>
+      <span class="score-status ${st.cls}">${st.text}</span>
     </div>
   </div>
   ${drillHtml}`;
@@ -1104,12 +1144,62 @@ function buildSummary(d) {
   return s;
 }
 
-function downloadForAI() {
+// AI-13: the new prompt. Top-level so buildExportText() can call it. The
+// template literal's lines sit flush left — anything indented inside the
+// backticks would end up in the downloaded file.
+function aiPrompt(anonIdText, gender) {
+  return `הנחיות לכלי ה-AI:
+
+1. מה כבר קיים. הציונים חושבו בכלי, והסיכום הקליני שלמעלה (תמונה כללית, משמעות קלינית ופסקת "מומלץ") נכתב בכלי לפי כללי הכתיבה שנגזרו מהנוסח של מחברות השאלון. אל תחשב מחדש אף ציון, אל תשנה אף מספר, ואל תכתוב מחדש את הסיכום או חלק ממנו.
+
+2. מה אתה כותב: רק את פסקת המטפל/ת. זו פסקה אחת, שנכנסת בין "משמעות קלינית" לבין פסקת "מומלץ", ומצרפת את ממצאי השאלון לתמונה הקלינית מהמפגש. פתח כמו בנוסח של המחברות: "אם מצרפים ממצאי הערכה אלו לתמונה הקלינית בשטח עולה כי…". כתוב אותה רק ממה שהמטפל/ת מוסר/ת לך בשיחה הזו: תצפיות מהמפגש, דיווח של ההורים או של הצוות החינוכי, ממצאים ממבדקים אחרים. אם לא נמסרו תצפיות, אל תכתוב את הפסקה, ושאל את המטפל/ת מה נצפה.
+
+3. תוספת לפסקת "מומלץ", רק אם המטפל/ת ביקש/ה: חצי משפט שמתחבר לסוף הפסקה הקיימת, רק ממה שעלה במפגש (לדוגמה "ויתכן גם ויסות רגשי", כשזה עלה בטיפול ולא מהשאלון). בלי מספר טיפולים, תדירות, שמות פרוטוקולים, הפניות או אבחנות.
+
+4. לא להמציא. כל משפט נשען על הקובץ הזה או על מה שהמטפל/ת כתב/ה בשיחה. אף משפט לא סותר ציון של פריט או משפט אחר בסיכום. מוטיבציה, ביטחון עצמי, ויסות רגשי וקשב נכתבים רק אם המטפל/ת מסר/ה אותם.
+
+5. קול ושפה, כמו בסיכום:
+- גוף שלישי. פעלים רכים: "מתקשה ל…", "זקוק ל…", "מוסח מ…", "עולה קושי ב…", "נראה כי", "יתכן", "על רקע", "ככל הנראה".
+- בלי שרשראות שלילה ("לא עושה, לא זוכר") ובלי ניגוד מהסוג "לא X אלא Y".
+- בלי תוויות אבחנתיות או תכונתיות ("אימפולסיבי", ADHD, "קשב" כאבחנה). מתארים התנהגות: פזיזות, מוסחות, קושי בעכבה.
+- "איחור" או "עיכוב" לעולם אינם קביעה כללית; קושי נכתב תמיד בתחום שלו.
+- כינוי למטופל/ת: כינוי גוף ("הוא", "היא"), או המספר האנונימי (${anonIdText}) לכל היותר פעם אחת בפסקה. לעולם לא "הילד" או "הילדה", לעולם לא שם או ת״ז, ואין לבקש אותם.
+- מין: ${gender}. התאמת מין בכל פועל, כינוי וסיומת. אם המין לא צוין, שאל לפני שאתה כותב.
+- עברית בלבד. המילה הלועזית היחידה: EFORTS.
+
+6. מונחים, בדיוק כך: עכבה · זיכרון עבודה · גמישות מחשבתית · תפקודים ניהוליים · ציון החתך · ציון כולל · בטווח הנורמה · שגרת בוקר וערב · שגרת פנאי ומשחק · השגרה החברתית · שגרות היום-יום. לא: "סף", "נקודת חתך", "פונקציות ניהוליות", "תקין לגמרי".
+
+7. מספרים ופריטים. ציון נכתב בצורה "(קיבל/ה ציון X כאשר ציון החתך הוא Y)", שתי ספרות אחרי הנקודה, בדיוק כפי שהוא מופיע למעלה. בלי ממוצעים, סטיות תקן, אחוזונים, "מתחת לממוצע", ובלי מילות התשובה ("לפעמים", "לעיתים רחוקות"). פריט נכתב "פריט N"; שני פריטים: "(פריט N ופריט M)".
+
+8. תפקודים ניהוליים. תפקוד ניהולי שציונו נמוך מציון החתך הוא ההסבר העיקרי לקושי. תפקוד שציונו "קרוב לציון החתך" (עד 0.15 מעליו) יכול להסביר קושי רק כגורם משני ("ולעיתים על רקע קושי ב…"). תפקוד שציונו גבוה מציון החתך ביותר מ-0.15 אינו מסביר קושי; הוא יכול להופיע רק כחוזקה. פריטים 10 ו-11 אינם ראיה לאף תפקוד ניהולי.
+
+9. פורמט. טקסט רגיל בלבד: בלי כוכביות, בלי כותרות ובלי תבליטים, כי הטקסט מודבק למערכת שמוחקת עיצוב. החזר רק את הפסקה המבוקשת, ולפניה שורה אחת שאומרת איפה היא נכנסת.
+
+10. בקשות אחרות (נוסח לדוח, גרסה להורים, מטרות טיפול): למחברות עוד אין נוסח מוסכם לאלה. כתוב אותן רק אם המטפל/ת ביקש/ה במפורש, פתח ב"טיוטה — לבדיקת המטפל/ת", ושמור על כל הכללים שלמעלה.
+
+לפני שאתה עונה, בדוק:
+[ ] לא חישבתי ולא שיניתי אף ציון, ולא כתבתי מחדש את הסיכום.
+[ ] כל משפט נשען על הקובץ או על דברי המטפל/ת, ואף משפט לא סותר ציון של פריט.
+[ ] אין "הילד" או "הילדה", אין שם ואין ת״ז; המספר האנונימי מופיע לכל היותר פעם בפסקה.
+[ ] התאמת מין בכל מקום.
+[ ] פעלים רכים; בלי שרשראות שלילה, בלי תוויות אבחנתיות, בלי "איחור" כללי.
+[ ] מונחים ומספרים בדיוק בצורה שלמעלה.
+[ ] בלי מספר טיפולים, פרוטוקולים, הפניות או אבחנות.
+[ ] טקסט רגיל, בלי עיצוב.
+`;
+}
+
+// Pure: builds the "הורד ל-AI" export text from the current form/results
+// state. No DOM writes, no download — downloadForAI() below does that, so
+// this is directly testable via page.evaluate(() => buildExportText()).
+function buildExportText() {
   const genderRaw = document.getElementById('childGender').value;
-  const gender = genderRaw === 'male' ? 'זכר' : 'נקבה';
+  const gender = genderText(genderRaw);
+  const isMale = genderRaw === 'male';
   const ageText = document.getElementById('calcAge').textContent;
   const ageLabel = document.getElementById('ageGroupDisplay').textContent;
   const ageGroup = document.getElementById('ageGroup').value;
+  const anonIdText = document.getElementById('anonId').value || '—';
   const efLabels = { inh: 'עכבה', wm: 'זיכרון עבודה', flex: 'גמישות מחשבתית' };
 
   // Collect all scores
@@ -1140,51 +1230,78 @@ function downloadForAI() {
   const compLabels = { mom: 'אמא', dad: 'אבא', both: 'שני ההורים', other: 'אחר' };
 
   const scoreNames = ['', 'אף פעם', 'לעיתים רחוקות', 'לפעמים', 'לעיתים קרובות', 'תמיד'];
-  const status = (val, cut) => (val >= cut ? 'בטווח התקין' : 'מתחת לציון החתך');
 
-  let text = `שאלון EFORTS — נתונים לניתוח קליני\n`;
+  let text = `שאלון EFORTS — נתוני קידוד לשימוש בכלי AI\n`;
   text += `══════════════════════════════════\n\n`;
 
   text += `רקע על הכלי:\n`;
-  text += `EFORTS (Executive Functions in Occupational Routines Tool for Screening) הוא שאלון סינון לתפקודים ניהוליים בשגרות יומיומיות, מיועד לילדים בגילאי 3-11. הסולם: 1 (אף פעם) עד 5 (תמיד). ציון גבוה = תפקוד טוב יותר. ציון חתך = 1.5 סטיות תקן מתחת לממוצע הנורמטיבי — מתחתיו יש חשד לעיכוב. פריטים 10 ו-11 לא נכללים בחישוב הסולמות הניהוליים.\n\n`;
+  text += `EFORTS (Executive Functions & Occupational Routine Scale) — "שאלון למדידת יכולת הניהול העצמי של ילדים בשגרות היום יום" (Frisch & Rosenblum, 2014; נורמות וציוני חתך: Frisch & Rosenblum, 2024). שאלון להורים, לגילאי 3.0–11.11: 30 פריטים בשלוש שגרות — שגרות בוקר וערב (פריטים 1–16), שגרות משחק ופנאי (17–23) ושגרה חברתית (24–30). כל פריט מדורג מ-1 (אף פעם) עד 5 (תמיד); ציון גבוה = תפקוד טוב יותר. ציון שגרה = ממוצע פריטי השגרה; ציון כולל = ממוצע שלושת ציוני השגרות. כל פריט משויך גם לאחד משלושה תפקודים ניהוליים — עכבה, זיכרון עבודה או גמישות מחשבתית; פריטים 10 ו-11 אינם נכללים בחישוב התפקודים הניהוליים. ציון החתך נקבע 1.5 סטיות תקן מתחת לממוצע של קבוצת הגיל. ציון נמוך מציון החתך מורה על חשד לקושי בתחום שנמדד בלבד (בשגרה או בתפקוד הניהולי), ואינו קביעה של עיכוב כללי.\n\n`;
 
-  text += `פרטי הילד:\n`;
-  text += `  מין: ${gender} | גיל: ${ageText} | קבוצת גיל נורמטיבית: ${ageLabel}\n\n`;
+  text += `פרטי המטופל/ת:\n`;
+  text += `  מספר אנונימי: ${anonIdText} | מין: ${gender} | גיל: ${ageText} | קבוצת גיל נורמטיבית: ${ageLabel}\n\n`;
 
-  text += `ציונים מחושבים (ממוצע | ציון חתך | מצב):\n`;
+  const line = (label, sc, ct, kind) =>
+    `    ${label}: ${sc.toFixed(2)} | ציון החתך: ${ct.toFixed(2)} | ${cutoffStatus(sc, ct, kind).text}\n`;
+  text += `ציונים (חושבו בכלי — אין לחשב מחדש): ציון, ציון החתך, מצב\n`;
   text += `  שגרות:\n`;
-  text += `    בוקר וערב:    ${morningAvg.toFixed(2)} | חתך: ${c.morning} | ${status(morningAvg, c.morning)}\n`;
-  text += `    פנאי ומשחק:   ${playAvg.toFixed(2)} | חתך: ${c.play} | ${status(playAvg, c.play)}\n`;
-  text += `    שגרה חברתית:  ${socialAvg.toFixed(2)} | חתך: ${c.social} | ${status(socialAvg, c.social)}\n`;
-  text += `    ציון כולל:     ${totalAvg.toFixed(2)} | חתך: ${c.total} | ${status(totalAvg, c.total)}\n`;
-  text += `  סולמות תפקודים ניהוליים:\n`;
-  text += `    עכבה:          ${inhAvg.toFixed(2)} | חתך: ${c.inh} | ${status(inhAvg, c.inh)}\n`;
-  text += `    זיכרון עבודה:  ${wmAvg.toFixed(2)} | חתך: ${c.wm} | ${status(wmAvg, c.wm)}\n`;
-  text += `    גמישות מחשבתית: ${flexAvg.toFixed(2)} | חתך: ${c.flex} | ${status(flexAvg, c.flex)}\n\n`;
+  text += line('בוקר וערב', morningAvg, c.morning, 'routine');
+  text += line('פנאי ומשחק', playAvg, c.play, 'routine');
+  text += line('שגרה חברתית', socialAvg, c.social, 'routine');
+  text += line('ציון כולל', totalAvg, c.total, 'total');
+  text += `  תפקודים ניהוליים:\n`;
+  text += line('עכבה', inhAvg, c.inh, 'ef');
+  text += line('זיכרון עבודה', wmAvg, c.wm, 'ef');
+  text += line('גמישות מחשבתית', flexAvg, c.flex, 'ef');
+  text += `\n`;
 
   // All 30 items with scores
   text += `פריטים וציונים:\n`;
   const routines = [
-    { key: 'morning', label: 'שגרות בוקר וערב', range: [1, 16] },
-    { key: 'play', label: 'פנאי ומשחק', range: [17, 23] },
+    { key: 'morning', label: 'שגרת בוקר וערב', range: [1, 16] },
+    { key: 'play', label: 'שגרת פנאי ומשחק', range: [17, 23] },
     { key: 'social', label: 'שגרה חברתית', range: [24, 30] },
   ];
   routines.forEach((r) => {
     const comp = companions[r.key]
-      ? ` (ממלא: ${compLabels[companions[r.key]] || companions[r.key]})`
+      ? ` (מי נמצא בדרך כלל בשגרות אלו: ${compLabels[companions[r.key]] || companions[r.key]})`
       : '';
     text += `\n${r.label}${comp}:\n`;
     items
       .filter((i) => i.num >= r.range[0] && i.num <= r.range[1])
       .forEach((item) => {
         const sc = scores[item.num];
-        const ef = item.ef ? efLabels[item.ef] : 'לא כלול בסולמות';
+        const ef = item.ef ? efLabels[item.ef] : 'לא כלול בתפקודים הניהוליים';
         text += `  ${item.num}. ${item.text} — ${sc} (${scoreNames[sc]}) [${ef}]\n`;
       });
   });
 
-  text += `\nהנחיות לניתוח:\nכתוב סיכום קליני בעברית על סמך הנתונים, בנוי לפי שגרות (לא לפי תפקודים ניהוליים): פסקת תמונה כללית (ציון כולל מול ציון החתך), ואז פסקה לכל שגרה שציונה נמוך — הציון מול החתך, איזה תפקוד ניהולי מסביר את הקושי בשגרה זו (עם 1-2 פריטים לדוגמה, בסגנון "כמו למשל — מתקשה ל..., פריט N"), וחוזקות באותה שגרה. לאחר מכן פסקת מבט על התפקודים הניהוליים (מה נמוך, מה קרוב לחתך, מה תקין), וסיום בהמלצה לטיפול (הדרכת הורים, ניתוח דרישות מטלה וסביבה, מטרות קצרות-טווח, גיוס כוחות). כתוב בלשון קלינית רכה ("מתקשה", "נראה כי") ולא בשלילה ("לא עושה"). התייחס לציוני החתך בפרשנות — ציון קרוב לחתך מלמד שונה מציון רחוק ממנו.`;
+  // AI-12: the fixed summary, so the AI sees exactly what it must not rewrite.
+  const summaryHtml = buildSummary({
+    anonId: anonIdText,
+    gender,
+    isMale,
+    ageText,
+    ageLabel,
+    morningAvg,
+    playAvg,
+    socialAvg,
+    totalAvg,
+    inhAvg,
+    wmAvg,
+    flexAvg,
+    c,
+    scores,
+  });
+  text += `\nהסיכום הקליני שנכתב בכלי (קבוע — אין לשנות):\n`;
+  text += summaryHtmlToText(summaryHtml) + '\n';
 
+  text += '\n' + aiPrompt(anonIdText, gender);
+
+  return text;
+}
+
+function downloadForAI() {
+  const text = buildExportText();
   const anonId = document.getElementById('anonId').value || 'eforts';
   const date = new Date().toISOString().slice(0, 10);
   const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
@@ -1199,12 +1316,13 @@ function downloadForAI() {
 async function printResults() {
   const btn = document.querySelector('.btn-pdf');
   btn.disabled = true;
-  btn.textContent = '...יוצר PDF';
+  btn.textContent = 'מכין להדפסה…';
 
   try {
     // Gather all data from the current results
     const anonId = document.getElementById('anonId').value || '—';
-    const gender = document.getElementById('childGender').value === 'male' ? 'זכר' : 'נקבה';
+    const genderRaw = document.getElementById('childGender').value;
+    const gender = genderText(genderRaw);
     const ageText = document.getElementById('calcAge').textContent;
     const ageLabel = document.getElementById('ageGroupDisplay').textContent;
     const ageGroup = document.getElementById('ageGroup').value;
@@ -1256,21 +1374,25 @@ async function printResults() {
       .filter((i) => scores[i.num] >= 4)
       .sort((a, b) => scores[b.num] - scores[a.num]);
 
-    const levelText = (sc, ct) =>
-      sc < ct ? 'מתחת לחתך ⚠' : sc <= 3 ? 'מתחת לממוצע' : 'בטווח התקין ✓';
-    const levelColor = (sc, ct) => (sc < ct ? '#c0392b' : sc <= 3 ? '#d35400' : '#27ae60');
+    // S-11: the print copy of B8 — same cutoffStatus() source as the screen.
+    const PRINT_COLOR = { warn: '#c0392b', mid: '#d35400', ok: '#27ae60' };
+    const levelText = (sc, ct, kind) => {
+      const st = cutoffStatus(sc, ct, kind);
+      return st.key === 'below' ? `${st.text} ⚠` : st.key === 'norm' ? `${st.text} ✓` : st.text;
+    };
+    const levelColor = (sc, ct, kind) => PRINT_COLOR[cutoffStatus(sc, ct, kind).cls];
 
     // Build score rows for the table
     const scoreTableRows = [
-      { label: 'בוקר וערב', sc: morningAvg, ct: c.morning },
-      { label: 'פנאי ומשחק', sc: playAvg, ct: c.play },
-      { label: 'שגרה חברתית', sc: socialAvg, ct: c.social },
-      { label: 'ציון כולל', sc: totalAvg, ct: c.total },
+      { label: 'בוקר וערב', sc: morningAvg, ct: c.morning, kind: 'routine' },
+      { label: 'פנאי ומשחק', sc: playAvg, ct: c.play, kind: 'routine' },
+      { label: 'שגרה חברתית', sc: socialAvg, ct: c.social, kind: 'routine' },
+      { label: 'ציון כולל', sc: totalAvg, ct: c.total, kind: 'total' },
     ];
     const efTableRows = [
-      { label: 'עכבה', sc: inhAvg, ct: c.inh },
-      { label: 'זיכרון עבודה', sc: wmAvg, ct: c.wm },
-      { label: 'גמישות מחשבתית', sc: flexAvg, ct: c.flex },
+      { label: 'עכבה', sc: inhAvg, ct: c.inh, kind: 'ef' },
+      { label: 'זיכרון עבודה', sc: wmAvg, ct: c.wm, kind: 'ef' },
+      { label: 'גמישות מחשבתית', sc: flexAvg, ct: c.flex, kind: 'ef' },
     ];
 
     const buildScoreTable = (rows) =>
@@ -1279,9 +1401,9 @@ async function printResults() {
           (r) =>
             `<tr>
         <td style="padding:4px 10px;font-weight:600;text-align:right;">${r.label}</td>
-        <td style="padding:4px 10px;text-align:center;color:${levelColor(r.sc, r.ct)};font-weight:700;">${r.sc.toFixed(2)}</td>
+        <td style="padding:4px 10px;text-align:center;color:${levelColor(r.sc, r.ct, r.kind)};font-weight:700;">${r.sc.toFixed(2)}</td>
         <td style="padding:4px 10px;text-align:center;color:#666;">${r.ct.toFixed(2)}</td>
-        <td style="padding:4px 10px;text-align:center;color:${levelColor(r.sc, r.ct)};">${levelText(r.sc, r.ct)}</td>
+        <td style="padding:4px 10px;text-align:center;color:${levelColor(r.sc, r.ct, r.kind)};">${levelText(r.sc, r.ct, r.kind)}</td>
       </tr>`,
         )
         .join('');
@@ -1294,20 +1416,21 @@ async function printResults() {
         <td style="padding:4px 8px;text-align:center;color:#888;font-size:11px;">${item.num}</td>
         <td style="padding:4px 8px;text-align:right;font-size:11px;line-height:1.5;">${item.text}</td>
         <td style="padding:4px 8px;text-align:center;font-size:11px;">${_routineLabels[item.routine]}</td>
-        <td style="padding:4px 8px;text-align:center;font-size:11px;">${_efLabels[item.ef] || '—'}</td>
+        <td style="padding:4px 8px;text-align:center;font-size:11px;">${_efLabels[item.ef] || 'לא כלול'}</td>
         <td style="padding:4px 8px;text-align:center;font-weight:700;font-size:12px;color:${scores[item.num] <= 2 ? '#c0392b' : scores[item.num] === 3 ? '#d35400' : '#27ae60'};">${scores[item.num]}</td>
         <td style="padding:4px 8px;text-align:center;font-size:10px;color:#888;">${scoreNames[scores[item.num]]}</td>
       </tr>`,
         )
         .join('');
 
+    const nItems = (n) => (n === 1 ? 'פריט אחד' : `${n} פריטים`);
+
     // Strip HTML tags from summary for clean text
-    const summaryText = summaryHtml
-      .replace(/<br\s*\/?>/gi, '\n')
-      .replace(/<\/p>/gi, '\n\n')
-      .replace(/<[^>]+>/g, '')
-      .replace(/\n{3,}/g, '\n\n')
-      .trim();
+    const summaryText = summaryHtmlToText(summaryHtml);
+
+    // P-07: the fill date, not today's date — the age is computed from it.
+    const fillIso = getFillDateValue();
+    const fillDateText = new Date(fillIso || Date.now()).toLocaleDateString('he-IL');
 
     // Build a minimal, print-optimized HTML document
     const printHtml = `<!DOCTYPE html>
@@ -1351,30 +1474,30 @@ async function printResults() {
     <div class="print-header-credit">תהליך מחשוב השאלון בוצע ע"י אליסון אלט, מרפאה בעיסוק בשירותי בריאות כללית מחוז ירושלים, בתיאום ואישור המחברות.</div>
   </div>
   <h1>תוצאות שאלון EFORTS</h1>
-  <div class="meta">מזהה: ${anonId} | ${gender} | ${ageText} | קבוצת גיל: ${ageLabel} | תאריך: ${new Date().toLocaleDateString('he-IL')}</div>
+  <div class="meta">${patientNoun(genderRaw)} מס' ${anonId} | ${gender} | ${ageText} | קבוצת גיל: ${ageLabel} | תאריך מילוי: ${fillDateText}</div>
 
   <div class="section-title">ציונים</div>
   <table>
-    <tr><th style="text-align:right;">תחום</th><th>ציון</th><th>חתך</th><th>מצב</th></tr>
+    <tr><th style="text-align:right;">שגרה</th><th>ציון</th><th>ציון החתך</th><th>מצב</th></tr>
     ${buildScoreTable(scoreTableRows)}
     <tr><td colspan="4" style="padding:2px;border:none;"></td></tr>
-    <tr><th style="text-align:right;">תפקוד ניהולי</th><th>ציון</th><th>חתך</th><th>מצב</th></tr>
+    <tr><th style="text-align:right;">תפקוד ניהולי</th><th>ציון</th><th>ציון החתך</th><th>מצב</th></tr>
     ${buildScoreTable(efTableRows)}
   </table>
 
   <div class="section-title">סיכום קליני</div>
   <div class="summary-box">${summaryText}</div>
 
-  <div class="section-title">פירוט פריטים לפי רמת ציון</div>
+  <div class="section-title">פירוט הפריטים לפי ציון</div>
   <table>
-    <tr><th style="width:30px;">#</th><th style="text-align:right;">פריט</th><th style="width:80px;">שגרה</th><th style="width:80px;">תפקוד</th><th style="width:40px;">ציון</th><th style="width:70px;">רמה</th></tr>
-    ${weakItems.length > 0 ? `<tr><td colspan="6" class="group-header group-weak">קושי (ציון 1-2) — ${weakItems.length} פריטים</td></tr>` + buildItemRows(weakItems, '#fff5f5') : ''}
-    ${midItems.length > 0 ? `<tr><td colspan="6" class="group-header group-mid">בינוני (ציון 3) — ${midItems.length} פריטים</td></tr>` + buildItemRows(midItems, '#fffbeb') : ''}
-    ${strongItems.length > 0 ? `<tr><td colspan="6" class="group-header group-strong">חזק (ציון 4-5) — ${strongItems.length} פריטים</td></tr>` + buildItemRows(strongItems, '#f0fdf4') : ''}
+    <tr><th style="width:30px;">#</th><th style="text-align:right;">פריט</th><th style="width:80px;">שגרה</th><th style="width:80px;">תפקוד ניהולי</th><th style="width:40px;">ציון</th><th style="width:70px;">תשובה</th></tr>
+    ${weakItems.length > 0 ? `<tr><td colspan="6" class="group-header group-weak">ציון 1–2 (קושי) — ${nItems(weakItems.length)}</td></tr>` + buildItemRows(weakItems, '#fff5f5') : ''}
+    ${midItems.length > 0 ? `<tr><td colspan="6" class="group-header group-mid">ציון 3 — ${nItems(midItems.length)}</td></tr>` + buildItemRows(midItems, '#fffbeb') : ''}
+    ${strongItems.length > 0 ? `<tr><td colspan="6" class="group-header group-strong">ציון 4–5 (חוזקה) — ${nItems(strongItems.length)}</td></tr>` + buildItemRows(strongItems, '#f0fdf4') : ''}
   </table>
 
   <div class="footer">
-    EFORTS — Frisch & Rosenblum, 2014 | ציון חתך = 1.5 סטיות תקן מתחת לממוצע הנורמטיבי | פריטים 10 ו-11 לא נכללים בסולמות הניהוליים
+    EFORTS — Frisch & Rosenblum, 2014 | נורמות: Frisch & Rosenblum, 2024 | ציון החתך = 1.5 סטיות תקן מתחת לממוצע של קבוצת הגיל | פריטים 10 ו-11 אינם נכללים בחישוב התפקודים הניהוליים
   </div>
 </body>
 </html>`;
@@ -1416,6 +1539,15 @@ function avg(arr) {
   return arr.reduce((a, b) => a + b, 0) / arr.length;
 }
 
+// R-01 (TM-spec §A-11): one gender/patient-noun source, used everywhere a
+// "—"/"נקבה" fallback used to hide an unset sex.
+function genderText(raw) {
+  return raw === 'male' ? 'זכר' : raw === 'female' ? 'נקבה' : 'מין לא צוין';
+}
+function patientNoun(raw) {
+  return raw === 'male' ? 'מטופל' : raw === 'female' ? 'מטופלת' : 'מטופל/ת';
+}
+
 function showWarning(msg) {
   const w = document.getElementById('warning');
   w.textContent = msg;
@@ -1433,7 +1565,7 @@ function goBack() {
 }
 
 function resetForm() {
-  if (!confirm('לאפס את כל התשובות ולהתחיל שאלון חדש?')) return;
+  if (!confirm('לאפס את כל התשובות ולהתחיל שאלון חדש? הנתונים השמורים בדפדפן זה יימחקו.')) return;
   localStorage.removeItem('eforts_save');
   document.querySelectorAll('input[type="radio"]').forEach((r) => (r.checked = false));
   document.getElementById('anonId').value = '';
