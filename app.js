@@ -30,6 +30,51 @@ function summaryHtmlToText(html) {
     .trim();
 }
 
+// Gemini review item 8: anonId reaches several HTML sinks (results meta,
+// buildSummary's own embed, the print meta) unescaped — self-XSS today,
+// a real injection vector once anything parent-supplied fills this field.
+// One escaper, applied at each call site (never inside buildSummary()
+// itself, which the FX2 round owns) so every reader of anonId gets the
+// same safe string.
+function escapeHtml(str) {
+  return String(str).replace(/[&<>"']/g, (c) => {
+    switch (c) {
+      case '&':
+        return '&amp;';
+      case '<':
+        return '&lt;';
+      case '>':
+        return '&gt;';
+      case '"':
+        return '&quot;';
+      default:
+        return '&#39;';
+    }
+  });
+}
+
+// Single source for reading the anonymous id — trims once, "where it's
+// read" (item 8), instead of every caller repeating `.value.trim()`.
+function getAnonId() {
+  return document.getElementById('anonId').value.trim();
+}
+
+// Gemini review item 9: a below-cutoff score can round to the same
+// 2-decimal string as its cutoff ("2.92 כאשר ציון החתך הוא 2.92") and
+// still print "נמוך מציון החתך" — reads like a software bug. Reveal a
+// 3rd decimal only in that exact collision; the comparison used for
+// status (cutoffStatus) always stays on the raw, unrounded numbers.
+function fmtScore(score, cutoff) {
+  if (score < cutoff && score.toFixed(2) === cutoff.toFixed(2)) {
+    return score.toFixed(3);
+  }
+  return score.toFixed(2);
+}
+
+// Item 17: shared by the drilldown badges (scoreRow) and the print item
+// grouping, so "one item" never reads like a bare item number.
+const nItems = (n) => (n === 1 ? 'פריט אחד' : `${n} פריטים`);
+
 // ===== BUILD FORM =====
 function buildForm() {
   const container = document.getElementById('questionnaire');
@@ -96,18 +141,42 @@ function updateProgress() {
   });
   const pct = (answered / items.length) * 100;
   document.getElementById('progressFill').style.width = pct + '%';
-  document.getElementById('progressText').textContent = `${answered} / ${items.length}`;
+  // Item 14: a bare "N / 30" is a count in RTL text — isolate it LTR so it
+  // can't visually flip.
+  document.getElementById('progressText').innerHTML =
+    `<bdi dir="ltr">${answered} / ${items.length}</bdi>`;
 }
 
 // ===== AGE =====
+// Item 7: every early return below must leave the same "nothing computed"
+// state a fresh page load starts in — otherwise a date edited AFTER a
+// valid age was already shown (e.g. the fill day briefly cleared while
+// retyping) leaves the OLD age band sitting in the hidden #ageGroup input,
+// and calculate() has no way to tell that band is stale.
+function clearAgeDisplay() {
+  const ageEl = document.getElementById('calcAge');
+  ageEl.textContent = '—';
+  ageEl.className = 'computed';
+  const ageGroupDisplay = document.getElementById('ageGroupDisplay');
+  ageGroupDisplay.textContent = '—';
+  ageGroupDisplay.className = 'computed';
+  document.getElementById('ageGroup').value = '';
+}
+
 function updateAge() {
   const birthInput = getBirthDateValue();
   const fillInput = getFillDateValue();
-  if (!birthInput || !fillInput) return;
+  if (!birthInput || !fillInput) {
+    clearAgeDisplay();
+    return;
+  }
 
   const birth = new Date(birthInput);
   const fill = new Date(fillInput);
-  if (birth >= fill) return;
+  if (birth >= fill) {
+    clearAgeDisplay();
+    return;
+  }
 
   let years = fill.getFullYear() - birth.getFullYear();
   let months = fill.getMonth() - birth.getMonth();
@@ -119,28 +188,37 @@ function updateAge() {
 
   const totalYears = years + months / 12;
   const ageEl = document.getElementById('calcAge');
-  const monthsText = months === 0 ? '' : months === 1 ? ' וחודש' : ` ו-${months} חודשים`;
+  const monthsText =
+    months === 0
+      ? ''
+      : months === 1
+        ? ' וחודש'
+        : months === 2
+          ? ' וחודשיים'
+          : ` ו-${months} חודשים`;
   ageEl.textContent = `${years} שנים${monthsText}`;
   ageEl.className = 'computed';
 
   const ageGroupEl = document.getElementById('ageGroup');
   const ageGroupDisplay = document.getElementById('ageGroupDisplay');
 
+  // Item 14: age-band ranges read left-to-right even inside Hebrew text —
+  // isolate them so no browser/RTL context can flip the small/large ends.
   if (totalYears >= 3 && totalYears < 6) {
     ageGroupEl.value = '3-5';
-    ageGroupDisplay.textContent = '3.0 — 5.11';
+    ageGroupDisplay.innerHTML = '<bdi dir="ltr">3.0 — 5.11</bdi>';
     ageGroupDisplay.className = 'computed valid';
   } else if (totalYears >= 6 && totalYears < 8) {
     ageGroupEl.value = '6-7';
-    ageGroupDisplay.textContent = '6.0 — 7.11';
+    ageGroupDisplay.innerHTML = '<bdi dir="ltr">6.0 — 7.11</bdi>';
     ageGroupDisplay.className = 'computed valid';
   } else if (totalYears >= 8 && totalYears < 12) {
     ageGroupEl.value = '8-11';
-    ageGroupDisplay.textContent = '8.0 — 11.11';
+    ageGroupDisplay.innerHTML = '<bdi dir="ltr">8.0 — 11.11</bdi>';
     ageGroupDisplay.className = 'computed valid';
   } else {
     ageGroupEl.value = '';
-    ageGroupDisplay.textContent = 'מחוץ לטווח הגילים של השאלון (3.0–11.11)';
+    ageGroupDisplay.innerHTML = 'מחוץ לטווח הגילים של השאלון (<bdi dir="ltr">3.0–11.11</bdi>)';
     ageGroupDisplay.className = 'computed invalid';
   }
 }
@@ -148,7 +226,7 @@ function updateAge() {
 // ===== SAVE / LOAD =====
 function saveForm() {
   const data = {
-    anonId: document.getElementById('anonId').value,
+    anonId: getAnonId(),
     gender: document.getElementById('childGender').value,
     birthDate: getBirthDateValue(),
     fillDate: getFillDateValue(),
@@ -320,6 +398,15 @@ function calculate() {
     showWarning('יש להזין תאריך לידה לפני חישוב הציונים');
     return;
   }
+  // Item 7: the age band depends on the fill date as much as the birth
+  // date. Refuse rather than silently scoring against a stale or missing
+  // one (updateAge() clears #ageGroup on every early return, so a stale
+  // band can no longer survive to here — this is the belt-and-braces
+  // check for the fill date specifically, with its own message).
+  if (!getFillDateValue()) {
+    showWarning('יש להזין תאריך מילוי לפני חישוב הציונים');
+    return;
+  }
   const ageGroup = document.getElementById('ageGroup').value;
   if (!ageGroup) {
     showWarning('הגיל מחוץ לטווח הגילים של השאלון (3.0–11.11) — לא ניתן לחשב ציונים');
@@ -332,7 +419,7 @@ function calculate() {
     showWarning('יש לבחור מין לפני חישוב הציונים — הסיכום נכתב בלשון זכר או נקבה בהתאם.');
     return;
   }
-  if (!document.getElementById('anonId').value.trim()) {
+  if (!getAnonId()) {
     showWarning('יש להזין מספר אנונימי — הסיכום משתמש בו במקום שם.');
     return;
   }
@@ -374,7 +461,10 @@ function calculate() {
 
   const c = cutoffs[ageGroup];
 
-  const anonId = document.getElementById('anonId').value || '—';
+  // Item 8: escape once, here, for every HTML sink this value reaches
+  // below — the results meta line and buildSummary's own embed — without
+  // touching buildSummary()'s body itself.
+  const anonId = escapeHtml(getAnonId()) || '—';
   const ageText = document.getElementById('calcAge').textContent;
   const ageLabel = document.getElementById('ageGroupDisplay').textContent;
   const genderRaw = document.getElementById('childGender').value;
@@ -392,19 +482,22 @@ function calculate() {
     flex: { items: items.filter((i) => i.ef === 'flex') },
   };
 
-  // Hide form, show results
+  // Hide form, show results. Item 13: the sticky progress bar has no
+  // business sitting over a completed results screen — goBack()/
+  // resetForm() bring it back.
   document.getElementById('formSection').style.display = 'none';
+  document.getElementById('progressWrap').style.display = 'none';
 
   const resultsDiv = document.getElementById('results');
   resultsDiv.innerHTML = `
     <div class="results-header">
       <h2>תוצאות שאלון EFORTS</h2>
-      <div class="results-meta">${patientNoun(genderRaw)} מס' ${anonId} | ${gender} | ${ageText} | קבוצת גיל: ${ageLabel}</div>
+      <div class="results-meta">${patientNoun(genderRaw)} מס' ${anonId} | ${gender} | ${ageText} | קבוצת גיל: <bdi dir="ltr">${ageLabel}</bdi></div>
       <div class="results-hint">לחצ/י על כל שורה כדי לראות פירוט הפריטים</div>
       <div class="score-legend" style="margin-top:12px;">
         <span class="score-legend-item"><span class="score-legend-dot" style="background:var(--green)"></span> בטווח הנורמה</span>
         <span style="margin:0 6px;">|</span>
-        <span class="score-legend-item"><span class="score-legend-dot" style="background:var(--amber)"></span> קרוב לציון החתך (תפקודים ניהוליים)</span>
+        <span class="score-legend-item"><span class="score-legend-dot" style="background:var(--amber)"></span> קרוב לציון החתך (בתפקודים ניהוליים)</span>
         <span style="margin:0 6px;">|</span>
         <span class="score-legend-item"><span class="score-legend-dot" style="background:var(--red)"></span> נמוך מציון החתך</span>
         <span style="margin:0 6px;">|</span>
@@ -446,7 +539,7 @@ function calculate() {
         scores,
       })}</div>
       <div style="background:#eef6ff; border:1px solid #c5ddf5; border-radius:8px; padding:10px 14px; margin-top:14px;">
-        <span style="font-size:0.82rem; color:#334155;">לשילוב ממצאי השאלון עם התמונה הקלינית מהמפגש: לחצ/י "הורד ל-AI", העל/י את הקובץ לכלי AI (Claude, ChatGPT, Copilot) ותאר/י לו מה נצפה. הכלי יכתוב רק את פסקת המטפל/ת, בלי לשנות ציונים או את הסיכום. אין להוסיף שם או ת״ז.</span>
+        <span style="font-size:0.82rem; color:#334155;">לשילוב ממצאי השאלון עם התמונה הקלינית מהמפגש: לחצ/י על "הורד ל-AI", העל/י את הקובץ לכלי AI (Claude, ChatGPT, Copilot) ותאר/י לו מה נצפה. הכלי יכתוב רק את פסקת המטפל/ת, בלי לשנות ציונים או את הסיכום. אין להוסיף שם או ת״ז.</span>
       </div>
       <div class="summary-note">
         ציון החתך נקבע 1.5 סטיות תקן מתחת לממוצע של קבוצת הגיל (Frisch & Rosenblum, 2024). ציון נמוך מציון החתך מורה על חשד לקושי בתחום שנמדד בלבד: בשגרה או בתפקוד הניהולי.
@@ -486,9 +579,9 @@ function scoreRow(id, label, score, cutoff, cardItems, scores, type) {
 
     drillHtml = `<div class="drilldown" id="drill_${id}">
       <div class="drill-summary">
-        <span class="drill-badge weak">ציון 1–2: ${weak.length}</span>
-        <span class="drill-badge mid">ציון 3: ${mid.length}</span>
-        <span class="drill-badge strong">ציון 4–5: ${strong.length}</span>
+        <span class="drill-badge weak">ציון 1–2: ${nItems(weak.length)}</span>
+        <span class="drill-badge mid">ציון 3: ${nItems(mid.length)}</span>
+        <span class="drill-badge strong">ציון 4–5: ${nItems(strong.length)}</span>
       </div>`;
 
     sorted.forEach((item) => {
@@ -526,17 +619,17 @@ function scoreRow(id, label, score, cutoff, cardItems, scores, type) {
     ef: 'חשד לקושי בתפקוד ניהולי זה',
   }[type];
   const scoreTip =
-    `${tipScope}, בסולם 1–5 (ציון גבוה = תפקוד טוב יותר).\n` +
+    `${tipScope}, בסולם 1–5 (ככל שהציון גבוה יותר, התפקוד טוב יותר).\n` +
     `ציון החתך לקבוצת הגיל: ${cutoff.toFixed(2)}\n` +
-    `נמוך מציון החתך = ${tipBelow}.` +
-    (type === 'ef' ? `\nקרוב לציון החתך = עד 0.15 מעליו.` : '');
+    `נמוך מציון החתך: ${tipBelow}.` +
+    (type === 'ef' ? `\nקרוב לציון החתך: עד 0.15 מעליו.` : '');
 
   return `<div class="score-row ${hasDetails ? '' : 'no-drill'}" ${hasDetails ? `onclick="toggleDrill('${id}')"` : ''}>
     <div class="score-row-top">
       <div class="score-label">${label} ${hasDetails ? `<span class="arrow" id="arrow_${id}">&#9660;</span>` : ''}
         <span class="info-tip" tabindex="0" onclick="event.stopPropagation()">?<span class="tip-content">${scoreTip}</span></span>
       </div>
-      <div class="score-value ${st.cls}">${score.toFixed(2)}</div>
+      <div class="score-value ${st.cls}">${fmtScore(score, cutoff)}</div>
     </div>
     <div class="gauge">
       <div class="gauge-fill ${st.cls}" style="width:${pct}%"></div>
@@ -982,12 +1075,12 @@ function aiPrompt(anonIdText, gender) {
 
 2. מה אתה כותב: רק את פסקת המטפל/ת. זו פסקה אחת, שנכנסת בין "משמעות קלינית" לבין פסקת "מומלץ", ומצרפת את ממצאי השאלון לתמונה הקלינית מהמפגש. פתח כמו בנוסח של המחברות: "אם מצרפים ממצאי הערכה אלו לתמונה הקלינית בשטח עולה כי…". כתוב אותה רק ממה שהמטפל/ת מוסר/ת לך בשיחה הזו: תצפיות מהמפגש, דיווח של ההורים או של הצוות החינוכי, ממצאים ממבדקים אחרים. אם לא נמסרו תצפיות, אל תכתוב את הפסקה, ושאל את המטפל/ת מה נצפה.
 
-3. תוספת לפסקת "מומלץ", רק אם המטפל/ת ביקש/ה: חצי משפט שמתחבר לסוף הפסקה הקיימת, רק ממה שעלה במפגש (לדוגמה "ויתכן גם ויסות רגשי", כשזה עלה בטיפול ולא מהשאלון). בלי מספר טיפולים, תדירות, שמות פרוטוקולים, הפניות או אבחנות.
+3. תוספת לפסקת "מומלץ", רק אם המטפל/ת ביקש/ה: חצי משפט שמתחבר לסוף הפסקה הקיימת, רק ממה שעלה במפגש (לדוגמה "וייתכן גם ויסות רגשי", כשזה עלה בטיפול ולא מהשאלון). בלי מספר טיפולים, תדירות, שמות פרוטוקולים, הפניות או אבחנות.
 
 4. לא להמציא. כל משפט נשען על הקובץ הזה או על מה שהמטפל/ת כתב/ה בשיחה. אף משפט לא סותר ציון של פריט או משפט אחר בסיכום. מוטיבציה, ביטחון עצמי, ויסות רגשי וקשב נכתבים רק אם המטפל/ת מסר/ה אותם.
 
 5. קול ושפה, כמו בסיכום:
-- גוף שלישי. פעלים רכים: "מתקשה ל…", "זקוק ל…", "מוסח מ…", "עולה קושי ב…", "נראה כי", "יתכן", "על רקע", "ככל הנראה".
+- גוף שלישי. פעלים רכים: "מתקשה ל…", "זקוק ל…", "מוסח מ…", "עולה קושי ב…", "נראה כי", "ייתכן", "על רקע", "ככל הנראה".
 - בלי שרשראות שלילה ("לא עושה, לא זוכר") ובלי ניגוד מהסוג "לא X אלא Y".
 - בלי תוויות אבחנתיות או תכונתיות ("אימפולסיבי", ADHD, "קשב" כאבחנה). מתארים התנהגות: פזיזות, מוסחות, קושי בעכבה.
 - "איחור" או "עיכוב" לעולם אינם קביעה כללית; קושי נכתב תמיד בתחום שלו.
@@ -995,13 +1088,13 @@ function aiPrompt(anonIdText, gender) {
 - מין: ${gender}. התאמת מין בכל פועל, כינוי וסיומת. אם המין לא צוין, שאל לפני שאתה כותב.
 - עברית בלבד. המילה הלועזית היחידה: EFORTS.
 
-6. מונחים, בדיוק כך: עכבה · זיכרון עבודה · גמישות מחשבתית · תפקודים ניהוליים · ציון החתך · ציון כולל · בטווח הנורמה · שגרת בוקר וערב · שגרת פנאי ומשחק · השגרה החברתית · שגרות היום-יום. לא: "סף", "נקודת חתך", "פונקציות ניהוליות", "תקין לגמרי".
+6. מונחים, בדיוק כך: עכבה · זיכרון עבודה · גמישות מחשבתית · תפקודים ניהוליים · ציון החתך · ציון כולל · בטווח הנורמה (בסיכום מופיע גם "בתחום הנורמה", ולתפקוד ניהולי גם "גבוה מציון החתך") · שגרת בוקר וערב · שגרת פנאי ומשחק · השגרה החברתית · שגרות היום-יום. לא: "סף", "נקודת חתך", "פונקציות ניהוליות", "תקין לגמרי".
 
 7. מספרים ופריטים. ציון נכתב בצורה "(קיבל/ה ציון X כאשר ציון החתך הוא Y)", שתי ספרות אחרי הנקודה, בדיוק כפי שהוא מופיע למעלה. בלי ממוצעים, סטיות תקן, אחוזונים, "מתחת לממוצע", ובלי מילות התשובה ("לפעמים", "לעיתים רחוקות"). פריט נכתב "פריט N"; שני פריטים: "(פריט N ופריט M)".
 
-8. תפקודים ניהוליים. תפקוד ניהולי שציונו נמוך מציון החתך הוא ההסבר העיקרי לקושי. תפקוד שציונו "קרוב לציון החתך" (עד 0.15 מעליו) יכול להסביר קושי רק כגורם משני ("ולעיתים על רקע קושי ב…"). תפקוד שציונו גבוה מציון החתך ביותר מ-0.15 אינו מסביר קושי; הוא יכול להופיע רק כחוזקה. פריטים 10 ו-11 אינם ראיה לאף תפקוד ניהולי.
+8. תפקודים ניהוליים. תפקוד ניהולי שציונו נמוך מציון החתך הוא ההסבר העיקרי לקושי. תפקוד שציונו "קרוב לציון החתך" (עד 0.15 מעליו) יכול להסביר קושי רק כגורם משני ("ולעיתים על רקע קושי ב…"). תפקוד שציונו גבוה מציון החתך ביותר מ-0.15 (במצב "בטווח הנורמה" ברשימת הציונים) אינו מסביר קושי; הוא יכול להופיע רק כחוזקה. פריטים 10 ו-11 אינם ראיה לאף תפקוד ניהולי.
 
-9. פורמט. טקסט רגיל בלבד: בלי כוכביות, בלי כותרות ובלי תבליטים, כי הטקסט מודבק למערכת שמוחקת עיצוב. החזר רק את הפסקה המבוקשת, ולפניה שורה אחת שאומרת איפה היא נכנסת.
+9. פורמט. טקסט רגיל בלבד: בלי כוכביות, בלי כותרות ובלי תבליטים, כי הטקסט מודבק למערכת שמוחקת עיצוב. החזר רק את הפסקה המבוקשת, ללא שום טקסט מקדים (כמו "להלן הפסקה"), ולפניה שורה אחת שאומרת איפה היא נכנסת.
 
 10. בקשות אחרות (נוסח לדוח, גרסה להורים, מטרות טיפול): למחברות עוד אין נוסח מוסכם לאלה. כתוב אותן רק אם המטפל/ת ביקש/ה במפורש, פתח ב"טיוטה — לבדיקת המטפל/ת", ושמור על כל הכללים שלמעלה.
 
@@ -1027,7 +1120,8 @@ function buildExportText() {
   const ageText = document.getElementById('calcAge').textContent;
   const ageLabel = document.getElementById('ageGroupDisplay').textContent;
   const ageGroup = document.getElementById('ageGroup').value;
-  const anonIdText = document.getElementById('anonId').value || '—';
+  // Item 8: escape here too — this text also feeds buildSummary() below.
+  const anonIdText = escapeHtml(getAnonId()) || '—';
   const efLabels = { inh: 'עכבה', wm: 'זיכרון עבודה', flex: 'גמישות מחשבתית' };
 
   // Collect all scores
@@ -1069,7 +1163,7 @@ function buildExportText() {
   text += `  מספר אנונימי: ${anonIdText} | מין: ${gender} | גיל: ${ageText} | קבוצת גיל נורמטיבית: ${ageLabel}\n\n`;
 
   const line = (label, sc, ct, kind) =>
-    `    ${label}: ${sc.toFixed(2)} | ציון החתך: ${ct.toFixed(2)} | ${cutoffStatus(sc, ct, kind).text}\n`;
+    `    ${label}: ${fmtScore(sc, ct)} | ציון החתך: ${ct.toFixed(2)} | ${cutoffStatus(sc, ct, kind).text}\n`;
   text += `ציונים (חושבו בכלי — אין לחשב מחדש): ציון, ציון החתך, מצב\n`;
   text += `  שגרות:\n`;
   text += line('בוקר וערב', morningAvg, c.morning, 'routine');
@@ -1130,7 +1224,10 @@ function buildExportText() {
 
 function downloadForAI() {
   const text = buildExportText();
-  const anonId = document.getElementById('anonId').value || 'eforts';
+  // Item 8: sanitize (not HTML-escape) for a filename — strip anything
+  // outside letters/digits/hyphen so a pasted "<script>" etc. can't reach
+  // the downloaded file's name.
+  const anonId = (getAnonId() || 'eforts').replace(/[^0-9A-Za-zא-ת-]/g, '_');
   const date = new Date().toISOString().slice(0, 10);
   const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
   const url = URL.createObjectURL(blob);
@@ -1147,8 +1244,9 @@ async function printResults() {
   btn.textContent = 'מכין להדפסה…';
 
   try {
-    // Gather all data from the current results
-    const anonId = document.getElementById('anonId').value || '—';
+    // Gather all data from the current results. Item 8: escape here too —
+    // this feeds both the print meta line and buildSummary() below.
+    const anonId = escapeHtml(getAnonId()) || '—';
     const genderRaw = document.getElementById('childGender').value;
     const gender = genderText(genderRaw);
     const ageText = document.getElementById('calcAge').textContent;
@@ -1203,7 +1301,9 @@ async function printResults() {
       .sort((a, b) => scores[b.num] - scores[a.num]);
 
     // S-11: the print copy of B8 — same cutoffStatus() source as the screen.
-    const PRINT_COLOR = { warn: '#c0392b', mid: '#d35400', ok: '#27ae60' };
+    // Item 10: match the screen's --red/--amber/--green exactly, not a
+    // separate print-only palette.
+    const PRINT_COLOR = { warn: '#c62828', mid: '#f57f17', ok: '#2e7d32' };
     const levelText = (sc, ct, kind) => {
       const st = cutoffStatus(sc, ct, kind);
       return st.key === 'below' ? `${st.text} ⚠` : st.key === 'norm' ? `${st.text} ✓` : st.text;
@@ -1229,7 +1329,7 @@ async function printResults() {
           (r) =>
             `<tr>
         <td style="padding:4px 10px;font-weight:600;text-align:right;">${r.label}</td>
-        <td style="padding:4px 10px;text-align:center;color:${levelColor(r.sc, r.ct, r.kind)};font-weight:700;">${r.sc.toFixed(2)}</td>
+        <td style="padding:4px 10px;text-align:center;color:${levelColor(r.sc, r.ct, r.kind)};font-weight:700;">${fmtScore(r.sc, r.ct)}</td>
         <td style="padding:4px 10px;text-align:center;color:#666;">${r.ct.toFixed(2)}</td>
         <td style="padding:4px 10px;text-align:center;color:${levelColor(r.sc, r.ct, r.kind)};">${levelText(r.sc, r.ct, r.kind)}</td>
       </tr>`,
@@ -1251,11 +1351,6 @@ async function printResults() {
         )
         .join('');
 
-    const nItems = (n) => (n === 1 ? 'פריט אחד' : `${n} פריטים`);
-
-    // Strip HTML tags from summary for clean text
-    const summaryText = summaryHtmlToText(summaryHtml);
-
     // P-07: the fill date, not today's date — the age is computed from it.
     const fillIso = getFillDateValue();
     const fillDateText = new Date(fillIso || Date.now()).toLocaleDateString('he-IL');
@@ -1274,6 +1369,7 @@ async function printResults() {
   .print-header { text-align: center; margin-bottom: 12px; }
   .print-header-logos { display: flex; align-items: flex-end; justify-content: center; gap: 14px; margin-bottom: 8px; }
   .print-header-logos img { height: 28px; width: auto; max-width: 100px; object-fit: contain; }
+  .print-header-title { font-size: 14px; font-weight: 700; color: #1a202c; margin-top: 8px; line-height: 1.4; }
   .print-header-authors { font-size: 13px; font-weight: 700; color: #1a202c; margin-top: 4px; }
   .print-header-lab { font-size: 10px; font-weight: 500; color: #64748b; margin-top: 1px; }
   .print-header-credit { font-size: 9px; font-weight: 300; color: #94a3b8; margin-top: 4px; line-height: 1.4; }
@@ -1281,7 +1377,9 @@ async function printResults() {
   table { width: 100%; border-collapse: collapse; margin-bottom: 12px; }
   th { background: #f0f4f8; padding: 6px 10px; font-size: 11px; font-weight: 600; color: #444; text-align: center; border-bottom: 2px solid #ddd; }
   td { border-bottom: 1px solid #eee; }
-  .summary-box { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px; margin-bottom: 16px; font-size: 12px; line-height: 1.8; white-space: pre-line; }
+  .summary-box { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px; margin-bottom: 16px; font-size: 12px; line-height: 1.8; }
+  .summary-box p { margin: 0 0 10px; }
+  .summary-box p:last-child { margin-bottom: 0; }
   .group-header { font-size: 12px; font-weight: 700; padding: 6px 10px; margin-top: 8px; }
   .group-weak { color: #c0392b; background: #fff5f5; }
   .group-mid { color: #d35400; background: #fffbeb; }
@@ -1297,12 +1395,13 @@ async function printResults() {
       <img src="assets/chap.png" alt="המעבדה לתפקוד אנושי מורכב (CHAP)">
       <img src="assets/clalit.svg" alt="שירותי בריאות כללית">
     </div>
+    <div class="print-header-title">שאלון למדידת יכולת הניהול העצמי של ילדים בשגרות היום יום — Frisch &amp; Rosenblum, 2014</div>
     <div class="print-header-authors">כרמית פריש ופרופ' שרה רוזנבלום, אוניברסיטת חיפה</div>
     <div class="print-header-lab">המעבדה לתפקוד אנושי מורכב (CHAP), אוניברסיטת חיפה</div>
     <div class="print-header-credit">תהליך מחשוב השאלון בוצע ע"י אליסון אלט, מרפאה בעיסוק בשירותי בריאות כללית מחוז ירושלים, בתיאום ואישור המחברות.</div>
   </div>
   <h1>תוצאות שאלון EFORTS</h1>
-  <div class="meta">${patientNoun(genderRaw)} מס' ${anonId} | ${gender} | ${ageText} | קבוצת גיל: ${ageLabel} | תאריך מילוי: ${fillDateText}</div>
+  <div class="meta">${patientNoun(genderRaw)} מס' ${anonId} | ${gender} | ${ageText} | קבוצת גיל: <bdi dir="ltr">${ageLabel}</bdi> | תאריך מילוי: ${fillDateText}</div>
 
   <div class="section-title">ציונים</div>
   <table>
@@ -1314,7 +1413,7 @@ async function printResults() {
   </table>
 
   <div class="section-title">סיכום קליני</div>
-  <div class="summary-box">${summaryText}</div>
+  <div class="summary-box">${summaryHtml}</div>
 
   <div class="section-title">פירוט הפריטים לפי ציון</div>
   <table>
@@ -1330,8 +1429,17 @@ async function printResults() {
 </body>
 </html>`;
 
-    // Open a clean print window — user saves as PDF via browser print dialog
+    // Open a clean print window — user saves as PDF via browser print dialog.
+    // Item 10: a popup blocker makes window.open() return null; without
+    // this guard the next line throws and the catch below shows a raw
+    // "Cannot read properties of null" instead of a message she can act on.
     const printWindow = window.open('', '_blank', 'width=800,height=900');
+    if (!printWindow) {
+      alert('הדפדפן חסם את חלון ההדפסה. יש לאפשר חלונות קופצים לאתר זה ולנסות שוב.');
+      btn.disabled = false;
+      btn.textContent = 'שמור כ-PDF';
+      return;
+    }
     printWindow.document.open();
     printWindow.document.write(printHtml);
     printWindow.document.close();
@@ -1389,6 +1497,7 @@ function hideWarning() {
 function goBack() {
   document.getElementById('results').style.display = 'none';
   document.getElementById('formSection').style.display = 'block';
+  document.getElementById('progressWrap').style.display = '';
   document.getElementById('questionnaire').scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
@@ -1401,11 +1510,7 @@ function resetForm() {
   document.getElementById('birthDay').value = '';
   document.getElementById('birthMonth').value = '';
   document.getElementById('birthYear').value = '';
-  document.getElementById('calcAge').textContent = '—';
-  document.getElementById('calcAge').className = 'computed';
-  document.getElementById('ageGroupDisplay').textContent = '—';
-  document.getElementById('ageGroupDisplay').className = 'computed';
-  document.getElementById('ageGroup').value = '';
+  clearAgeDisplay();
   setFillDateToToday();
   ['morning', 'play', 'social'].forEach((k) => {
     const el = document.getElementById('companion_' + k);
@@ -1413,6 +1518,7 @@ function resetForm() {
   });
   document.getElementById('results').style.display = 'none';
   document.getElementById('formSection').style.display = 'block';
+  document.getElementById('progressWrap').style.display = '';
   updateProgress();
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
@@ -1565,7 +1671,7 @@ function importParentAnswers(text) {
 
 function isClinicianFormDirty() {
   const anyRadio = document.querySelector('#questionnaire input[type="radio"]:checked');
-  const anonId = document.getElementById('anonId').value.trim();
+  const anonId = getAnonId();
   const gender = document.getElementById('childGender').value;
   const birthDate = getBirthDateValue();
   return !!anyRadio || !!anonId || !!gender || !!birthDate;

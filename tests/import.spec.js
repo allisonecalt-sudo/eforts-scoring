@@ -138,7 +138,8 @@ test.describe('PF2 import — round trip', () => {
       fixtureFile: 'model-32.json',
       summaryFile: 'model-32.summary.txt',
       ageGroup: '6-7',
-      ageText: '6 שנים ו-2 חודשים',
+      // Gemini review item 16: "ו-2 חודשים" -> "וחודשיים" (natural Hebrew).
+      ageText: '6 שנים וחודשיים',
       anonId: '32',
     });
   });

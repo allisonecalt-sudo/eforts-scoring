@@ -50,7 +50,7 @@
 
         <section id="pIntro" class="info-card">
           <div class="info-card-title" id="pIntroTitle">לפני שמתחילים</div>
-          <p id="pWelcome">שלום, המטפל/ת של ילדכם ביקש/ה מכם למלא את השאלון הזה. המילוי לוקח בערך 10 דקות.</p>
+          <p id="pWelcome">צוות הריפוי בעיסוק ביקש מכם למלא את השאלון הזה. המילוי לוקח בערך 10 דקות.</p>
           <div class="p-instr">
             <div class="p-instr-label" id="pInstrLabel">הוראות (מתוך השאלון)</div>
             <p id="pInstr">במסגרת השגרות השונות בחיי היום יום אנו וילדינו מבצעים פעילויות רבות. מטרת השאלון היא לקבל תמונה על אופן הניהול העצמי של ילדך בשגרות היום יום. המשפטים הבאים מתייחסים לאופן הביצוע של ילדך בפעילויות הקשורות בשגרות יום יומיות שכיחות כמו שגרות הבוקר והערב, שגרת משחק ופנאי ושגרה של תפקוד חברתי. נא סמן/י √ מתחת לתשובה שמבטאת באופן הטוב ביותר את תפקוד ילדך בשלושת החודשים האחרונים בכל פעילות. בבקשה סמן/י תשובה בכל המשפטים. <em>השאלות מנוסחות בלשון זכר, אך מכוונות לבנים ולבנות כאחד.</em></p>
@@ -74,6 +74,7 @@
             <div class="info-field">
               <label id="pDobLabel" for="pDob">תאריך לידה</label>
               <input type="date" id="pDob">
+              <p id="pDobHint" class="p-hint">אין צורך לכתוב שם. נזהה את השאלון לפי תאריך הלידה וכתובת המייל שממנה תשלחו.</p>
             </div>
           </div>
         </section>
@@ -89,7 +90,7 @@
 
       <section id="pDone" class="info-card p-done" hidden>
         <h2 id="pDoneTitle" tabindex="-1">תודה! סיימתם את השאלון.</h2>
-        <p id="pDoneLead">נשאר רק לשלוח את התשובות למטפל/ת. מספיקה אחת מהדרכים כאן:</p>
+        <p id="pDoneLead">נשאר רק לשלוח את התשובות. בחרו באחת הדרכים:</p>
 
         <div id="pWayMail" class="p-way">
           <h3 id="pWayMailTitle" class="p-way-title">שליחה במייל — הכי פשוט</h3>
@@ -97,19 +98,24 @@
           <p id="pMailtoHint" class="p-hint"></p>
         </div>
 
-        <div id="pWayCode" class="p-way">
-          <h3 id="pWayCodeTitle" class="p-way-title">העתקת קוד התשובות</h3>
-          <pre id="pCode" class="p-code" dir="ltr"></pre>
-          <button type="button" id="pCopy" class="btn btn-secondary">העתקת הקוד</button>
-          <p id="pCopyStatus" class="p-hint" role="status"></p>
-          <p id="pCodeHint" class="p-hint"></p>
-        </div>
+        <details id="pAltWays" class="p-alt-ways">
+          <summary id="pAltWaysSummary">נתקלתם בבעיה? אפשרויות שליחה חלופיות</summary>
 
-        <div id="pWayFile" class="p-way">
-          <h3 id="pWayFileTitle" class="p-way-title">הורדת קובץ</h3>
-          <button type="button" id="pDownload" class="btn btn-secondary">הורדת קובץ התשובות</button>
-          <p id="pDownloadHint" class="p-hint"></p>
-        </div>
+          <div id="pWayCode" class="p-way">
+            <h3 id="pWayCodeTitle" class="p-way-title">העתקת שורת התשובות</h3>
+            <p id="pCodeNote" class="p-hint">שורת המספרים נקראת באופן אוטומטי במרפאה. פשוט העתיקו אותה כמו שהיא, בלי לשנות בה דבר.</p>
+            <pre id="pCode" class="p-code" dir="ltr"></pre>
+            <button type="button" id="pCopy" class="btn btn-secondary">העתקת השורה</button>
+            <p id="pCopyStatus" class="p-hint" role="status"></p>
+            <p id="pCodeHint" class="p-hint"></p>
+          </div>
+
+          <div id="pWayFile" class="p-way">
+            <h3 id="pWayFileTitle" class="p-way-title">הורדת קובץ</h3>
+            <button type="button" id="pDownload" class="btn btn-secondary">הורדת קובץ התשובות</button>
+            <p id="pDownloadHint" class="p-hint"></p>
+          </div>
+        </details>
 
         <p id="pDoneNote" class="p-hint">הדף הזה לא מחשב ציונים. על התוצאות תדברו עם המטפל/ת.</p>
         <button type="button" id="pBack" class="btn btn-back">חזרה לתשובות</button>

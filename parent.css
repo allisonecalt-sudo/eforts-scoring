@@ -188,6 +188,28 @@ fieldset#pSexField {
   font-weight: 700;
   margin-bottom: 8px;
 }
+
+/* Mail is the one primary way to send; code/file are a collapsed fallback
+   (item 27) so the done screen doesn't present three equal options. */
+.p-alt-ways {
+  border-top: 1px solid var(--border);
+  padding-top: 14px;
+  margin-top: 14px;
+}
+.p-alt-ways summary {
+  cursor: pointer;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  padding: 2px 0;
+}
+.p-alt-ways summary:hover {
+  color: var(--text);
+}
+.p-alt-ways .p-way:first-of-type {
+  border-top: none;
+  padding-top: 0;
+}
 .p-done .btn {
   display: block;
   width: 100%;

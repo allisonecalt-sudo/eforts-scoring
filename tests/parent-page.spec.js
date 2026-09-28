@@ -26,6 +26,13 @@ test('fill -> code -> file (G50, with a valid ?to=)', async ({ page }) => {
   await expect(page.locator('#pFormSection')).toBeHidden();
   await expect(page.locator('#pCode')).toHaveText(GOLDEN.G50);
 
+  // Item 27: with a mail address present, code/file sit collapsed behind
+  // "נתקלתם בבעיה? אפשרויות שליחה חלופיות" — open it to reach #pDownload,
+  // same pattern index.html's own #importBox details uses in import.spec.js.
+  await page.locator('#pAltWays').evaluate((el) => {
+    el.open = true;
+  });
+
   const downloadPromise = page.waitForEvent('download');
   await page.locator('#pDownload').click();
   const download = await downloadPromise;
