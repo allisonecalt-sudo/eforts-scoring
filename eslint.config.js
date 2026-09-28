@@ -32,6 +32,7 @@ module.exports = [
         TouchEvent: 'readonly',
         Blob: 'readonly',
         URL: 'readonly',
+        URLSearchParams: 'readonly',
         // Supabase CDN global
         supabase: 'readonly',
       },
@@ -97,6 +98,10 @@ module.exports = [
         calculate: 'readonly',
         updateAge: 'readonly',
         buildExportText: 'readonly',
+        SECTIONS: 'readonly',
+        SCALE_LABELS: 'readonly',
+        COMPANION: 'readonly',
+        EFORTSCode: 'readonly',
       },
     },
     rules: {
