@@ -1320,6 +1320,12 @@ async function printResults() {
   body { font-family: 'Heebo', sans-serif; direction: rtl; color: #1a202c; line-height: 1.6; padding: 20px; max-width: 800px; margin: 0 auto; }
   h1 { text-align: center; font-size: 18px; margin-bottom: 4px; }
   .meta { text-align: center; font-size: 12px; color: #666; margin-bottom: 16px; }
+  .print-header { text-align: center; margin-bottom: 12px; }
+  .print-header-logos { display: flex; align-items: flex-end; justify-content: center; gap: 14px; margin-bottom: 8px; }
+  .print-header-logos img { height: 28px; width: auto; max-width: 100px; object-fit: contain; }
+  .print-header-authors { font-size: 13px; font-weight: 700; color: #1a202c; margin-top: 4px; }
+  .print-header-lab { font-size: 10px; font-weight: 500; color: #64748b; margin-top: 1px; }
+  .print-header-credit { font-size: 9px; font-weight: 300; color: #94a3b8; margin-top: 4px; line-height: 1.4; }
   .section-title { font-size: 14px; font-weight: 700; color: #0077b6; margin: 16px 0 8px; padding-bottom: 4px; border-bottom: 2px solid #0077b6; }
   table { width: 100%; border-collapse: collapse; margin-bottom: 12px; }
   th { background: #f0f4f8; padding: 6px 10px; font-size: 11px; font-weight: 600; color: #444; text-align: center; border-bottom: 2px solid #ddd; }
@@ -1334,6 +1340,16 @@ async function printResults() {
 </style>
 </head>
 <body>
+  <div class="print-header">
+    <div class="print-header-logos">
+      <img src="assets/haifa.jpg" alt="אוניברסיטת חיפה">
+      <img src="assets/chap.png" alt="המעבדה לתפקוד אנושי מורכב (CHAP)">
+      <img src="assets/clalit.svg" alt="שירותי בריאות כללית">
+    </div>
+    <div class="print-header-authors">כרמית פריש ופרופ' שרה רוזנבלום, אוניברסיטת חיפה</div>
+    <div class="print-header-lab">המעבדה לתפקוד אנושי מורכב (CHAP), אוניברסיטת חיפה</div>
+    <div class="print-header-credit">תהליך מחשוב השאלון בוצע ע"י אליסון אלט, מרפאה בעיסוק בשירותי בריאות כללית מחוז ירושלים, בתיאום ואישור המחברות.</div>
+  </div>
   <h1>תוצאות שאלון EFORTS</h1>
   <div class="meta">מזהה: ${anonId} | ${gender} | ${ageText} | קבוצת גיל: ${ageLabel} | תאריך: ${new Date().toLocaleDateString('he-IL')}</div>
 
