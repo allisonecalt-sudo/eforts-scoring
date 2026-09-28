@@ -29,10 +29,20 @@ const H_C3 = 'לא הצלחנו להעתיק אוטומטית. סמנו את ה�
 const H_pMailtoHint =
   'ייפתח מייל אל {to} עם התשובות בפנים. נשאר רק ללחוץ על "שליחה". לא נפתח מייל? אפשר להשתמש בשורה או בקובץ שלמטה.';
 const H_pCodeHint_to = 'הדביקו את שורת התשובות בגוף מייל חדש אל {to}.';
-const H_pCodeHint_noto = 'הדביקו את שורת התשובות בגוף מייל חדש לכתובת המייל שקיבלתם מהמטפל/ת.';
+// Gemini review R7-10 (7.16): "מהמטפל/ת" implies a shared inbox or a
+// secretary, but one therapist hands out the link and gets the mail back at
+// her own address — name no institution here, the link is the source.
+const H_pCodeHint_noto = 'הדביקו את שורת התשובות בגוף מייל חדש לכתובת המייל שקיבלתם יחד עם הקישור.';
 const H_pDownloadHint_to = 'הקובץ יישמר בתיקיית ההורדות. צרפו אותו למייל אל {to}.';
 const H_pDownloadHint_noto =
-  'הקובץ יישמר בתיקיית ההורדות. צרפו אותו למייל לכתובת שקיבלתם מהמטפל/ת.';
+  'הקובץ יישמר בתיקיית ההורדות. צרפו אותו למייל לכתובת שקיבלתם יחד עם הקישור.';
+// Gemini review R7-9 (7.15): the done-screen lead and the code/file fold
+// now depend on whether a mail address (`?to=`) is present — with one, mail
+// is the only real way to send and the rest stay a collapsed fallback; with
+// none, code/file ARE the only ways, so they show open with no "had a
+// problem?" framing (that framing was misleading when it's the only path).
+const H_pDoneLead_to = 'נשאר רק לשלוח את התשובות במייל:';
+const H_pDoneLead_noto = 'נשאר רק לשלוח את התשובות. בחרו באחת הדרכים:';
 const H_D3 = 'למחוק את כל התשובות ששמרתם במכשיר הזה?';
 const H_ML1 = 'תשובות שאלון EFORTS';
 const H_ML2 = 'שלום,\r\nהנה התשובות שלנו לשאלון EFORTS:\r\n\r\n{code}\r\n';
@@ -58,11 +68,13 @@ let pDraftBar,
   pFinish,
   pDone,
   pDoneTitle,
+  pDoneLead,
   pWayMail,
   pWayMailTitle,
   pMailto,
   pMailtoHint,
   pAltWays,
+  pAltWaysSummary,
   pWayCode,
   pWayCodeTitle,
   pCode,
@@ -320,19 +332,25 @@ function showDone(code, model) {
   pCode.textContent = code;
 
   if (state.to) {
+    pDoneLead.textContent = H_pDoneLead_to;
     pWayMail.hidden = false;
     pMailto.href = buildMailto(state.to, code);
     pMailtoHint.textContent = H_pMailtoHint.replace('{to}', state.to);
     pCodeHint.textContent = H_pCodeHint_to.replace('{to}', state.to);
     pDownloadHint.textContent = H_pDownloadHint_to.replace('{to}', state.to);
-    // Mail is the one primary way — keep the code/file fallback collapsed.
+    // Mail is the one primary way — keep the code/file fallback collapsed
+    // behind its "נתקלתם בבעיה?" summary.
+    pAltWaysSummary.hidden = false;
     pAltWays.open = false;
   } else {
+    pDoneLead.textContent = H_pDoneLead_noto;
     pWayMail.hidden = true;
     pCodeHint.textContent = H_pCodeHint_noto;
     pDownloadHint.textContent = H_pDownloadHint_noto;
-    // No mail address to prefill — code/file are the only ways, so open
-    // them by default instead of hiding the parent's one option.
+    // No mail address to prefill — code/file are the ONLY ways to send, so
+    // they show open with no fold and no "had a problem?" framing (R7-9):
+    // that framing misled when it's the only path, not a fallback.
+    pAltWaysSummary.hidden = true;
     pAltWays.open = true;
   }
 
@@ -391,11 +409,13 @@ document.addEventListener('DOMContentLoaded', () => {
   pFinish = document.getElementById('pFinish');
   pDone = document.getElementById('pDone');
   pDoneTitle = document.getElementById('pDoneTitle');
+  pDoneLead = document.getElementById('pDoneLead');
   pWayMail = document.getElementById('pWayMail');
   pWayMailTitle = document.getElementById('pWayMailTitle');
   pMailto = document.getElementById('pMailto');
   pMailtoHint = document.getElementById('pMailtoHint');
   pAltWays = document.getElementById('pAltWays');
+  pAltWaysSummary = document.getElementById('pAltWaysSummary');
   pWayCode = document.getElementById('pWayCode');
   pWayCodeTitle = document.getElementById('pWayCodeTitle');
   pCode = document.getElementById('pCode');

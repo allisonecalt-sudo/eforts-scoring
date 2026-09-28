@@ -898,7 +898,10 @@ function buildSummary(d) {
     // canon's own default.
     // Gemini review item 6: "תקין" / "ציון חתך" (no ה) are off-canon —
     // canon C2 bans "תקין לגמרי" and requires "ציון החתך" throughout.
-    intro += `הניהול העצמאי של שגרות היום-יום בטווח הנורמה ביחס לבני ${hisAge} (ציון כולל ${fmtScore(d.totalAvg, d.c.total)}, ציון החתך ${fmt(d.c.total)}).`;
+    // Gemini review R7-2 (7.5): this sentence had no verb and dropped the
+    // canon "(קיבל ציון כולל X כאשר ציון החתך הוא Y)" numeric form used
+    // everywhere else in the summary.
+    intro += `הניהול העצמאי של שגרות היום-יום הינו בטווח הנורמה ביחס לבני ${hisAge} (${got} ציון כולל ${fmtScore(d.totalAvg, d.c.total)} כאשר ציון החתך הוא ${fmt(d.c.total)}).`;
   }
   s += para(intro);
 
@@ -1043,7 +1046,7 @@ function buildSummary(d) {
           // Gemini review item 5: the "כמו למשל" dash was missing on this
           // path (model 32 had none) — one form everywhere now: "– " (en
           // dash, spaced).
-          attribution = `נראה כי הקושי התפקודי נובע לרוב מקושי ב${efNames[ef1]} כמו למשל – ${ex1}, ולעיתים על רקע קושי ב${efNames[ef2]}, כפי שמתבטא בכך ש${g('הוא', 'היא')} ${ex2}.`;
+          attribution = `נראה כי הקושי התפקודי נובע לרוב מקושי ב${efNames[ef1]}, כמו למשל – ${ex1}, ולעיתים על רקע קושי ב${efNames[ef2]}, כפי שמתבטא בכך ש${g('הוא', 'היא')} ${ex2}.`;
         } else {
           // canon rule 16: two EFs both below their own cutoffs share equal
           // weight — no "בעיקר" on the first.
@@ -1142,8 +1145,19 @@ function buildSummary(d) {
       const e = weakEFs[0];
       efPara += `נראה כי הקושי הבולט יותר הוא בתפקוד הניהולי ${e.label}, ואכן הציון בתפקוד זה נמוך מציון החתך (${got} ציון ${fmtScore(e.score, e.cutoff)} כאשר ציון החתך הוא ${fmt(e.cutoff)}).`;
       if (okEFs.length > 0) {
-        const okClauses = okEFs.map((o) => `הציון ב${o.label} ${efStatusText(o)}`);
-        efPara += ` בתפקודים האחרים המנותחים בשאלון, ${joinEfClauses(okClauses)}.`;
+        // Gemini review R7-3 (7.6): when both remaining EFs share the SAME
+        // status, one plural clause reads cleaner than two repeated
+        // "הציון ב-X..." clauses. Mixed statuses (one close, one above)
+        // stay as two clauses, unchanged.
+        if (okEFs.length === 2 && efStatusMap[okEFs[0].key] === efStatusMap[okEFs[1].key]) {
+          const [o1, o2] = okEFs;
+          const statusPlural =
+            efStatusMap[o1.key] === 'close' ? 'קרובים לציון החתך' : 'גבוהים מציון החתך';
+          efPara += ` בתפקודים האחרים המנותחים בשאלון, הציונים ב${o1.label} וב${o2.label} ${statusPlural}.`;
+        } else {
+          const okClauses = okEFs.map((o) => `הציון ב${o.label} ${efStatusText(o)}`);
+          efPara += ` בתפקודים האחרים המנותחים בשאלון, ${joinEfClauses(okClauses)}.`;
+        }
       }
     } else if (weakEFs.length === 2) {
       const [e1, e2] = weakEFs;
@@ -1166,10 +1180,51 @@ function buildSummary(d) {
       efPara += `נראה כי הקושי הבולט הוא ב${namesJoined}, ואכן הציונים בתפקודים אלו נמוכים מציון החתך (${scoresJoined}).`;
     } else {
       // Gemini review item 6: "בטווח התקין" is off-canon (canon C2 wants
-      // "בטווח הנורמה"); the "— ולא מקושי..." clause is dropped rather than
-      // rephrased — no model case, full wording waits on the authors
-      // (canon E11).
-      efPara += `כל התפקודים הניהוליים בטווח הנורמה (עכבה ${fmtScore(d.inhAvg, d.c.inh)}, זיכרון עבודה ${fmtScore(d.wmAvg, d.c.wm)}, גמישות מחשבתית ${fmtScore(d.flexAvg, d.c.flex)}). ייתכן שהקושי בשגרות נובע מגורמים סביבתיים, חווייתיים או הרגלים.`;
+      // "בטווח הנורמה").
+      // Gemini review R7-4 (7.9, BUG found while preparing round 7): the old
+      // text here said "כל התפקודים הניהוליים בטווח הנורמה" whenever NO EF
+      // was below its own cutoff — including when one was merely "close"
+      // (within EF_CLOSE_MARGIN), contradicting the card, which shows
+      // "קרוב לציון החתך" for that EF. Group by efStatusMap instead, in the
+      // fixed instrument order (עכבה → זיכרון עבודה → גמישות מחשבתית), and
+      // name every EF's own status.
+      // R7-4 (7.8) also deletes the old "ייתכן שהקושי בשגרות נובע מגורמים
+      // סביבתיים..." sentence: it named causes the questionnaire doesn't
+      // measure, and an EF average in norm overall doesn't rule out an EF
+      // part in ONE routine (same "not X" ban fix 6 already applied).
+      const aboveGroup = efData.filter((e) => efStatusMap[e.key] === 'above');
+      const closeGroup = efData.filter((e) => efStatusMap[e.key] === 'close');
+      const namesB = (arr) =>
+        arr.length === 1 ? `ב${arr[0].label}` : `ב${arr[0].label} וב${arr[1].label}`;
+
+      let statusSentence;
+      if (aboveGroup.length === 3) {
+        statusSentence = 'הציונים בכל התפקודים הניהוליים הינם בטווח הנורמה';
+      } else if (closeGroup.length === 3) {
+        statusSentence = 'הציונים בכל התפקודים הניהוליים קרובים לציון החתך';
+      } else {
+        const aboveClause =
+          aboveGroup.length === 1
+            ? `הציון ${namesB(aboveGroup)} הינו בטווח הנורמה`
+            : `הציונים ${namesB(aboveGroup)} הינם בטווח הנורמה`;
+        const closeClause =
+          closeGroup.length === 1
+            ? `הציון ${namesB(closeGroup)} קרוב לציון החתך`
+            : `הציונים ${namesB(closeGroup)} קרובים לציון החתך`;
+        statusSentence = `${aboveClause}, ו${closeClause}`;
+      }
+
+      // One bracket with all three EFs, fixed order, ב- form throughout
+      // (the round-1 gender trap: "עכבה קיבל ציון" reads as if the EF name
+      // were the subject — "בעכבה קיבל ציון" keeps the child as subject).
+      const bracketParts = efData.map(
+        (e) =>
+          `ב${e.label} ${got} ציון ${fmtScore(e.score, e.cutoff)} כאשר ציון החתך הוא ${fmt(e.cutoff)}`,
+      );
+      const bracket =
+        bracketParts.slice(0, -1).join(', ') + ', ו' + bracketParts[bracketParts.length - 1];
+
+      efPara += `${statusSentence} (${bracket}).`;
     }
     s += para(efPara);
 
@@ -1193,9 +1248,26 @@ function buildSummary(d) {
       // otherwise, name the real strength items instead of the vague
       // fallback (§C precedence 2); "במשימות אחרות" only when neither
       // applies (§C precedence 3, Carmit's own C32 wording).
-      const strengthRoutines = okRoutines.map((r) => r.inName).join(' ו');
-      const strengthSlot = strengthRoutines || strengthNounSlot(woven) || 'במשימות אחרות';
-      rec += `, תוך שימת דגש על גיוס מוטיבציה של ${anonId}, איסוף חוויות של הצלחה גם אם קטנות, וגיוס ${g('כוחותיו', 'כוחותיה')} המתבטאים ${strengthSlot} אל המשימות שקשות ${g('לו', 'לה')} יותר.`;
+      // Gemini review R7-5b (7.11): when NO routine is below cutoff (the
+      // EF-only profile), there's no harder routine to transfer strengths
+      // onto — end at the success-collecting clause instead of inventing a
+      // target ("...אל המשימות שקשות לו יותר" implied a harder routine that
+      // doesn't exist here).
+      if (weakRoutines.length === 0) {
+        rec += `, תוך שימת דגש על גיוס מוטיבציה של ${anonId}, איסוף חוויות של הצלחה גם אם קטנות.`;
+      } else {
+        // Gemini review R7-5a (7.10): joinHe ("A, B וC"), never the flat
+        // "A וB וC" a plain join(' ו') produces for three routines. Guarded
+        // on length — joinHe([]) has no defined "0 items" case (it's built
+        // for the 1+ case elsewhere), so keep the empty-string fallthrough
+        // a bare join(' ו') gave for free when okRoutines is empty (e.g.
+        // model-50/50f, all three routines weak) — that '' is what lets the
+        // next `||` reach strengthNounSlot()/the vague fallback.
+        const strengthRoutines =
+          okRoutines.length > 0 ? joinHe(okRoutines.map((r) => r.inName)) : '';
+        const strengthSlot = strengthRoutines || strengthNounSlot(woven) || 'במשימות אחרות';
+        rec += `, תוך שימת דגש על גיוס מוטיבציה של ${anonId}, איסוף חוויות של הצלחה גם אם קטנות, וגיוס ${g('כוחותיו', 'כוחותיה')} המתבטאים ${strengthSlot} אל המשימות שקשות ${g('לו', 'לה')} יותר.`;
+      }
     } else {
       rec += '.';
     }
@@ -1564,7 +1636,7 @@ async function printResults() {
   </table>
 
   <div class="footer">
-    EFORTS — Frisch & Rosenblum, 2014 | נורמות: Frisch & Rosenblum, 2024 | ציון החתך = 1.5 סטיות תקן מתחת לממוצע של קבוצת הגיל | פריטים 10 ו-11 אינם נכללים בחישוב התפקודים הניהוליים
+    EFORTS — Frisch & Rosenblum, 2014 | נורמות: Frisch & Rosenblum, 2024 | ציון החתך נקבע 1.5 סטיות תקן מתחת לממוצע של קבוצת הגיל | פריטים 10 ו-11 אינם נכללים בחישוב התפקודים הניהוליים
   </div>
 </body>
 </html>`;
@@ -1847,7 +1919,7 @@ function applyImportedAnswers() {
   const { years, months } = computeAgeYM(data.dob, data.date);
   const status = document.getElementById('importStatus');
   status.className = 'import-status ok';
-  status.textContent = 'הוזנו התשובות. הקלידו מספר אנונימי ולחצו חישוב';
+  status.textContent = 'התשובות הוזנו. הקלד/י מספר אנונימי ולחצ/י על "חשב ציונים".';
 
   const edge = document.getElementById('importEdge');
   if (isNearAgeBandEdge(years, months)) {

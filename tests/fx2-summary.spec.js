@@ -158,3 +158,17 @@ test('total+routines in norm, one EF below (model-ef-only): cross-EF prose, no "
   expect(result.summaryHtml).not.toContain('— ולא מקושי');
   expect(result.summaryHtml).toContain('נראה כי הקושי הבולט יותר הוא בתפקוד הניהולי עכבה');
 });
+
+// ===== Gemini review R7-4 (7.9): the close-EF bug found while preparing
+// round 7 — no EF below cutoff, but one EF ("close") must never be folded
+// into "כל התפקודים הניהוליים בטווח הנורמה" (that phrase contradicted the
+// card, which shows "קרוב לציון החתך" for that EF) =====
+
+test('no-EF-below-cutoff branch, one EF "close" (model-ef-close): names the close EF, never the flattened "all in norm"', async ({
+  page,
+}) => {
+  await gotoApp(page);
+  const result = await computeFixture(page, loadFixture('model-ef-close.json'));
+  expect(result.summaryHtml).toContain('והציון בזיכרון עבודה קרוב לציון החתך');
+  expect(result.summaryHtml).not.toContain('כל התפקודים הניהוליים');
+});
