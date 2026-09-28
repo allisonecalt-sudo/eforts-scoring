@@ -54,5 +54,38 @@ module.exports = [
       'no-implied-eval': 'error',
     },
   },
+  {
+    // Test suite (Node/CommonJS via Playwright Test) — separate globals
+    // from the browser-only app.js block above.
+    files: ['tests/**/*.js'],
+    languageOptions: {
+      ecmaVersion: 2022,
+      sourceType: 'commonjs',
+      globals: {
+        require: 'readonly',
+        module: 'writable',
+        exports: 'writable',
+        process: 'readonly',
+        __dirname: 'readonly',
+        console: 'readonly',
+        window: 'readonly',
+        document: 'readonly',
+        // app.js globals, referenced inside page.evaluate() callbacks that
+        // run in the browser page's own script scope (see
+        // tests/helpers/eforts-app.js top-of-file comment for why these
+        // resolve there even though they're not attached to `window`).
+        items: 'readonly',
+        cutoffs: 'readonly',
+        avg: 'readonly',
+        buildSummary: 'readonly',
+        calculate: 'readonly',
+        updateAge: 'readonly',
+      },
+    },
+    rules: {
+      'no-undef': 'error',
+      'no-unused-vars': ['warn', { argsIgnorePattern: '^_' }],
+    },
+  },
   prettier,
 ];
