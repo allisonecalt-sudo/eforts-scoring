@@ -1416,3 +1416,244 @@ function resetForm() {
   updateProgress();
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
+
+// ===== IMPORT PARENT ANSWERS (PF2) =====
+// Decodes an EFORTS1 code from parent.html (sex + dob + date + with + 30
+// answers — see eforts-code.js's header comment; there is no anonymous
+// id in the format, AMENDED 2026-09-28 12:31) and fills this form. The
+// therapist types the anonymous number herself: import never touches
+// #anonId, and calculate() is never called automatically (dob here is
+// the parent's real answer, not an estimate that needs correcting).
+
+let importPreviewData = null;
+
+function importErrorText(code, params) {
+  const p = params || {};
+  switch (code) {
+    case 'E0':
+      return 'לא הודבק טקסט.';
+    case 'E1':
+      return 'לא נמצא קוד תשובות בטקסט. הקוד מתחיל ב-EFORTS1 ומסתיים ב-k= ועוד שני תווים.';
+    case 'E2':
+      return `הקוד נוצר בגרסה אחרת של טופס ההורים (${p.found}) ולא ניתן לייבא אותו כאן.`;
+    case 'E3':
+      return 'הקוד השתנה או נקטע בדרך (ספרת הביקורת לא תואמת). נסה/י להעתיק שוב, או בקש/י מההורה את קובץ התשובות.';
+    case 'E4':
+      return `חסר שדה בקוד, או ששדה לא במקומו: ${p.key}.`;
+    case 'E5':
+      return `ערך לא תקין בשדה מין: "${p.v}".`;
+    case 'E6':
+      return `בקוד יש ${p.n} תשובות במקום 30.`;
+    case 'E7':
+      return `תשובה לא תקינה לשאלה ${p.num}: "${p.v}" (מותר 1 עד 5).`;
+    case 'E8':
+      // The pinned E8 text in PF-spec §H.3 covers an "age Y;M" field that
+      // no longer exists (AMENDED 2026-09-28: dob replaces age). E8 is now
+      // the codec's invalid-date-of-birth error, so the message names dob.
+      return `תאריך לידה לא תקין: "${p.v}".`;
+    case 'E9':
+      return `תאריך מילוי לא תקין: "${p.v}".`;
+    case 'E10':
+      return `תאריך המילוי (${p.v}) ישן מדי — הטופס תומך עד 3 שנים אחורה.`;
+    case 'E12':
+      return `ערך לא תקין בשדה "מי נמצא עם הילד": "${p.v}".`;
+    case 'E13':
+      return 'נמצאו כמה קודים שונים. הדביק/י קוד אחד בכל פעם.';
+    case 'F1':
+      return 'הקובץ גדול מדי — זה לא קובץ תשובות של טופס ההורים.';
+    case 'F2':
+      return 'לא הצלחנו לקרוא את הקובץ.';
+    default:
+      return 'שגיאה לא צפויה בקריאת הקוד.';
+  }
+}
+
+// Same years/months arithmetic as updateAge() above, duplicated (not
+// called) so the import preview can show age before anything is written
+// to the birth-date fields.
+function computeAgeYM(dobStr, dateStr) {
+  const birth = new Date(dobStr);
+  const fill = new Date(dateStr);
+  let years = fill.getFullYear() - birth.getFullYear();
+  let months = fill.getMonth() - birth.getMonth();
+  if (fill.getDate() < birth.getDate()) months--;
+  if (months < 0) {
+    years--;
+    months += 12;
+  }
+  return { years, months };
+}
+
+// Age-band boundaries in total months: 3y0m, 6y0m, 8y0m, 12y0m (the
+// instrument's own cutoffs, cutoffs const above / updateAge()'s
+// totalYears thresholds). "Near" = within 1 month either side.
+const AGE_BAND_EDGE_MONTHS = [36, 72, 96, 144];
+function isNearAgeBandEdge(years, months) {
+  const total = years * 12 + months;
+  return AGE_BAND_EDGE_MONTHS.some((edge) => Math.abs(total - edge) <= 1);
+}
+
+function importFillDateOutOfRange(dateStr) {
+  const y = Number(dateStr.slice(0, 4));
+  const currentYear = new Date().getFullYear();
+  return y < currentYear - 3 || y > currentYear;
+}
+
+function withLabel(code) {
+  if (!code) return '—';
+  const opt = COMPANION.options.find((o) => o.value === code);
+  return opt ? opt.label : '—';
+}
+
+function clearImportPanel() {
+  const status = document.getElementById('importStatus');
+  status.textContent = '';
+  status.className = 'import-status';
+  document.getElementById('importEdge').hidden = true;
+  document.getElementById('importPreview').hidden = true;
+}
+
+function showImportError(code, params) {
+  const status = document.getElementById('importStatus');
+  status.className = 'import-status err';
+  status.textContent = importErrorText(code, params);
+  document.getElementById('importEdge').hidden = true;
+  document.getElementById('importPreview').hidden = true;
+  importPreviewData = null;
+}
+
+function buildImportPreview(data) {
+  const list = document.getElementById('importPreviewList');
+  list.textContent = '';
+  const { years, months } = computeAgeYM(data.dob, data.date);
+  const [fy, fm, fd] = data.date.split('-');
+  const rows = [
+    ['מין', data.sex === 'male' ? 'זכר' : 'נקבה'],
+    ['גיל לפי ההורה', `${years} שנים, ${months} חודשים`],
+    ['תאריך מילוי', `${fd}/${fm}/${fy}`],
+    [
+      'מי נמצא עם הילד',
+      `בוקר וערב: ${withLabel(data.with.morning)} · משחק ופנאי: ${withLabel(data.with.play)} · חברתית: ${withLabel(data.with.social)}`,
+    ],
+    ['תשובות', `${data.answers.length} מתוך 30`],
+  ];
+  rows.forEach(([dt, dd]) => {
+    const dtEl = document.createElement('dt');
+    dtEl.textContent = dt;
+    const ddEl = document.createElement('dd');
+    ddEl.textContent = dd;
+    list.appendChild(dtEl);
+    list.appendChild(ddEl);
+  });
+}
+
+function importParentAnswers(text) {
+  clearImportPanel();
+  const result = EFORTSCode.decode(text);
+  if (!result.ok) {
+    showImportError(result.error, result.params);
+    return;
+  }
+  if (importFillDateOutOfRange(result.data.date)) {
+    showImportError('E10', { v: result.data.date });
+    return;
+  }
+  importPreviewData = result.data;
+  buildImportPreview(result.data);
+  document.getElementById('importPreview').hidden = false;
+}
+
+function isClinicianFormDirty() {
+  const anyRadio = document.querySelector('#questionnaire input[type="radio"]:checked');
+  const anonId = document.getElementById('anonId').value.trim();
+  const gender = document.getElementById('childGender').value;
+  const birthDate = getBirthDateValue();
+  return !!anyRadio || !!anonId || !!gender || !!birthDate;
+}
+
+function applyImportedAnswers() {
+  if (!importPreviewData) return;
+  if (isClinicianFormDirty()) {
+    if (!confirm('הטופס כבר מכיל נתונים. הייבוא יחליף אותם. להמשיך?')) return;
+  }
+  const data = importPreviewData;
+
+  document.querySelectorAll('#questionnaire input[type="radio"]').forEach((r) => {
+    r.checked = false;
+  });
+
+  document.getElementById('childGender').value = data.sex;
+  setFillDateValue(data.date);
+  setBirthDateValue(data.dob);
+  ['morning', 'play', 'social'].forEach((k) => {
+    const el = document.getElementById('companion_' + k);
+    if (el) el.value = data.with[k] || '';
+  });
+  data.answers.forEach((val, i) => {
+    const radio = document.getElementById(`q${i + 1}_${val}`);
+    if (radio) radio.checked = true;
+  });
+
+  updateAge();
+  updateProgress();
+  saveForm();
+
+  const { years, months } = computeAgeYM(data.dob, data.date);
+  const status = document.getElementById('importStatus');
+  status.className = 'import-status ok';
+  status.textContent = 'הוזנו התשובות. הקלידו מספר אנונימי ולחצו חישוב';
+
+  const edge = document.getElementById('importEdge');
+  if (isNearAgeBandEdge(years, months)) {
+    edge.hidden = false;
+    edge.textContent =
+      'שים/י לב: הגיל קרוב לגבול בין קבוצות גיל, ולכן תאריך הלידה המדויק קובע את ציוני החתך.';
+  } else {
+    edge.hidden = true;
+  }
+
+  document.getElementById('importPreview').hidden = true;
+  document.getElementById('importCode').value = '';
+  importPreviewData = null;
+
+  const anonField = document.getElementById('anonId');
+  anonField.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  anonField.focus();
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  const importCodeBtn = document.getElementById('importCodeBtn');
+  const importFile = document.getElementById('importFile');
+  const importCancel = document.getElementById('importCancel');
+  const importApply = document.getElementById('importApply');
+
+  importCodeBtn.addEventListener('click', () => {
+    importParentAnswers(document.getElementById('importCode').value);
+  });
+
+  importFile.addEventListener('change', async () => {
+    const file = importFile.files && importFile.files[0];
+    importFile.value = '';
+    if (!file) return;
+    clearImportPanel();
+    if (file.size > 20000) {
+      showImportError('F1', {});
+      return;
+    }
+    let text;
+    try {
+      text = await file.text();
+    } catch {
+      showImportError('F2', {});
+      return;
+    }
+    importParentAnswers(text);
+  });
+
+  importCancel.addEventListener('click', () => {
+    clearImportPanel();
+    importPreviewData = null;
+  });
+
+  importApply.addEventListener('click', applyImportedAnswers);
+});

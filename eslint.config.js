@@ -85,6 +85,7 @@ module.exports = [
         process: 'readonly',
         __dirname: 'readonly',
         console: 'readonly',
+        Buffer: 'readonly',
         window: 'readonly',
         document: 'readonly',
         // app.js globals, referenced inside page.evaluate() callbacks that
@@ -97,6 +98,8 @@ module.exports = [
         buildSummary: 'readonly',
         calculate: 'readonly',
         updateAge: 'readonly',
+        getBirthDateValue: 'readonly',
+        getFillDateValue: 'readonly',
         buildExportText: 'readonly',
         SECTIONS: 'readonly',
         SCALE_LABELS: 'readonly',
