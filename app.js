@@ -1,167 +1,3 @@
-// ===== DATA =====
-const items = [
-  {
-    num: 1,
-    text: 'מתחיל ביוזמתו לבצע פעילויות בבוקר כמו התלבשות או צחצוח שיניים',
-    routine: 'morning',
-    ef: 'wm',
-  },
-  {
-    num: 2,
-    text: 'מצליח להתמיד בפעילות הבוקר בקצב מתאים, ללא צורך בתזכורת של מבוגר',
-    routine: 'morning',
-    ef: 'wm',
-  },
-  {
-    num: 3,
-    text: 'זוכר את רצף הפעילויות שצריך לעשות בבוקר לפי סדרן',
-    routine: 'morning',
-    ef: 'wm',
-  },
-  {
-    num: 4,
-    text: 'מתארגן בבוקר בהתאם לכללי הבית. לדוגמה, שוטף ידיים אחר השירותים, מניח את הפיג׳מה על מיטתו או מסיר צלחת מהשולחן',
-    routine: 'morning',
-    ef: 'wm',
-  },
-  {
-    num: 5,
-    text: 'פותר בעיות שמתעוררות במהלך ביצוע פעילויות הבוקר. לדוגמה, מחפש בעצמו חפצים חיוניים כשהוא לא מוצא אותם',
-    routine: 'morning',
-    ef: 'flex',
-  },
-  {
-    num: 6,
-    text: 'מבצע רק פעילויות שמקדמות את ההתלבשות וההכנה ליציאה מהבית ונמנע מעיסוק בדברים אחרים שרואה או שומע ושאינם קשורים לכך. לדוגמה, מצליח להתעלם מטלוויזיה שדלוקה בחדר אחר',
-    routine: 'morning',
-    ef: 'inh',
-  },
-  {
-    num: 7,
-    text: 'מקפיד על איכות הביצוע של הפעילויות. לדוגמה, בודק שהוא לקח את הכריך שלו ולא של מישהו אחר מבני הבית או שהבגדים שהוא לובש אינם הפוכים',
-    routine: 'morning',
-    ef: 'wm',
-  },
-  {
-    num: 8,
-    text: 'נוטה לסיים פעילויות מבלי להפסיקן באמצע ולעבור לפעילויות אחרות',
-    routine: 'morning',
-    ef: 'inh',
-  },
-  {
-    num: 9,
-    text: 'מתחיל בביצוע פעילויות הערב ביוזמתו. לדוגמה, יוזם לבישת פיג׳מה',
-    routine: 'morning',
-    ef: 'wm',
-  },
-  {
-    num: 10,
-    text: 'מצליח להתמיד בפעילויות הערב בקצב מתאים, ללא צורך בתזכורת של מבוגר',
-    routine: 'morning',
-    ef: null,
-  },
-  {
-    num: 11,
-    text: 'זוכר את רצף הפעילויות שצריך לעשות בערב לפי סדרן',
-    routine: 'morning',
-    ef: null,
-  },
-  {
-    num: 12,
-    text: 'מתארגן בערב בהתאם לכללי הבית. לדוגמה, מסייע בפינוי השולחן או מניח הבגדים שלבש במקום מתאים',
-    routine: 'morning',
-    ef: 'wm',
-  },
-  {
-    num: 13,
-    text: 'פותר בעיות שמתעוררות במהלך ביצוע פעילויות הערב. לדוגמה, כשחסר לו סכו״ם בארוחה, כשמונחים חפצים על המיטה שלו או כשהפיג׳מה שלו בכביסה',
-    routine: 'morning',
-    ef: 'flex',
-  },
-  {
-    num: 14,
-    text: 'מבצע רק פעילויות שמקדמות את ההכנה לשינה ונמנע מעיסוק בדברים אחרים שהוא רואה או שומע ושאינם קשורים לכך. לדוגמה, מצליח להתעלם מטלוויזיה שפועלת ברקע',
-    routine: 'morning',
-    ef: 'inh',
-  },
-  {
-    num: 15,
-    text: 'מתייחס לאיכות הביצוע של פעילויות. לדוגמה, בודק שהפיג׳מה שהוא לובש אינה הפוכה',
-    routine: 'morning',
-    ef: 'flex',
-  },
-  {
-    num: 16,
-    text: 'נוטה לסיים פעילויות מבלי להפסיקן באמצע ולעבור לפעילויות אחרות',
-    routine: 'morning',
-    ef: 'inh',
-  },
-  {
-    num: 17,
-    text: 'מתחיל לבצע את הפעילויות ביוזמתו. לדוגמה, בוחר משחק',
-    routine: 'play',
-    ef: 'flex',
-  },
-  { num: 18, text: 'מצליח לשחק בקצב מתאים (לא מהיר או איטי מדי)', routine: 'play', ef: 'wm' },
-  { num: 19, text: 'משחק לפי שלבי המשחק ובסדר המתאים', routine: 'play', ef: 'wm' },
-  { num: 20, text: 'משחק בהתאם לכללי המשחק. לדוגמה, מחכה לתורו', routine: 'play', ef: 'wm' },
-  {
-    num: 21,
-    text: 'בזמן שהוא משחק במשחק ספציפי הוא מבצע רק פעילויות שקשורות אליו ונמנע מלהסתובב בחדר או לגעת במשחקים אחרים',
-    routine: 'play',
-    ef: 'flex',
-  },
-  {
-    num: 22,
-    text: 'עוצר לחשוב לפני שמשחק. לדוגמה, במשחק בנייה הוא מדמיין איך ייראה מה שרוצה להרכיב או בוחר מראש דגם מסוים, ובציור הוא מתכנן מראש מה ירצה לצייר ואז מתחיל לצייר',
-    routine: 'play',
-    ef: 'flex',
-  },
-  { num: 23, text: 'מסיים משחק אחד לפני שהוא עובר למשחק אחר', routine: 'play', ef: 'inh' },
-  {
-    num: 24,
-    text: 'יוזם אינטראקציה חברתית. לדוגמה, מזמין חבר הביתה',
-    routine: 'social',
-    ef: 'flex',
-  },
-  {
-    num: 25,
-    text: 'לומד מהתנסות חברתית שלילית. לדוגמה, כאשר עושה משהו מכעיס ומקבל התגובה שלילית, הוא יימנע מלחזור על המעשה',
-    routine: 'social',
-    ef: 'wm',
-  },
-  {
-    num: 26,
-    text: 'נמנע מהבעה מוגזמת של כעס או תסכול בזמן משחק עם חברים',
-    routine: 'social',
-    ef: 'inh',
-  },
-  {
-    num: 27,
-    text: 'משתתף במשחק חברתי בהתאם לכללי המשחק המקובלים או אלה שקבעה הקבוצה. לדוגמה, במשחק כדור',
-    routine: 'social',
-    ef: 'wm',
-  },
-  {
-    num: 28,
-    text: 'פותר בעיות שמתעוררות במשחק חברתי. לדוגמה, כשיש אי-הסכמה',
-    routine: 'social',
-    ef: 'flex',
-  },
-  {
-    num: 29,
-    text: 'כאשר מתרחש עימות עם חבר, חושב על מספר תגובות אפשריות לפני שהוא מגיב. לדוגמה, להגיד שלא נעים לו או לקרוא לעזרה',
-    routine: 'social',
-    ef: 'inh',
-  },
-  {
-    num: 30,
-    text: 'חושב על התגובות שלו כאשר הוא מתייחס למעשי חבריו',
-    routine: 'social',
-    ef: 'inh',
-  },
-];
-
 const cutoffs = {
   '3-5': { morning: 2.45, play: 3.14, social: 2.71, total: 2.92, inh: 2.51, wm: 3.0, flex: 2.72 },
   '6-7': { morning: 2.74, play: 3.42, social: 2.85, total: 3.16, inh: 2.77, wm: 3.26, flex: 3.0 },
@@ -197,28 +33,9 @@ function summaryHtmlToText(html) {
 // ===== BUILD FORM =====
 function buildForm() {
   const container = document.getElementById('questionnaire');
-  const routines = [
-    {
-      key: 'morning',
-      title: 'שגרות בוקר וערב',
-      instruction: 'בהקשר לשגרת הבוקר והערב, נא ציינ/י באיזו מידה ילדך:',
-      range: [1, 16],
-    },
-    {
-      key: 'play',
-      title: 'שגרות משחק ופנאי',
-      instruction: 'בזמנים של משחק עצמאי ופנאי, נא ציינ/י באיזו מידה ילדך:',
-      range: [17, 23],
-    },
-    {
-      key: 'social',
-      title: 'שגרה חברתית',
-      instruction: 'בהקשר לתפקוד החברתי, נא ציינ/י באיזו מידה ילדך:',
-      range: [24, 30],
-    },
-  ];
+  const routines = SECTIONS;
 
-  const scaleLabels = ['אף\nפעם', 'לעיתים\nרחוקות', 'לפעמים', 'לעיתים\nקרובות', 'תמיד'];
+  const scaleLabels = SCALE_LABELS;
 
   routines.forEach((r) => {
     const section = document.createElement('div');
@@ -1599,3 +1416,244 @@ function resetForm() {
   updateProgress();
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
+
+// ===== IMPORT PARENT ANSWERS (PF2) =====
+// Decodes an EFORTS1 code from parent.html (sex + dob + date + with + 30
+// answers — see eforts-code.js's header comment; there is no anonymous
+// id in the format, AMENDED 2026-09-28 12:31) and fills this form. The
+// therapist types the anonymous number herself: import never touches
+// #anonId, and calculate() is never called automatically (dob here is
+// the parent's real answer, not an estimate that needs correcting).
+
+let importPreviewData = null;
+
+function importErrorText(code, params) {
+  const p = params || {};
+  switch (code) {
+    case 'E0':
+      return 'לא הודבק טקסט.';
+    case 'E1':
+      return 'לא נמצא קוד תשובות בטקסט. הקוד מתחיל ב-EFORTS1 ומסתיים ב-k= ועוד שני תווים.';
+    case 'E2':
+      return `הקוד נוצר בגרסה אחרת של טופס ההורים (${p.found}) ולא ניתן לייבא אותו כאן.`;
+    case 'E3':
+      return 'הקוד השתנה או נקטע בדרך (ספרת הביקורת לא תואמת). נסה/י להעתיק שוב, או בקש/י מההורה את קובץ התשובות.';
+    case 'E4':
+      return `חסר שדה בקוד, או ששדה לא במקומו: ${p.key}.`;
+    case 'E5':
+      return `ערך לא תקין בשדה מין: "${p.v}".`;
+    case 'E6':
+      return `בקוד יש ${p.n} תשובות במקום 30.`;
+    case 'E7':
+      return `תשובה לא תקינה לשאלה ${p.num}: "${p.v}" (מותר 1 עד 5).`;
+    case 'E8':
+      // The pinned E8 text in PF-spec §H.3 covers an "age Y;M" field that
+      // no longer exists (AMENDED 2026-09-28: dob replaces age). E8 is now
+      // the codec's invalid-date-of-birth error, so the message names dob.
+      return `תאריך לידה לא תקין: "${p.v}".`;
+    case 'E9':
+      return `תאריך מילוי לא תקין: "${p.v}".`;
+    case 'E10':
+      return `תאריך המילוי (${p.v}) ישן מדי — הטופס תומך עד 3 שנים אחורה.`;
+    case 'E12':
+      return `ערך לא תקין בשדה "מי נמצא עם הילד": "${p.v}".`;
+    case 'E13':
+      return 'נמצאו כמה קודים שונים. הדביק/י קוד אחד בכל פעם.';
+    case 'F1':
+      return 'הקובץ גדול מדי — זה לא קובץ תשובות של טופס ההורים.';
+    case 'F2':
+      return 'לא הצלחנו לקרוא את הקובץ.';
+    default:
+      return 'שגיאה לא צפויה בקריאת הקוד.';
+  }
+}
+
+// Same years/months arithmetic as updateAge() above, duplicated (not
+// called) so the import preview can show age before anything is written
+// to the birth-date fields.
+function computeAgeYM(dobStr, dateStr) {
+  const birth = new Date(dobStr);
+  const fill = new Date(dateStr);
+  let years = fill.getFullYear() - birth.getFullYear();
+  let months = fill.getMonth() - birth.getMonth();
+  if (fill.getDate() < birth.getDate()) months--;
+  if (months < 0) {
+    years--;
+    months += 12;
+  }
+  return { years, months };
+}
+
+// Age-band boundaries in total months: 3y0m, 6y0m, 8y0m, 12y0m (the
+// instrument's own cutoffs, cutoffs const above / updateAge()'s
+// totalYears thresholds). "Near" = within 1 month either side.
+const AGE_BAND_EDGE_MONTHS = [36, 72, 96, 144];
+function isNearAgeBandEdge(years, months) {
+  const total = years * 12 + months;
+  return AGE_BAND_EDGE_MONTHS.some((edge) => Math.abs(total - edge) <= 1);
+}
+
+function importFillDateOutOfRange(dateStr) {
+  const y = Number(dateStr.slice(0, 4));
+  const currentYear = new Date().getFullYear();
+  return y < currentYear - 3 || y > currentYear;
+}
+
+function withLabel(code) {
+  if (!code) return '—';
+  const opt = COMPANION.options.find((o) => o.value === code);
+  return opt ? opt.label : '—';
+}
+
+function clearImportPanel() {
+  const status = document.getElementById('importStatus');
+  status.textContent = '';
+  status.className = 'import-status';
+  document.getElementById('importEdge').hidden = true;
+  document.getElementById('importPreview').hidden = true;
+}
+
+function showImportError(code, params) {
+  const status = document.getElementById('importStatus');
+  status.className = 'import-status err';
+  status.textContent = importErrorText(code, params);
+  document.getElementById('importEdge').hidden = true;
+  document.getElementById('importPreview').hidden = true;
+  importPreviewData = null;
+}
+
+function buildImportPreview(data) {
+  const list = document.getElementById('importPreviewList');
+  list.textContent = '';
+  const { years, months } = computeAgeYM(data.dob, data.date);
+  const [fy, fm, fd] = data.date.split('-');
+  const rows = [
+    ['מין', data.sex === 'male' ? 'זכר' : 'נקבה'],
+    ['גיל לפי ההורה', `${years} שנים, ${months} חודשים`],
+    ['תאריך מילוי', `${fd}/${fm}/${fy}`],
+    [
+      'מי נמצא עם הילד',
+      `בוקר וערב: ${withLabel(data.with.morning)} · משחק ופנאי: ${withLabel(data.with.play)} · חברתית: ${withLabel(data.with.social)}`,
+    ],
+    ['תשובות', `${data.answers.length} מתוך 30`],
+  ];
+  rows.forEach(([dt, dd]) => {
+    const dtEl = document.createElement('dt');
+    dtEl.textContent = dt;
+    const ddEl = document.createElement('dd');
+    ddEl.textContent = dd;
+    list.appendChild(dtEl);
+    list.appendChild(ddEl);
+  });
+}
+
+function importParentAnswers(text) {
+  clearImportPanel();
+  const result = EFORTSCode.decode(text);
+  if (!result.ok) {
+    showImportError(result.error, result.params);
+    return;
+  }
+  if (importFillDateOutOfRange(result.data.date)) {
+    showImportError('E10', { v: result.data.date });
+    return;
+  }
+  importPreviewData = result.data;
+  buildImportPreview(result.data);
+  document.getElementById('importPreview').hidden = false;
+}
+
+function isClinicianFormDirty() {
+  const anyRadio = document.querySelector('#questionnaire input[type="radio"]:checked');
+  const anonId = document.getElementById('anonId').value.trim();
+  const gender = document.getElementById('childGender').value;
+  const birthDate = getBirthDateValue();
+  return !!anyRadio || !!anonId || !!gender || !!birthDate;
+}
+
+function applyImportedAnswers() {
+  if (!importPreviewData) return;
+  if (isClinicianFormDirty()) {
+    if (!confirm('הטופס כבר מכיל נתונים. הייבוא יחליף אותם. להמשיך?')) return;
+  }
+  const data = importPreviewData;
+
+  document.querySelectorAll('#questionnaire input[type="radio"]').forEach((r) => {
+    r.checked = false;
+  });
+
+  document.getElementById('childGender').value = data.sex;
+  setFillDateValue(data.date);
+  setBirthDateValue(data.dob);
+  ['morning', 'play', 'social'].forEach((k) => {
+    const el = document.getElementById('companion_' + k);
+    if (el) el.value = data.with[k] || '';
+  });
+  data.answers.forEach((val, i) => {
+    const radio = document.getElementById(`q${i + 1}_${val}`);
+    if (radio) radio.checked = true;
+  });
+
+  updateAge();
+  updateProgress();
+  saveForm();
+
+  const { years, months } = computeAgeYM(data.dob, data.date);
+  const status = document.getElementById('importStatus');
+  status.className = 'import-status ok';
+  status.textContent = 'הוזנו התשובות. הקלידו מספר אנונימי ולחצו חישוב';
+
+  const edge = document.getElementById('importEdge');
+  if (isNearAgeBandEdge(years, months)) {
+    edge.hidden = false;
+    edge.textContent =
+      'שים/י לב: הגיל קרוב לגבול בין קבוצות גיל, ולכן תאריך הלידה המדויק קובע את ציוני החתך.';
+  } else {
+    edge.hidden = true;
+  }
+
+  document.getElementById('importPreview').hidden = true;
+  document.getElementById('importCode').value = '';
+  importPreviewData = null;
+
+  const anonField = document.getElementById('anonId');
+  anonField.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  anonField.focus();
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  const importCodeBtn = document.getElementById('importCodeBtn');
+  const importFile = document.getElementById('importFile');
+  const importCancel = document.getElementById('importCancel');
+  const importApply = document.getElementById('importApply');
+
+  importCodeBtn.addEventListener('click', () => {
+    importParentAnswers(document.getElementById('importCode').value);
+  });
+
+  importFile.addEventListener('change', async () => {
+    const file = importFile.files && importFile.files[0];
+    importFile.value = '';
+    if (!file) return;
+    clearImportPanel();
+    if (file.size > 20000) {
+      showImportError('F1', {});
+      return;
+    }
+    let text;
+    try {
+      text = await file.text();
+    } catch {
+      showImportError('F2', {});
+      return;
+    }
+    importParentAnswers(text);
+  });
+
+  importCancel.addEventListener('click', () => {
+    clearImportPanel();
+    importPreviewData = null;
+  });
+
+  importApply.addEventListener('click', applyImportedAnswers);
+});

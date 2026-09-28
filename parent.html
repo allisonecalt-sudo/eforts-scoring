@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<meta name="referrer" content="no-referrer">
+<meta http-equiv="Content-Security-Policy" content="connect-src 'none'; form-action 'none'; base-uri 'none'; object-src 'none'">
+<title>EFORTS — שאלון להורים</title>
+<link rel="stylesheet" href="styles.css">
+<link rel="stylesheet" href="parent.css">
+</head>
+  <body>
+    <div class="container">
+      <!-- Header -->
+      <div class="header">
+        <div class="header-logos">
+          <img src="assets/haifa.jpg" alt="אוניברסיטת חיפה" class="header-logo header-logo-haifa" />
+          <img
+            src="assets/chap.png"
+            alt="המעבדה לתפקוד אנושי מורכב (CHAP)"
+            class="header-logo header-logo-chap"
+          />
+          <img
+            src="assets/clalit.svg"
+            alt="שירותי בריאות כללית"
+            class="header-logo header-logo-clalit"
+          />
+        </div>
+        <h1>EFORTS — שאלון להורים</h1>
+        <p>שאלון למדידת יכולת הניהול העצמי של ילדים בשגרות היום יום — Frisch & Rosenblum, 2014</p>
+        <p class="header-authors">כרמית פריש ופרופ' שרה רוזנבלום, אוניברסיטת חיפה</p>
+        <p class="header-lab">המעבדה לתפקוד אנושי מורכב (CHAP), אוניברסיטת חיפה</p>
+        <p class="header-credit">
+          תהליך מחשוב השאלון בוצע ע"י אליסון אלט, מרפאה בעיסוק בשירותי בריאות כללית מחוז ירושלים,
+          בתיאום ואישור המחברות.
+        </p>
+      </div>
+
+      <div id="pDraftBar" class="p-draft-bar" hidden>
+        <span id="pDraftBarText">המשכנו מאיפה שעצרתם. התשובות שסימנתם שמורות רק במכשיר הזה.</span>
+        <button type="button" id="pDraftClear" class="btn btn-secondary p-btn-small">מחיקת הטיוטה</button>
+      </div>
+
+      <div id="pFormSection">
+        <div class="progress-wrap">
+          <div class="progress-bar"><div class="progress-fill" id="pProgressFill"></div></div>
+          <div class="progress-text" id="pProgressText">0 / 30</div>
+        </div>
+
+        <section id="pIntro" class="info-card">
+          <div class="info-card-title" id="pIntroTitle">לפני שמתחילים</div>
+          <p id="pWelcome">שלום, המטפל/ת של ילדכם ביקש/ה מכם למלא את השאלון הזה. המילוי לוקח בערך 10 דקות.</p>
+          <div class="p-instr">
+            <div class="p-instr-label" id="pInstrLabel">הוראות (מתוך השאלון)</div>
+            <p id="pInstr">במסגרת השגרות השונות בחיי היום יום אנו וילדינו מבצעים פעילויות רבות. מטרת השאלון היא לקבל תמונה על אופן הניהול העצמי של ילדך בשגרות היום יום. המשפטים הבאים מתייחסים לאופן הביצוע של ילדך בפעילויות הקשורות בשגרות יום יומיות שכיחות כמו שגרות הבוקר והערב, שגרת משחק ופנאי ושגרה של תפקוד חברתי. נא סמן/י √ מתחת לתשובה שמבטאת באופן הטוב ביותר את תפקוד ילדך בשלושת החודשים האחרונים בכל פעילות. בבקשה סמן/י תשובה בכל המשפטים. <em>השאלות מנוסחות בלשון זכר, אך מכוונות לבנים ולבנות כאחד.</em></p>
+          </div>
+          <p id="pHow">בכל שאלה לחצו על התשובה המתאימה ביותר. אפשר לשנות תשובה בכל שלב.</p>
+          <p id="pPrivacy" class="p-privacy">🔒 התשובות נשמרות רק במכשיר שלכם ובקובץ שתורידו. שום דבר לא נשלח מהדף הזה — את התשובות שולחים אתם, במייל, למטפל/ת.</p>
+        </section>
+
+        <section id="pDetails" class="info-card">
+          <div class="info-card-title" id="pDetailsTitle">פרטי הילד/ה</div>
+          <div class="p-details-grid">
+            <fieldset id="pSexField" class="info-field">
+              <legend id="pSexLegend">מין</legend>
+              <div class="p-scale p-scale-2">
+                <input type="radio" name="pSex" id="pSex_m" value="male">
+                <label for="pSex_m">בן</label>
+                <input type="radio" name="pSex" id="pSex_f" value="female">
+                <label for="pSex_f">בת</label>
+              </div>
+            </fieldset>
+            <div class="info-field">
+              <label id="pDobLabel" for="pDob">תאריך לידה</label>
+              <input type="date" id="pDob">
+            </div>
+          </div>
+        </section>
+
+        <div id="pQuestionnaire"></div>
+
+        <div id="pMissing" class="p-missing-msg" role="alert" hidden></div>
+
+        <div class="actions">
+          <button type="button" id="pFinish" class="btn btn-primary">סיום</button>
+        </div>
+      </div>
+
+      <section id="pDone" class="info-card p-done" hidden>
+        <h2 id="pDoneTitle" tabindex="-1">תודה! סיימתם את השאלון.</h2>
+        <p id="pDoneLead">נשאר רק לשלוח את התשובות למטפל/ת. מספיקה אחת מהדרכים כאן:</p>
+
+        <div id="pWayMail" class="p-way">
+          <h3 id="pWayMailTitle" class="p-way-title">שליחה במייל — הכי פשוט</h3>
+          <a id="pMailto" class="btn btn-primary" href="#">פתיחת מייל מוכן למטפל/ת</a>
+          <p id="pMailtoHint" class="p-hint"></p>
+        </div>
+
+        <div id="pWayCode" class="p-way">
+          <h3 id="pWayCodeTitle" class="p-way-title">העתקת קוד התשובות</h3>
+          <pre id="pCode" class="p-code" dir="ltr"></pre>
+          <button type="button" id="pCopy" class="btn btn-secondary">העתקת הקוד</button>
+          <p id="pCopyStatus" class="p-hint" role="status"></p>
+          <p id="pCodeHint" class="p-hint"></p>
+        </div>
+
+        <div id="pWayFile" class="p-way">
+          <h3 id="pWayFileTitle" class="p-way-title">הורדת קובץ</h3>
+          <button type="button" id="pDownload" class="btn btn-secondary">הורדת קובץ התשובות</button>
+          <p id="pDownloadHint" class="p-hint"></p>
+        </div>
+
+        <p id="pDoneNote" class="p-hint">הדף הזה לא מחשב ציונים. על התוצאות תדברו עם המטפל/ת.</p>
+        <button type="button" id="pBack" class="btn btn-back">חזרה לתשובות</button>
+        <button type="button" id="pClearDone" class="btn btn-danger">מחיקת התשובות מהמכשיר</button>
+        <p id="pClearDoneHint" class="p-hint">מומלץ אחרי ששלחתם.</p>
+      </section>
+
+      <p id="pVersion" class="p-version">גרסה 1.0</p>
+    </div>
+
+    <script src="items.js"></script>
+    <script src="eforts-code.js"></script>
+    <script src="parent.js"></script>
+  </body>
+</html>

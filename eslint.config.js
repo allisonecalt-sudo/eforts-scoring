@@ -32,6 +32,7 @@ module.exports = [
         TouchEvent: 'readonly',
         Blob: 'readonly',
         URL: 'readonly',
+        URLSearchParams: 'readonly',
         // Supabase CDN global
         supabase: 'readonly',
       },
@@ -55,6 +56,22 @@ module.exports = [
     },
   },
   {
+    // app.js and parent.js both read the shared instrument data/codec
+    // globals that items.js / eforts-code.js declare as top-level `const`
+    // (classic scripts share one script-realm scope — see items.js /
+    // eforts-code.js header comments and tests/helpers/eforts-app.js).
+    files: ['app.js', 'parent.js', 'import.js'],
+    languageOptions: {
+      globals: {
+        items: 'readonly',
+        SECTIONS: 'readonly',
+        SCALE_LABELS: 'readonly',
+        COMPANION: 'readonly',
+        EFORTSCode: 'readonly',
+      },
+    },
+  },
+  {
     // Test suite (Node/CommonJS via Playwright Test) — separate globals
     // from the browser-only app.js block above.
     files: ['tests/**/*.js'],
@@ -68,6 +85,7 @@ module.exports = [
         process: 'readonly',
         __dirname: 'readonly',
         console: 'readonly',
+        Buffer: 'readonly',
         window: 'readonly',
         document: 'readonly',
         // app.js globals, referenced inside page.evaluate() callbacks that
@@ -80,7 +98,13 @@ module.exports = [
         buildSummary: 'readonly',
         calculate: 'readonly',
         updateAge: 'readonly',
+        getBirthDateValue: 'readonly',
+        getFillDateValue: 'readonly',
         buildExportText: 'readonly',
+        SECTIONS: 'readonly',
+        SCALE_LABELS: 'readonly',
+        COMPANION: 'readonly',
+        EFORTSCode: 'readonly',
       },
     },
     rules: {

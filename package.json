@@ -2,10 +2,10 @@
   "name": "eforts-scoring",
   "private": true,
   "scripts": {
-    "lint": "eslint app.js tests/**/*.js",
-    "lint:fix": "eslint app.js tests/**/*.js --fix",
-    "format": "prettier --check app.js styles.css tests/**/*.js",
-    "format:fix": "prettier --write app.js styles.css tests/**/*.js",
+    "lint": "eslint app.js items.js eforts-code.js parent.js tests/**/*.js",
+    "lint:fix": "eslint app.js items.js eforts-code.js parent.js tests/**/*.js --fix",
+    "format": "prettier --check app.js items.js eforts-code.js parent.js styles.css parent.css tests/**/*.js",
+    "format:fix": "prettier --write app.js items.js eforts-code.js parent.js styles.css parent.css tests/**/*.js",
     "test": "npm run lint && npm run format && npx playwright test --reporter=list"
   },
   "devDependencies": {

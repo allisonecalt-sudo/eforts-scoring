@@ -46,6 +46,34 @@
 
       <!-- Child Info -->
       <div id="formSection">
+        <!-- Import parent answers (PF2) -->
+        <details class="import-box" id="importBox">
+          <summary id="importSummary">ייבוא תשובות מהורה</summary>
+          <div class="import-body">
+            <label for="importCode" id="importCodeLabel"
+              >הדביק/י את הקוד מהמייל (אפשר להדביק את כל גוף המייל):</label
+            >
+            <textarea id="importCode" rows="3" dir="ltr" spellcheck="false" autocomplete="off"></textarea>
+            <div class="import-actions">
+              <button type="button" class="btn btn-primary" id="importCodeBtn">בדיקת הקוד</button>
+              <label class="btn btn-secondary" for="importFile" id="importFileLabel"
+                >או בחירת קובץ תשובות (‎.txt)</label
+              >
+              <input type="file" id="importFile" accept=".txt,text/plain" hidden />
+            </div>
+            <p class="import-status" id="importStatus" role="status" aria-live="polite"></p>
+            <p class="import-edge" id="importEdge" hidden></p>
+            <div class="import-preview" id="importPreview" hidden>
+              <p id="importPreviewTitle">נמצא קוד תקין. בדוק/י לפני המילוי:</p>
+              <dl id="importPreviewList"></dl>
+              <div class="import-actions">
+                <button type="button" class="btn btn-primary" id="importApply">מילוי הטופס</button>
+                <button type="button" class="btn btn-back" id="importCancel">ביטול</button>
+              </div>
+            </div>
+          </div>
+        </details>
+
         <div class="info-card">
           <div class="info-card-title">פרטי המטופל/ת</div>
           <div class="info-grid">
@@ -207,6 +235,8 @@
       <div id="results"></div>
     </div>
 
+    <script src="items.js"></script>
+    <script src="eforts-code.js"></script>
     <script src="app.js"></script>
   </body>
 </html>
