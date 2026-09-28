@@ -508,6 +508,17 @@ function calculate() {
     showWarning('הגיל מחוץ לטווח הגילים של השאלון (3.0–11.11) — לא ניתן לחשב ציונים');
     return;
   }
+  // F-15 / F-16 (TM-spec §C-F, optional — her yes): an unset sex silently
+  // wrote the summary in female forms, and an empty anonymous number put
+  // "—" into the summary as the child's stand-in noun. Fail loud instead.
+  if (!document.getElementById('childGender').value) {
+    showWarning('יש לבחור מין לפני חישוב הציונים — הסיכום נכתב בלשון זכר או נקבה בהתאם.');
+    return;
+  }
+  if (!document.getElementById('anonId').value.trim()) {
+    showWarning('יש להזין מספר אנונימי — הסיכום משתמש בו במקום שם.');
+    return;
+  }
 
   const scores = {};
   let missing = [];
