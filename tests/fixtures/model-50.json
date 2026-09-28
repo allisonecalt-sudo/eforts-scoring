@@ -39,11 +39,11 @@
   },
   "expected": {
     "morning": 1.81,
-    "play": 3.00,
+    "play": 3.0,
     "social": 2.57,
     "total": 2.46,
     "inhibition": 2.13,
-    "workingMemory": 2.00,
+    "workingMemory": 2.0,
     "flexibility": 2.88
   }
 }
