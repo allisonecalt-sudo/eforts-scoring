@@ -20,6 +20,12 @@ test("runtime: no request/websocket leaves the page's own origin", async ({ page
   await fillParent(page, MODELS.G50);
   await page.locator('#pFinish').click();
 
+  // Item 27: code/file sit collapsed behind the "אפשרויות שליחה חלופיות"
+  // details when mail is present — open it to reach #pDownload/#pCopy.
+  await page.locator('#pAltWays').evaluate((el) => {
+    el.open = true;
+  });
+
   const downloadPromise = page.waitForEvent('download');
   await page.locator('#pDownload').click();
   await downloadPromise;

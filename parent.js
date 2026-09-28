@@ -20,16 +20,16 @@ const DRAFT_KEY = 'eforts_parent_draft_v1';
 const DRAFT_MAX_AGE_MS = 14 * 24 * 3600 * 1000;
 
 // ===== COPY (H.1 — the strings that vary; static text lives in parent.html) =====
-const H_M0 = 'כדי לסיים, חסרים עוד: ';
+const H_M0 = 'כדי לסיים, צריך להשלים עוד: ';
 const H_S1 = 'מין הילד/ה';
 const H_S2 = 'תאריך לידה';
 const H_S3 = 'תשובות לשאלות {nums}';
-const H_C2 = 'הקוד הועתק ✓';
-const H_C3 = 'לא הצלחנו להעתיק אוטומטית. סמנו את הקוד והעתיקו אותו.';
+const H_C2 = 'השורה הועתקה ✓';
+const H_C3 = 'לא הצלחנו להעתיק אוטומטית. סמנו את השורה והעתיקו אותה.';
 const H_pMailtoHint =
-  'ייפתח מייל אל {to} עם התשובות בפנים. נשאר רק ללחוץ על "שליחה". לא נפתח מייל? אפשר להשתמש בקוד או בקובץ שלמטה.';
-const H_pCodeHint_to = 'הדביקו את הקוד בגוף מייל חדש אל {to}.';
-const H_pCodeHint_noto = 'הדביקו את הקוד בגוף מייל חדש לכתובת המייל שקיבלתם מהמטפל/ת.';
+  'ייפתח מייל אל {to} עם התשובות בפנים. נשאר רק ללחוץ על "שליחה". לא נפתח מייל? אפשר להשתמש בשורה או בקובץ שלמטה.';
+const H_pCodeHint_to = 'הדביקו את שורת התשובות בגוף מייל חדש אל {to}.';
+const H_pCodeHint_noto = 'הדביקו את שורת התשובות בגוף מייל חדש לכתובת המייל שקיבלתם מהמטפל/ת.';
 const H_pDownloadHint_to = 'הקובץ יישמר בתיקיית ההורדות. צרפו אותו למייל אל {to}.';
 const H_pDownloadHint_noto =
   'הקובץ יישמר בתיקיית ההורדות. צרפו אותו למייל לכתובת שקיבלתם מהמטפל/ת.';
@@ -62,6 +62,7 @@ let pDraftBar,
   pWayMailTitle,
   pMailto,
   pMailtoHint,
+  pAltWays,
   pWayCode,
   pWayCodeTitle,
   pCode,
@@ -324,10 +325,15 @@ function showDone(code, model) {
     pMailtoHint.textContent = H_pMailtoHint.replace('{to}', state.to);
     pCodeHint.textContent = H_pCodeHint_to.replace('{to}', state.to);
     pDownloadHint.textContent = H_pDownloadHint_to.replace('{to}', state.to);
+    // Mail is the one primary way — keep the code/file fallback collapsed.
+    pAltWays.open = false;
   } else {
     pWayMail.hidden = true;
     pCodeHint.textContent = H_pCodeHint_noto;
     pDownloadHint.textContent = H_pDownloadHint_noto;
+    // No mail address to prefill — code/file are the only ways, so open
+    // them by default instead of hiding the parent's one option.
+    pAltWays.open = true;
   }
 
   numberWayTitles();
@@ -389,6 +395,7 @@ document.addEventListener('DOMContentLoaded', () => {
   pWayMailTitle = document.getElementById('pWayMailTitle');
   pMailto = document.getElementById('pMailto');
   pMailtoHint = document.getElementById('pMailtoHint');
+  pAltWays = document.getElementById('pAltWays');
   pWayCode = document.getElementById('pWayCode');
   pWayCodeTitle = document.getElementById('pWayCodeTitle');
   pCode = document.getElementById('pCode');
