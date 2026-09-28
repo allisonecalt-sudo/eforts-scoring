@@ -55,6 +55,22 @@ module.exports = [
     },
   },
   {
+    // app.js and parent.js both read the shared instrument data/codec
+    // globals that items.js / eforts-code.js declare as top-level `const`
+    // (classic scripts share one script-realm scope — see items.js /
+    // eforts-code.js header comments and tests/helpers/eforts-app.js).
+    files: ['app.js', 'parent.js', 'import.js'],
+    languageOptions: {
+      globals: {
+        items: 'readonly',
+        SECTIONS: 'readonly',
+        SCALE_LABELS: 'readonly',
+        COMPANION: 'readonly',
+        EFORTSCode: 'readonly',
+      },
+    },
+  },
+  {
     // Test suite (Node/CommonJS via Playwright Test) — separate globals
     // from the browser-only app.js block above.
     files: ['tests/**/*.js'],
