@@ -1,122 +1,212 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="he" dir="rtl">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>EFORTS — קידוד שאלון</title>
-<link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-<!-- PDF generated via browser print dialog — no heavy libraries needed -->
-<link rel="stylesheet" href="styles.css">
-</head>
-<body>
-
-<div class="container">
-  <!-- Header -->
-  <div class="header">
-    <div class="header-logos">
-      <img src="assets/haifa.jpg" alt="אוניברסיטת חיפה" class="header-logo header-logo-haifa">
-      <img src="assets/chap.png" alt="המעבדה לתפקוד אנושי מורכב (CHAP)" class="header-logo header-logo-chap">
-      <img src="assets/clalit.svg" alt="שירותי בריאות כללית" class="header-logo header-logo-clalit">
-    </div>
-    <h1>EFORTS — קידוד שאלון</h1>
-    <p>שאלון למדידת יכולת הניהול העצמי של ילדים בשגרות היום יום — Frisch & Rosenblum, 2014</p>
-    <p class="header-authors">כרמית פריש ופרופ' שרה רוזנבלום, אוניברסיטת חיפה</p>
-    <p class="header-lab">המעבדה לתפקוד אנושי מורכב (CHAP), אוניברסיטת חיפה</p>
-    <p class="header-credit">תהליך מחשוב השאלון בוצע ע"י אליסון אלט, מרפאה בעיסוק בשירותי בריאות כללית מחוז ירושלים, בתיאום ואישור המחברות.</p>
-  </div>
-
-  <!-- Progress -->
-  <div class="progress-wrap" id="progressWrap">
-    <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
-    <div class="progress-text" id="progressText">0 / 30</div>
-  </div>
-
-  <!-- Child Info -->
-  <div id="formSection">
-    <div class="info-card">
-      <div class="info-card-title">פרטי הנבדק/ת</div>
-      <div class="info-grid">
-        <div class="info-field">
-          <label for="anonId">מספר מזהה</label>
-          <input type="text" id="anonId" placeholder="מספר אנונימי">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>EFORTS — קידוד שאלון</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <!-- PDF generated via browser print dialog — no heavy libraries needed -->
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="container">
+      <!-- Header -->
+      <div class="header">
+        <div class="header-logos">
+          <img src="assets/haifa.jpg" alt="אוניברסיטת חיפה" class="header-logo header-logo-haifa" />
+          <img
+            src="assets/chap.png"
+            alt="המעבדה לתפקוד אנושי מורכב (CHAP)"
+            class="header-logo header-logo-chap"
+          />
+          <img
+            src="assets/clalit.svg"
+            alt="שירותי בריאות כללית"
+            class="header-logo header-logo-clalit"
+          />
         </div>
-        <div class="info-field">
-          <label for="childGender">מין</label>
-          <select id="childGender">
-            <option value="">—</option>
-            <option value="male">זכר</option>
-            <option value="female">נקבה</option>
-          </select>
-        </div>
-        <div class="info-field" style="grid-column: 1 / -1;">
-          <label>תאריך לידה</label>
-          <div style="display:flex; gap:10px; direction:ltr;">
-            <select id="birthDay" style="flex:1; padding:10px 12px; border:1.5px solid var(--border); border-radius:8px; font-family:inherit; font-size:0.9rem; background:#fafbfc;">
-              <option value="">יום</option>
-            </select>
-            <select id="birthMonth" style="flex:1.5; padding:10px 12px; border:1.5px solid var(--border); border-radius:8px; font-family:inherit; font-size:0.9rem; background:#fafbfc;">
-              <option value="">חודש</option>
-              <option value="0">ינואר</option><option value="1">פברואר</option>
-              <option value="2">מרץ</option><option value="3">אפריל</option>
-              <option value="4">מאי</option><option value="5">יוני</option>
-              <option value="6">יולי</option><option value="7">אוגוסט</option>
-              <option value="8">ספטמבר</option><option value="9">אוקטובר</option>
-              <option value="10">נובמבר</option><option value="11">דצמבר</option>
-            </select>
-            <select id="birthYear" style="flex:1; padding:10px 12px; border:1.5px solid var(--border); border-radius:8px; font-family:inherit; font-size:0.9rem; background:#fafbfc;">
-              <option value="">שנה</option>
-            </select>
-          </div>
-        </div>
-        <div class="info-field">
-          <label>גיל</label>
-          <div class="computed" id="calcAge">—</div>
-        </div>
-        <div class="info-field">
-          <label>קבוצת גיל</label>
-          <div class="computed" id="ageGroupDisplay">—</div>
-          <input type="hidden" id="ageGroup">
-        </div>
-        <div class="info-field" style="grid-column: 1 / -1;">
-          <label>תאריך מילוי</label>
-          <div style="display:flex; gap:10px; direction:ltr;">
-            <select id="fillDay" style="flex:1; padding:10px 12px; border:1.5px solid var(--border); border-radius:8px; font-family:inherit; font-size:0.9rem; background:#fafbfc;">
-              <option value="">יום</option>
-            </select>
-            <select id="fillMonth" style="flex:1.5; padding:10px 12px; border:1.5px solid var(--border); border-radius:8px; font-family:inherit; font-size:0.9rem; background:#fafbfc;">
-              <option value="">חודש</option>
-              <option value="0">ינואר</option><option value="1">פברואר</option>
-              <option value="2">מרץ</option><option value="3">אפריל</option>
-              <option value="4">מאי</option><option value="5">יוני</option>
-              <option value="6">יולי</option><option value="7">אוגוסט</option>
-              <option value="8">ספטמבר</option><option value="9">אוקטובר</option>
-              <option value="10">נובמבר</option><option value="11">דצמבר</option>
-            </select>
-            <select id="fillYear" style="flex:1; padding:10px 12px; border:1.5px solid var(--border); border-radius:8px; font-family:inherit; font-size:0.9rem; background:#fafbfc;">
-              <option value="">שנה</option>
-            </select>
-          </div>
-        </div>
+        <h1>EFORTS — קידוד שאלון</h1>
+        <p>שאלון למדידת יכולת הניהול העצמי של ילדים בשגרות היום יום — Frisch & Rosenblum, 2014</p>
+        <p class="header-authors">כרמית פריש ופרופ' שרה רוזנבלום, אוניברסיטת חיפה</p>
+        <p class="header-lab">המעבדה לתפקוד אנושי מורכב (CHAP), אוניברסיטת חיפה</p>
+        <p class="header-credit">
+          תהליך מחשוב השאלון בוצע ע"י אליסון אלט, מרפאה בעיסוק בשירותי בריאות כללית מחוז ירושלים,
+          בתיאום ואישור המחברות.
+        </p>
       </div>
+
+      <!-- Progress -->
+      <div class="progress-wrap" id="progressWrap">
+        <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+        <div class="progress-text" id="progressText">0 / 30</div>
+      </div>
+
+      <!-- Child Info -->
+      <div id="formSection">
+        <div class="info-card">
+          <div class="info-card-title">פרטי הנבדק/ת</div>
+          <div class="info-grid">
+            <div class="info-field">
+              <label for="anonId">מספר מזהה</label>
+              <input type="text" id="anonId" placeholder="מספר אנונימי" />
+            </div>
+            <div class="info-field">
+              <label for="childGender">מין</label>
+              <select id="childGender">
+                <option value="">—</option>
+                <option value="male">זכר</option>
+                <option value="female">נקבה</option>
+              </select>
+            </div>
+            <div class="info-field" style="grid-column: 1 / -1">
+              <label>תאריך לידה</label>
+              <div style="display: flex; gap: 10px; direction: ltr">
+                <select
+                  id="birthDay"
+                  style="
+                    flex: 1;
+                    padding: 10px 12px;
+                    border: 1.5px solid var(--border);
+                    border-radius: 8px;
+                    font-family: inherit;
+                    font-size: 0.9rem;
+                    background: #fafbfc;
+                  "
+                >
+                  <option value="">יום</option>
+                </select>
+                <select
+                  id="birthMonth"
+                  style="
+                    flex: 1.5;
+                    padding: 10px 12px;
+                    border: 1.5px solid var(--border);
+                    border-radius: 8px;
+                    font-family: inherit;
+                    font-size: 0.9rem;
+                    background: #fafbfc;
+                  "
+                >
+                  <option value="">חודש</option>
+                  <option value="0">ינואר</option>
+                  <option value="1">פברואר</option>
+                  <option value="2">מרץ</option>
+                  <option value="3">אפריל</option>
+                  <option value="4">מאי</option>
+                  <option value="5">יוני</option>
+                  <option value="6">יולי</option>
+                  <option value="7">אוגוסט</option>
+                  <option value="8">ספטמבר</option>
+                  <option value="9">אוקטובר</option>
+                  <option value="10">נובמבר</option>
+                  <option value="11">דצמבר</option>
+                </select>
+                <select
+                  id="birthYear"
+                  style="
+                    flex: 1;
+                    padding: 10px 12px;
+                    border: 1.5px solid var(--border);
+                    border-radius: 8px;
+                    font-family: inherit;
+                    font-size: 0.9rem;
+                    background: #fafbfc;
+                  "
+                >
+                  <option value="">שנה</option>
+                </select>
+              </div>
+            </div>
+            <div class="info-field">
+              <label>גיל</label>
+              <div class="computed" id="calcAge">—</div>
+            </div>
+            <div class="info-field">
+              <label>קבוצת גיל</label>
+              <div class="computed" id="ageGroupDisplay">—</div>
+              <input type="hidden" id="ageGroup" />
+            </div>
+            <div class="info-field" style="grid-column: 1 / -1">
+              <label>תאריך מילוי</label>
+              <div style="display: flex; gap: 10px; direction: ltr">
+                <select
+                  id="fillDay"
+                  style="
+                    flex: 1;
+                    padding: 10px 12px;
+                    border: 1.5px solid var(--border);
+                    border-radius: 8px;
+                    font-family: inherit;
+                    font-size: 0.9rem;
+                    background: #fafbfc;
+                  "
+                >
+                  <option value="">יום</option>
+                </select>
+                <select
+                  id="fillMonth"
+                  style="
+                    flex: 1.5;
+                    padding: 10px 12px;
+                    border: 1.5px solid var(--border);
+                    border-radius: 8px;
+                    font-family: inherit;
+                    font-size: 0.9rem;
+                    background: #fafbfc;
+                  "
+                >
+                  <option value="">חודש</option>
+                  <option value="0">ינואר</option>
+                  <option value="1">פברואר</option>
+                  <option value="2">מרץ</option>
+                  <option value="3">אפריל</option>
+                  <option value="4">מאי</option>
+                  <option value="5">יוני</option>
+                  <option value="6">יולי</option>
+                  <option value="7">אוגוסט</option>
+                  <option value="8">ספטמבר</option>
+                  <option value="9">אוקטובר</option>
+                  <option value="10">נובמבר</option>
+                  <option value="11">דצמבר</option>
+                </select>
+                <select
+                  id="fillYear"
+                  style="
+                    flex: 1;
+                    padding: 10px 12px;
+                    border: 1.5px solid var(--border);
+                    border-radius: 8px;
+                    font-family: inherit;
+                    font-size: 0.9rem;
+                    background: #fafbfc;
+                  "
+                >
+                  <option value="">שנה</option>
+                </select>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="warning" id="warning"></div>
+
+        <!-- Questionnaire -->
+        <div id="questionnaire"></div>
+
+        <div class="actions">
+          <button class="btn btn-primary" onclick="calculate()">חשב ציונים</button>
+          <button class="btn btn-secondary" onclick="saveForm()">שמור</button>
+        </div>
+        <div class="save-indicator" id="saveIndicator">נשמר בהצלחה</div>
+      </div>
+
+      <!-- Results -->
+      <div id="results"></div>
     </div>
 
-    <div class="warning" id="warning"></div>
-
-    <!-- Questionnaire -->
-    <div id="questionnaire"></div>
-
-    <div class="actions">
-      <button class="btn btn-primary" onclick="calculate()">חשב ציונים</button>
-      <button class="btn btn-secondary" onclick="saveForm()">שמור</button>
-    </div>
-    <div class="save-indicator" id="saveIndicator">נשמר בהצלחה</div>
-  </div>
-
-  <!-- Results -->
-  <div id="results"></div>
-</div>
-
-<script src="app.js"></script>
-
-</body>
+    <script src="app.js"></script>
+  </body>
 </html>
