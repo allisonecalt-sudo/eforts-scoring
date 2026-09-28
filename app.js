@@ -1636,7 +1636,7 @@ async function printResults() {
   </table>
 
   <div class="footer">
-    EFORTS — Frisch & Rosenblum, 2014 | נורמות: Frisch & Rosenblum, 2024 | ציון החתך = 1.5 סטיות תקן מתחת לממוצע של קבוצת הגיל | פריטים 10 ו-11 אינם נכללים בחישוב התפקודים הניהוליים
+    EFORTS — Frisch & Rosenblum, 2014 | נורמות: Frisch & Rosenblum, 2024 | ציון החתך נקבע 1.5 סטיות תקן מתחת לממוצע של קבוצת הגיל | פריטים 10 ו-11 אינם נכללים בחישוב התפקודים הניהוליים
   </div>
 </body>
 </html>`;
@@ -1919,7 +1919,7 @@ function applyImportedAnswers() {
   const { years, months } = computeAgeYM(data.dob, data.date);
   const status = document.getElementById('importStatus');
   status.className = 'import-status ok';
-  status.textContent = 'הוזנו התשובות. הקלידו מספר אנונימי ולחצו חישוב';
+  status.textContent = 'התשובות הוזנו. הקלד/י מספר אנונימי ולחצ/י על "חשב ציונים".';
 
   const edge = document.getElementById('importEdge');
   if (isNearAgeBandEdge(years, months)) {
