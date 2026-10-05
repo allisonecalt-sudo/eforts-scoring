@@ -48,6 +48,10 @@ const H_ML1 = 'תשובות שאלון EFORTS';
 const H_ML2 = 'שלום,\r\nהנה התשובות שלנו לשאלון EFORTS:\r\n\r\n{code}\r\n';
 const H_F1 = 'תשובות הורים לשאלון EFORTS (Frisch & Rosenblum, 2014).';
 const H_F2 = 'למטפל/ת: באפליקציית EFORTS, "ייבוא תשובות מהורה".';
+// Easy-send (2026-10-05): the address field for links without ?to=, and the
+// phone share way. Same plain tone as the strings above.
+const H_SH1 = 'EFORTS-answers';
+const H_SH2 = 'שלום, הנה התשובות שלנו לשאלון EFORTS. הקובץ מצורף.';
 
 const state = {
   to: '',
@@ -69,6 +73,10 @@ let pDraftBar,
   pDone,
   pDoneTitle,
   pDoneLead,
+  pAskTo,
+  pToInput,
+  pWayShare,
+  pShare,
   pWayMail,
   pWayMailTitle,
   pMailto,
@@ -294,7 +302,9 @@ function allResolved() {
 
 // ===== DONE SCREEN =====
 function numberWayTitles() {
-  const ways = [pWayMail, pWayCode, pWayFile].filter((el) => !el.hidden);
+  // The share way carries an unnumbered heading on purpose: it only appears
+  // on phones that support it, and the numbered ways stay 1/2/3 either way.
+  const ways = [pWayMail, pWayFile, pWayCode].filter((el) => !el.hidden);
   ways.forEach((el, i) => {
     const titleEl = el.querySelector('.p-way-title');
     const base = titleEl.dataset.base;
@@ -325,36 +335,79 @@ function buildMailto(to, code) {
   return href;
 }
 
-function showDone(code, model) {
-  state.code = code;
-  state.date = model.date;
+// The answers file — one builder for the download AND the phone share, so
+// both carry byte-identical content under the same name.
+function answersFileText() {
+  return '﻿' + state.code + '\r\n\r\n' + H_F1 + '\r\n' + H_F2 + '\r\n';
+}
+function answersFileName() {
+  return `EFORTS-answers-${state.date}.txt`;
+}
+function buildShareFile() {
+  return new window.File([answersFileText()], answersFileName(), { type: 'text/plain' });
+}
+function downloadAnswers() {
+  const blob = new Blob([answersFileText()], { type: 'text/plain;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = answersFileName();
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
 
-  pCode.textContent = code;
+// Web Share Level 2: shown only when this browser can share this very file.
+function canShareAnswersFile() {
+  try {
+    if (typeof navigator.share !== 'function') return false;
+    if (typeof navigator.canShare !== 'function' || typeof window.File !== 'function') return false;
+    return !!navigator.canShare({ files: [buildShareFile()] });
+  } catch {
+    return false;
+  }
+}
 
-  if (state.to) {
+// Shows/hides the ways that depend on a mail address. `to` is '' when there
+// is no valid address (yet). Nothing here stores the address.
+function renderMailWays(to) {
+  if (to) {
     pDoneLead.textContent = H_pDoneLead_to;
     pWayMail.hidden = false;
-    pMailto.href = buildMailto(state.to, code);
-    pMailtoHint.textContent = H_pMailtoHint.replace('{to}', state.to);
-    pCodeHint.textContent = H_pCodeHint_to.replace('{to}', state.to);
-    pDownloadHint.textContent = H_pDownloadHint_to.replace('{to}', state.to);
-    // Mail is the one primary way — keep the code/file fallback collapsed
+    pMailto.href = buildMailto(to, state.code);
+    pMailtoHint.textContent = H_pMailtoHint.replace('{to}', to);
+    pCodeHint.textContent = H_pCodeHint_to.replace('{to}', to);
+    pDownloadHint.textContent = H_pDownloadHint_to.replace('{to}', to);
+    // Mail is the one primary way — keep the code fallback collapsed
     // behind its "נתקלתם בבעיה?" summary.
     pAltWaysSummary.hidden = false;
     pAltWays.open = false;
   } else {
     pDoneLead.textContent = H_pDoneLead_noto;
     pWayMail.hidden = true;
+    pMailto.removeAttribute('href');
+    pMailtoHint.textContent = '';
     pCodeHint.textContent = H_pCodeHint_noto;
     pDownloadHint.textContent = H_pDownloadHint_noto;
-    // No mail address to prefill — code/file are the ONLY ways to send, so
-    // they show open with no fold and no "had a problem?" framing (R7-9):
-    // that framing misled when it's the only path, not a fallback.
+    // No mail address to prefill — the code is a plain way beside the file,
+    // so it shows open with no fold and no "had a problem?" framing (R7-9).
     pAltWaysSummary.hidden = true;
     pAltWays.open = true;
   }
-
   numberWayTitles();
+}
+
+function showDone(code, model) {
+  state.code = code;
+  state.date = model.date;
+
+  pCode.textContent = code;
+
+  pAskTo.hidden = !!state.to;
+  pToInput.value = '';
+  pWayShare.hidden = !canShareAnswersFile();
+  renderMailWays(state.to);
 
   pFormSection.hidden = true;
   pDraftBar.hidden = true;
@@ -392,10 +445,7 @@ function clearAll() {
 document.addEventListener('DOMContentLoaded', () => {
   // ----- URL params (§B.4.1 — `to` only; `id` is retired with the anon field) -----
   const params = new URLSearchParams(window.location.search);
-  const toRaw = (params.get('to') || '').trim();
-  if (/^[A-Za-z0-9._+-]+@clalit\.org\.il$/i.test(toRaw)) {
-    state.to = toRaw;
-  }
+  state.to = EFORTSCode.validClalitEmail(params.get('to'));
 
   // ----- element lookups -----
   pDraftBar = document.getElementById('pDraftBar');
@@ -410,6 +460,10 @@ document.addEventListener('DOMContentLoaded', () => {
   pDone = document.getElementById('pDone');
   pDoneTitle = document.getElementById('pDoneTitle');
   pDoneLead = document.getElementById('pDoneLead');
+  pAskTo = document.getElementById('pAskTo');
+  pToInput = document.getElementById('pToInput');
+  pWayShare = document.getElementById('pWayShare');
+  pShare = document.getElementById('pShare');
   pWayMail = document.getElementById('pWayMail');
   pWayMailTitle = document.getElementById('pWayMailTitle');
   pMailto = document.getElementById('pMailto');
@@ -511,18 +565,26 @@ document.addEventListener('DOMContentLoaded', () => {
   pDraftClear.addEventListener('click', clearAll);
   pClearDone.addEventListener('click', clearAll);
 
+  // ----- address typed by the parent (no ?to= in the link) -----
+  pToInput.addEventListener('input', () => {
+    renderMailWays(EFORTSCode.validClalitEmail(pToInput.value));
+  });
+
   // ----- download (§B.4.8) -----
-  pDownload.addEventListener('click', () => {
-    const text = '﻿' + state.code + '\r\n\r\n' + H_F1 + '\r\n' + H_F2 + '\r\n';
-    const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `EFORTS-answers-${state.date}.txt`;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  pDownload.addEventListener('click', downloadAnswers);
+
+  // ----- phone share (Web Share Level 2) -----
+  pShare.addEventListener('click', async () => {
+    try {
+      await navigator.share({
+        files: [buildShareFile()],
+        title: H_SH1,
+        text: H_SH2,
+      });
+    } catch (err) {
+      // User cancelled: stay silent. Anything else: fall back to the file.
+      if (!err || err.name !== 'AbortError') downloadAnswers();
+    }
   });
 
   // ----- copy (§B.4.9) -----

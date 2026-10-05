@@ -1941,6 +1941,106 @@ function applyImportedAnswers() {
   anonField.focus();
 }
 
+// One path for a chosen OR dropped answers file.
+async function importFromFile(file) {
+  if (!file) return;
+  clearImportPanel();
+  if (file.size > 20000) {
+    showImportError('F1', {});
+    return;
+  }
+  let text;
+  try {
+    text = await file.text();
+  } catch {
+    showImportError('F2', {});
+    return;
+  }
+  importParentAnswers(text);
+}
+
+// ===== SEND THE QUESTIONNAIRE TO PARENTS (easy-send) =====
+// Builds the parent link from wherever this page is served (same folder +
+// parent.html), with ?to=<the therapist's own clalit address> when valid, so
+// the parent page can open a ready mail. The address is remembered only in
+// this browser (localStorage), never sent anywhere.
+const THERAPIST_TO_KEY = 'eforts_therapist_to_v1';
+const S_COPIED_TO = 'הקישור הועתק ✓ ההורים ישלחו את התשובות אל {to}.';
+const S_COPIED_PLAIN = 'הקישור הועתק ✓ ההורים יתבקשו להקליד את כתובת המייל שלך.';
+const S_COPY_FAIL = 'לא הצלחנו להעתיק אוטומטית. סמנ/י את הקישור שבשדה והעתיק/י אותו.';
+const S_BAD_ADDR = 'הכתובת צריכה להסתיים ב-clalit.org.il. בינתיים הקישור הוא ללא כתובת.';
+const S_WA_TO = 'שלום, הנה הקישור לשאלון EFORTS. בסוף המילוי יש כפתור שפותח מייל מוכן אליי.';
+const S_WA_PLAIN = 'שלום, הנה הקישור לשאלון EFORTS. בסוף המילוי תתבקשו להקליד את כתובת המייל שלי.';
+
+function parentLink(to) {
+  const base = new URL('parent.html', window.location.href).href;
+  return to ? `${base}?to=${to}` : base;
+}
+
+function whatsappHref(to) {
+  const msg = (to ? S_WA_TO : S_WA_PLAIN) + '\n' + parentLink(to);
+  return 'https://wa.me/?text=' + encodeURIComponent(msg);
+}
+
+function refreshSendPanel() {
+  const raw = document.getElementById('sendTo').value;
+  const to = EFORTSCode.validClalitEmail(raw);
+  document.getElementById('sendLink').value = parentLink(to);
+  document.getElementById('sendWhatsapp').href = whatsappHref(to);
+  const status = document.getElementById('sendStatus');
+  status.className = 'import-status';
+  status.textContent = raw.trim() && !to ? S_BAD_ADDR : '';
+  try {
+    if (to) localStorage.setItem(THERAPIST_TO_KEY, to);
+    else if (!raw.trim()) localStorage.removeItem(THERAPIST_TO_KEY);
+  } catch {
+    // storage unavailable — the panel works without remembering
+  }
+  return to;
+}
+
+function copyParentLink() {
+  const to = refreshSendPanel();
+  const link = parentLink(to);
+  const status = document.getElementById('sendStatus');
+  const ok = () => {
+    status.className = 'import-status ok';
+    status.textContent = to ? S_COPIED_TO.replace('{to}', to) : S_COPIED_PLAIN;
+  };
+  const fallback = () => {
+    const field = document.getElementById('sendLink');
+    let done = false;
+    try {
+      field.select();
+      done = document.execCommand('copy');
+    } catch {
+      done = false;
+    }
+    if (done) ok();
+    else {
+      status.className = 'import-status err';
+      status.textContent = S_COPY_FAIL;
+    }
+  };
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(link).then(ok, fallback);
+  } else {
+    fallback();
+  }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  const sendTo = document.getElementById('sendTo');
+  try {
+    sendTo.value = EFORTSCode.validClalitEmail(localStorage.getItem(THERAPIST_TO_KEY));
+  } catch {
+    // storage unavailable
+  }
+  sendTo.addEventListener('input', refreshSendPanel);
+  document.getElementById('sendCopy').addEventListener('click', copyParentLink);
+  refreshSendPanel();
+});
+
 document.addEventListener('DOMContentLoaded', () => {
   const importCodeBtn = document.getElementById('importCodeBtn');
   const importFile = document.getElementById('importFile');
@@ -1951,23 +2051,27 @@ document.addEventListener('DOMContentLoaded', () => {
     importParentAnswers(document.getElementById('importCode').value);
   });
 
-  importFile.addEventListener('change', async () => {
+  importFile.addEventListener('change', () => {
     const file = importFile.files && importFile.files[0];
     importFile.value = '';
-    if (!file) return;
-    clearImportPanel();
-    if (file.size > 20000) {
-      showImportError('F1', {});
-      return;
-    }
-    let text;
-    try {
-      text = await file.text();
-    } catch {
-      showImportError('F2', {});
-      return;
-    }
-    importParentAnswers(text);
+    importFromFile(file);
+  });
+
+  // Drag-and-drop: a .txt dropped anywhere on the box takes the same path as
+  // the file input.
+  const importBox = document.getElementById('importBox');
+  importBox.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    importBox.classList.add('drag-over');
+  });
+  importBox.addEventListener('dragleave', (e) => {
+    if (!importBox.contains(e.relatedTarget)) importBox.classList.remove('drag-over');
+  });
+  importBox.addEventListener('drop', (e) => {
+    e.preventDefault();
+    importBox.classList.remove('drag-over');
+    const file = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+    importFromFile(file);
   });
 
   importCancel.addEventListener('click', () => {
