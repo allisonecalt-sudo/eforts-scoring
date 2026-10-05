@@ -1010,7 +1010,8 @@ body {
   .header p.header-credit {
     margin-top: 6px;
   }
-  .import-box {
+  .import-box,
+  .send-box {
     display: none !important;
   }
 }
@@ -1094,4 +1095,60 @@ body {
 }
 .import-box [hidden] {
   display: none !important;
+}
+
+/* ===== SEND TO PARENTS (easy-send) ===== */
+.send-box {
+  background: var(--card);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  margin-bottom: 16px;
+  padding: 14px 20px 16px;
+}
+.send-title {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 8px;
+}
+.send-box > label {
+  display: block;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  margin-bottom: 6px;
+}
+.send-box input[type='email'],
+.send-link {
+  width: 100%;
+  direction: ltr;
+  text-align: left;
+  font-size: 0.9rem;
+  border: 1.5px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  background: #fafbfc;
+}
+.send-hint {
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  margin: 4px 0 10px;
+  line-height: 1.5;
+}
+.send-link {
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+}
+.send-box .btn {
+  text-decoration: none;
+}
+.import-drop-hint {
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  margin: 0 0 8px;
+}
+.import-box.drag-over {
+  outline: 2px dashed var(--blue);
+  outline-offset: -4px;
+  background: var(--blue-light);
 }

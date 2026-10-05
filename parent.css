@@ -183,10 +183,27 @@ fieldset#pSexField {
   padding-top: 14px;
   margin-top: 14px;
 }
-.p-way-title {
+.p-way-title,
+.p-way-heading {
+  display: block;
   font-size: 0.95rem;
   font-weight: 700;
   margin-bottom: 8px;
+}
+#pToInput {
+  width: 100%;
+  min-height: 48px;
+  direction: ltr;
+  text-align: left;
+  font-size: 1rem;
+  padding: 10px 12px;
+  border: 1.5px solid var(--border);
+  border-radius: 8px;
+  background: #fafbfc;
+}
+#pToInput:focus {
+  outline: 3px solid rgba(0, 119, 182, 0.35);
+  outline-offset: 1px;
 }
 
 /* Mail is the one primary way to send; code/file are a collapsed fallback

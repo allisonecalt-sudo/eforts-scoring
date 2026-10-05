@@ -156,5 +156,23 @@ const EFORTSCode = (() => {
     return { ok: true, code, data };
   }
 
-  return { VERSION, ITEM_COUNT, KEYS, checksum, normalize, encode, decode, isValidDateStr };
+  // The one address check for the send flow, shared by parent.html (?to= and
+  // the typed field) and index.html (the therapist's own address): only a
+  // clalit.org.il mailbox. Returns the trimmed address, or '' if it fails.
+  function validClalitEmail(raw) {
+    const v = String(raw || '').trim();
+    return /^[A-Za-z0-9._+-]+@clalit\.org\.il$/i.test(v) ? v : '';
+  }
+
+  return {
+    VERSION,
+    ITEM_COUNT,
+    KEYS,
+    checksum,
+    normalize,
+    encode,
+    decode,
+    isValidDateStr,
+    validClalitEmail,
+  };
 })();
