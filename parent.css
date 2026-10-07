@@ -263,3 +263,24 @@ fieldset#pSexField {
     padding: 10px 12px;
   }
 }
+
+/* small text-style button (the "just download" link under the main button) */
+.p-done .btn-link {
+  background: none;
+  border: none;
+  box-shadow: none;
+  color: var(--text-secondary);
+  font-size: 0.88rem;
+  font-weight: 600;
+  text-decoration: underline;
+  padding: 8px 4px;
+  cursor: pointer;
+}
+.p-done .btn-link:hover {
+  color: var(--text);
+}
+.p-way-main {
+  border-top: none;
+  padding-top: 0;
+  margin-top: 10px;
+}

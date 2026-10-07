@@ -60,7 +60,7 @@
             <p id="pInstr">במסגרת השגרות השונות בחיי היום יום אנו וילדינו מבצעים פעילויות רבות. מטרת השאלון היא לקבל תמונה על אופן הניהול העצמי של ילדך בשגרות היום יום. המשפטים הבאים מתייחסים לאופן הביצוע של ילדך בפעילויות הקשורות בשגרות יום יומיות שכיחות כמו שגרות הבוקר והערב, שגרת משחק ופנאי ושגרה של תפקוד חברתי. נא סמן/י √ מתחת לתשובה שמבטאת באופן הטוב ביותר את תפקוד ילדך בשלושת החודשים האחרונים בכל פעילות. בבקשה סמן/י תשובה בכל המשפטים. <em>השאלות מנוסחות בלשון זכר, אך מכוונות לבנים ולבנות כאחד.</em></p>
           </div>
           <p id="pHow">בכל שאלה לחצו על התשובה המתאימה ביותר. אפשר לשנות תשובה בכל שלב.</p>
-          <p id="pPrivacy" class="p-privacy">🔒 התשובות נשמרות רק במכשיר שלכם ובקובץ שתורידו. שום דבר לא נשלח מהדף הזה — את התשובות שולחים אתם, במייל, לצוות הריפוי בעיסוק.</p>
+          <p id="pPrivacy" class="p-privacy">🔒 התשובות נשמרות רק במכשיר שלכם ובקובץ שתורידו. שום דבר לא נשלח מהדף הזה — את התשובות שולחים אתם, לצוות הריפוי בעיסוק.</p>
         </section>
 
         <section id="pDetails" class="info-card">
@@ -78,7 +78,7 @@
             <div class="info-field">
               <label id="pDobLabel" for="pDob">תאריך לידה</label>
               <input type="date" id="pDob">
-              <p id="pDobHint" class="p-hint">אין צורך לכתוב שם. נזהה את השאלון לפי תאריך הלידה וכתובת המייל שממנה תשלחו.</p>
+              <p id="pDobHint" class="p-hint">אין צורך לכתוב שם. נזהה את השאלון לפי תאריך הלידה.</p>
             </div>
           </div>
         </section>
@@ -94,34 +94,28 @@
 
       <section id="pDone" class="info-card p-done" hidden>
         <h2 id="pDoneTitle" tabindex="-1">תודה! סיימתם את השאלון.</h2>
-        <p id="pDoneLead">נשאר רק לשלוח את התשובות. בחרו באחת הדרכים:</p>
+        <p id="pDoneLead">נשאר רק לשלוח את התשובות למטפל/ת:</p>
 
-        <div id="pAskTo" class="p-way" hidden>
-          <label id="pAskToLabel" for="pToInput" class="p-way-heading">כתובת המייל של המטפל/ת בכללית</label>
-          <input type="email" id="pToInput" dir="ltr" placeholder="name@clalit.org.il" autocomplete="off" spellcheck="false" inputmode="email">
-          <p id="pAskToHint" class="p-hint">הכתובת שקיבלתם מהמטפל/ת. רק כתובות שמסתיימות ב-clalit.org.il. היא לא נשמרת.</p>
-        </div>
-
-        <div id="pWayMail" class="p-way" hidden>
-          <h3 id="pWayMailTitle" class="p-way-title">שליחה במייל — הכי פשוט</h3>
-          <a id="pMailto" class="btn btn-primary" href="#">פתיחת מייל מוכן לשליחה</a>
-          <p id="pMailtoHint" class="p-hint"></p>
-        </div>
-
-        <div id="pWayShare" class="p-way" hidden>
-          <h3 id="pWayShareTitle" class="p-way-heading">שליחה מהטלפון</h3>
-          <button type="button" id="pShare" class="btn btn-primary">שליחה בוואטסאפ / במייל מהטלפון</button>
-          <p id="pShareHint" class="p-hint">ייפתח חלון השיתוף של הטלפון עם קובץ התשובות. בוחרים וואטסאפ או מייל, ושולחים.</p>
-        </div>
-
-        <div id="pWayFile" class="p-way">
-          <h3 id="pWayFileTitle" class="p-way-title">הורדת קובץ</h3>
-          <button type="button" id="pDownload" class="btn btn-secondary">הורדת קובץ התשובות</button>
-          <p id="pDownloadHint" class="p-hint"></p>
+        <div id="pWayMain" class="p-way p-way-main">
+          <button type="button" id="pSend" class="btn btn-primary">הורדת קובץ התשובות (PDF)</button>
+          <p id="pSendHint" class="p-hint">הקובץ יישמר במחשב. צרפו אותו למייל למטפל/ת.</p>
+          <button type="button" id="pDownloadOnly" class="btn btn-link" hidden>או: רק להוריד את הקובץ למכשיר</button>
         </div>
 
         <details id="pAltWays" class="p-alt-ways">
           <summary id="pAltWaysSummary">נתקלתם בבעיה? אפשרויות שליחה חלופיות</summary>
+
+          <div id="pAskTo" class="p-way" hidden>
+            <label id="pAskToLabel" for="pToInput" class="p-way-heading">המייל של המטפל/ת</label>
+            <input type="email" id="pToInput" dir="ltr" placeholder="name@example.com" autocomplete="off" spellcheck="false" inputmode="email">
+            <p id="pAskToHint" class="p-hint">כתובת המייל של המטפל/ת.</p>
+          </div>
+
+          <div id="pWayMail" class="p-way" hidden>
+            <h3 id="pWayMailTitle" class="p-way-title">שליחה במייל</h3>
+            <a id="pMailto" class="btn btn-secondary" href="#">פתיחת מייל מוכן לשליחה</a>
+            <p id="pMailtoHint" class="p-hint"></p>
+          </div>
 
           <div id="pWayCode" class="p-way">
             <h3 id="pWayCodeTitle" class="p-way-title">העתקת שורת התשובות</h3>
@@ -144,6 +138,8 @@
 
     <script src="items.js"></script>
     <script src="eforts-code.js"></script>
+    <script src="assets/vendor/jspdf.umd.min.js"></script>
+    <script src="parent-pdf.js"></script>
     <script src="parent.js"></script>
   </body>
 </html>

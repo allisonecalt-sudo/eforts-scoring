@@ -5,7 +5,13 @@
 const { test, expect } = require('@playwright/test');
 const fs = require('fs');
 const path = require('path');
-const { gotoParent, fillParent, MODELS, REPO_URL } = require('./helpers/eforts-parent');
+const {
+  gotoParent,
+  fillParent,
+  downloadPdf,
+  MODELS,
+  REPO_URL,
+} = require('./helpers/eforts-parent');
 
 test.use({ timezoneId: 'Asia/Jerusalem', locale: 'he-IL' });
 
@@ -20,15 +26,12 @@ test("runtime: no request/websocket leaves the page's own origin", async ({ page
   await fillParent(page, MODELS.G50);
   await page.locator('#pFinish').click();
 
-  // Item 27: code/file sit collapsed behind the "אפשרויות שליחה חלופיות"
-  // details when mail is present — open it to reach #pDownload/#pCopy.
+  await downloadPdf(page);
+
+  // the copy-code way sits in the closed fold
   await page.locator('#pAltWays').evaluate((el) => {
     el.open = true;
   });
-
-  const downloadPromise = page.waitForEvent('download');
-  await page.locator('#pDownload').click();
-  await downloadPromise;
 
   await page.locator('#pCopy').click();
 
@@ -42,7 +45,14 @@ test("runtime: no request/websocket leaves the page's own origin", async ({ page
 
 test('static source: no network-capable calls anywhere in the parent bundle', () => {
   const root = path.resolve(__dirname, '..');
-  const files = ['parent.html', 'parent.js', 'parent.css', 'items.js', 'eforts-code.js'];
+  const files = [
+    'parent.html',
+    'parent.js',
+    'parent-pdf.js',
+    'parent.css',
+    'items.js',
+    'eforts-code.js',
+  ];
   const banned = [
     'fetch(',
     'XMLHttpRequest',

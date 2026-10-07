@@ -9,7 +9,7 @@
 const { test, expect } = require('@playwright/test');
 const fs = require('fs');
 const path = require('path');
-const { gotoParent, fillParent, GOLDEN, MODELS } = require('./helpers/eforts-parent');
+const { gotoParent, fillParent, downloadPdf, GOLDEN, MODELS } = require('./helpers/eforts-parent');
 
 test.use({ timezoneId: 'Asia/Jerusalem', locale: 'he-IL' });
 
@@ -17,7 +17,7 @@ test.beforeEach(async ({ page }) => {
   await page.clock.setFixedTime(new Date('2026-09-28T10:00:00+03:00'));
 });
 
-test('fill -> code -> file (G50, with a valid ?to=)', async ({ page }) => {
+test('fill -> code -> PDF file (G50, with a valid ?to=)', async ({ page }) => {
   await gotoParent(page, '?to=test@clalit.org.il');
   await fillParent(page, MODELS.G50);
   await page.locator('#pFinish').click();
@@ -26,64 +26,46 @@ test('fill -> code -> file (G50, with a valid ?to=)', async ({ page }) => {
   await expect(page.locator('#pFormSection')).toBeHidden();
   await expect(page.locator('#pCode')).toHaveText(GOLDEN.G50);
 
-  // Item 27: with a mail address present, code/file sit collapsed behind
-  // "נתקלתם בבעיה? אפשרויות שליחה חלופיות" — open it to reach #pDownload,
-  // same pattern index.html's own #importBox details uses in import.spec.js.
-  await page.locator('#pAltWays').evaluate((el) => {
-    el.open = true;
-  });
-
-  const downloadPromise = page.waitForEvent('download');
-  await page.locator('#pDownload').click();
-  const download = await downloadPromise;
-  expect(download.suggestedFilename()).toBe('EFORTS-answers-2026-09-28.txt');
-
-  const filePath = await download.path();
-  const buf = fs.readFileSync(filePath);
-  const withoutBom = buf.toString('utf8').replace(/^﻿/, '');
-  const firstLine = withoutBom.split('\r\n')[0];
-  expect(firstLine).toBe(GOLDEN.G50);
-
-  const decoded = await page.evaluate((text) => EFORTSCode.decode(text), withoutBom);
-  expect(decoded.ok).toBe(true);
-  expect(decoded.data).toEqual(MODELS.G50);
+  const pdf = await downloadPdf(page);
+  expect(pdf.name).toBe('EFORTS-answers-2026-09-28.pdf');
+  const buf = fs.readFileSync(pdf.path);
+  expect(buf.subarray(0, 4).toString('latin1')).toBe('%PDF');
+  expect(buf.toString('latin1')).toContain(GOLDEN.G50);
 });
 
-test('mailto link + way numbering, with ?to=', async ({ page }) => {
+test('mailto link lives in the closed fold, with ?to=', async ({ page }) => {
   await gotoParent(page, '?to=test@clalit.org.il');
   await fillParent(page, MODELS.G50);
   await page.locator('#pFinish').click();
 
+  await expect(page.locator('#pAltWays')).toHaveJSProperty('open', false);
   const href = await page.locator('#pMailto').getAttribute('href');
   expect(href.startsWith('mailto:test@clalit.org.il?subject=')).toBe(true);
   expect(href.length).toBeLessThanOrEqual(1800);
   const bodyMatch = /[?&]body=([^&]*)/.exec(href);
   const body = decodeURIComponent(bodyMatch[1]);
   expect(body).toContain(GOLDEN.G50);
-
-  const titles = await page.locator('.p-way-title').allTextContents();
-  expect(titles).toEqual([
-    expect.stringMatching(/^1\. /),
-    expect.stringMatching(/^2\. /),
-    expect.stringMatching(/^3\. /),
-  ]);
 });
 
-test('no ?to= — mail way hidden, code/file ways numbered 1/2, no-to hints', async ({ page }) => {
+test('no ?to= — the fold holds the address field and the copy-code way; no mail way yet', async ({
+  page,
+}) => {
   await gotoParent(page);
   await fillParent(page, MODELS.G50);
   await page.locator('#pFinish').click();
 
+  await expect(page.locator('#pAltWays')).toHaveJSProperty('open', false);
   await expect(page.locator('#pWayMail')).toBeHidden();
-  const titles = await page
-    .locator('#pWayCode .p-way-title, #pWayFile .p-way-title')
-    .allTextContents();
-  expect(titles[0].startsWith('1. ')).toBe(true);
-  expect(titles[1].startsWith('2. ')).toBe(true);
+  await page.locator('#pAltWays summary').click();
+  await expect(page.locator('#pAskTo')).toBeVisible();
+  await expect(page.locator('#pWayCode')).toBeVisible();
+  // the old per-way numbering is gone
+  const titles = await page.locator('.p-way-title').allTextContents();
+  expect(titles.some((t) => /^\d\. /.test(t))).toBe(false);
 });
 
-test('?to= pointing outside clalit.org.il is ignored (treated as no-to)', async ({ page }) => {
-  await gotoParent(page, '?to=someone@gmail.com');
+test('?to= that is not an email address is ignored (treated as no-to)', async ({ page }) => {
+  await gotoParent(page, '?to=nobody');
   await fillParent(page, MODELS.G50);
   await page.locator('#pFinish').click();
   await expect(page.locator('#pWayMail')).toBeHidden();

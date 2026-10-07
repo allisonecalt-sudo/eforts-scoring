@@ -97,7 +97,17 @@ async function fillParent(page, model) {
   }
 }
 
+// Taps the main button on the done screen (computer path: it downloads the
+// PDF) and returns the saved file's path + suggested name.
+async function downloadPdf(page) {
+  const downloadPromise = page.waitForEvent('download');
+  await page.locator('#pSend').click();
+  const download = await downloadPromise;
+  return { path: await download.path(), name: download.suggestedFilename() };
+}
+
 module.exports = {
+  downloadPdf,
   PARENT_PATH,
   REPO_URL,
   GOLDEN,
