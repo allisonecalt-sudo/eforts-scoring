@@ -164,6 +164,13 @@ const EFORTSCode = (() => {
     return /^[A-Za-z0-9._+-]+@clalit\.org\.il$/i.test(v) ? v : '';
   }
 
+  // Any plain email address (the parent may send to whoever holds the file).
+  // Returns the trimmed address, or '' if it fails.
+  function validEmail(raw) {
+    const v = String(raw || '').trim();
+    return /^[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(?:.[A-Za-z0-9-]+)*.[A-Za-z]{2,}$/.test(v) ? v : '';
+  }
+
   return {
     VERSION,
     ITEM_COUNT,
@@ -174,5 +181,6 @@ const EFORTSCode = (() => {
     decode,
     isValidDateStr,
     validClalitEmail,
+    validEmail,
   };
 })();

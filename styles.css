@@ -1152,3 +1152,7 @@ body {
   outline-offset: -4px;
   background: var(--blue-light);
 }
+.import-paste-label {
+  display: block;
+  margin-top: 14px;
+}

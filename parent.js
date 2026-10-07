@@ -27,36 +27,32 @@ const H_S3 = 'תשובות לשאלות {nums}';
 const H_C2 = 'השורה הועתקה ✓';
 const H_C3 = 'לא הצלחנו להעתיק אוטומטית. סמנו את השורה והעתיקו אותה.';
 const H_pMailtoHint =
-  'ייפתח מייל אל {to} עם התשובות בפנים. נשאר רק ללחוץ על "שליחה". לא נפתח מייל? אפשר להשתמש בשורה או בקובץ שלמטה.';
+  'ייפתח מייל אל {to} עם התשובות בפנים. נשאר רק ללחוץ על "שליחה". לא נפתח מייל? אפשר להשתמש בשורת התשובות שלמטה.';
 const H_pCodeHint_to = 'הדביקו את שורת התשובות בגוף מייל חדש אל {to}.';
 // Gemini review R7-10 (7.16): "מהמטפל/ת" implies a shared inbox or a
 // secretary, but one therapist hands out the link and gets the mail back at
 // her own address — name no institution here, the link is the source.
 const H_pCodeHint_noto = 'הדביקו את שורת התשובות בגוף מייל חדש לכתובת המייל שקיבלתם יחד עם הקישור.';
-const H_pDownloadHint_to = 'הקובץ יישמר בתיקיית ההורדות. צרפו אותו למייל אל {to}.';
-const H_pDownloadHint_noto =
-  'הקובץ יישמר בתיקיית ההורדות. צרפו אותו למייל לכתובת שקיבלתם יחד עם הקישור.';
-// Gemini review R7-9 (7.15): the done-screen lead and the code/file fold
-// now depend on whether a mail address (`?to=`) is present — with one, mail
-// is the only real way to send and the rest stay a collapsed fallback; with
-// none, code/file ARE the only ways, so they show open with no "had a
-// problem?" framing (that framing was misleading when it's the only path).
-const H_pDoneLead_to = 'נשאר רק לשלוח את התשובות במייל:';
-const H_pDoneLead_noto = 'נשאר רק לשלוח את התשובות. בחרו באחת הדרכים:';
 const H_D3 = 'למחוק את כל התשובות ששמרתם במכשיר הזה?';
 const H_ML1 = 'תשובות שאלון EFORTS';
 const H_ML2 = 'שלום,\r\nהנה התשובות שלנו לשאלון EFORTS:\r\n\r\n{code}\r\n';
-const H_F1 = 'תשובות הורים לשאלון EFORTS (Frisch & Rosenblum, 2014).';
-const H_F2 = 'למטפל/ת: באפליקציית EFORTS, "ייבוא תשובות מהורה".';
-// Easy-send (2026-10-05): the address field for links without ?to=, and the
-// phone share way. Same plain tone as the strings above.
-const H_SH1 = 'EFORTS-answers';
-const H_SH2 = 'שלום, הנה התשובות שלנו לשאלון EFORTS. הקובץ מצורף.';
+// PDF send (2026-10-07): the answers travel as a PDF file the parent can send
+// to ANY therapist by ANY channel. One main button; mail + copy-code live in
+// the "had a problem?" fold.
+const H_P_SHARE = 'שליחת קובץ התשובות (PDF)';
+const H_P_SHARE_HINT = 'ייפתח חלון השיתוף של הטלפון. בחרו מייל ושלחו את הקובץ למטפל/ת.';
+const H_P_DL = 'הורדת קובץ התשובות (PDF)';
+const H_P_DL_HINT = 'הקובץ יישמר במחשב. צרפו אותו למייל למטפל/ת.';
+const H_P_SHARE_TITLE = 'EFORTS';
 
 const state = {
   to: '',
   code: '',
   date: '',
+  pdfFile: null,
+  pdfPngs: [],
+  pdfPromise: null,
+  canShare: false,
 };
 
 // Elements are looked up once DOMContentLoaded fires (buildQuestionnaire()
@@ -72,27 +68,19 @@ let pDraftBar,
   pFinish,
   pDone,
   pDoneTitle,
-  pDoneLead,
   pAskTo,
   pToInput,
-  pWayShare,
-  pShare,
+  pSend,
+  pSendHint,
+  pDownloadOnly,
   pWayMail,
-  pWayMailTitle,
   pMailto,
   pMailtoHint,
   pAltWays,
-  pAltWaysSummary,
-  pWayCode,
-  pWayCodeTitle,
   pCode,
   pCopy,
   pCopyStatus,
   pCodeHint,
-  pWayFile,
-  pWayFileTitle,
-  pDownload,
-  pDownloadHint,
   pBack,
   pClearDone;
 
@@ -301,17 +289,6 @@ function allResolved() {
 }
 
 // ===== DONE SCREEN =====
-function numberWayTitles() {
-  // The share way carries an unnumbered heading on purpose: it only appears
-  // on phones that support it, and the numbered ways stay 1/2/3 either way.
-  const ways = [pWayMail, pWayFile, pWayCode].filter((el) => !el.hidden);
-  ways.forEach((el, i) => {
-    const titleEl = el.querySelector('.p-way-title');
-    const base = titleEl.dataset.base;
-    titleEl.textContent = `${i + 1}. ${base}`;
-  });
-}
-
 function buildMailto(to, code) {
   const subject = H_ML1;
   let body = H_ML2.replace('{code}', code);
@@ -335,67 +312,74 @@ function buildMailto(to, code) {
   return href;
 }
 
-// The answers file — one builder for the download AND the phone share, so
-// both carry byte-identical content under the same name.
-function answersFileText() {
-  return '﻿' + state.code + '\r\n\r\n' + H_F1 + '\r\n' + H_F2 + '\r\n';
-}
-function answersFileName() {
-  return `EFORTS-answers-${state.date}.txt`;
-}
-function buildShareFile() {
-  return new window.File([answersFileText()], answersFileName(), { type: 'text/plain' });
-}
 function downloadAnswers() {
-  const blob = new Blob([answersFileText()], { type: 'text/plain;charset=utf-8' });
-  const url = URL.createObjectURL(blob);
+  const file = state.pdfFile;
+  if (!file) return;
+  const url = URL.createObjectURL(file);
   const a = document.createElement('a');
   a.href = url;
-  a.download = answersFileName();
+  a.download = file.name;
   document.body.appendChild(a);
   a.click();
   a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
-// Web Share Level 2: shown only when this browser can share this very file.
-function canShareAnswersFile() {
+// Web Share Level 2: only when this browser can share this very PDF.
+function canShareFile(file) {
   try {
     if (typeof navigator.share !== 'function') return false;
-    if (typeof navigator.canShare !== 'function' || typeof window.File !== 'function') return false;
-    return !!navigator.canShare({ files: [buildShareFile()] });
+    if (typeof navigator.canShare !== 'function') return false;
+    return !!navigator.canShare({ files: [file] });
   } catch {
     return false;
   }
+}
+
+// The PDF is built when the done screen opens, so the file is READY before
+// any tap: navigator.share() needs the tap's user activation, which an await
+// on a build inside the handler would lose.
+function preparePdf(code, model) {
+  state.pdfFile = null;
+  state.pdfPngs = [];
+  state.canShare = false;
+  pSend.textContent = H_P_DL;
+  pSendHint.textContent = H_P_DL_HINT;
+  pDownloadOnly.hidden = true;
+  const promise = EFORTSPdf.build(code, model).then(
+    (res) => {
+      if (state.pdfPromise !== promise) return;
+      state.pdfFile = res.file;
+      state.pdfPngs = res.pngs;
+      if (canShareFile(res.file)) {
+        state.canShare = true;
+        pSend.textContent = H_P_SHARE;
+        pSendHint.textContent = H_P_SHARE_HINT;
+        pDownloadOnly.hidden = false;
+      }
+    },
+    () => {
+      // PDF could not be built: the copy-code way in the fold still works
+      if (state.pdfPromise === promise) pAltWays.open = true;
+    },
+  );
+  state.pdfPromise = promise;
 }
 
 // Shows/hides the ways that depend on a mail address. `to` is '' when there
 // is no valid address (yet). Nothing here stores the address.
 function renderMailWays(to) {
   if (to) {
-    pDoneLead.textContent = H_pDoneLead_to;
     pWayMail.hidden = false;
     pMailto.href = buildMailto(to, state.code);
     pMailtoHint.textContent = H_pMailtoHint.replace('{to}', to);
     pCodeHint.textContent = H_pCodeHint_to.replace('{to}', to);
-    pDownloadHint.textContent = H_pDownloadHint_to.replace('{to}', to);
-    // Mail is the one primary way — keep the code fallback collapsed
-    // behind its "נתקלתם בבעיה?" summary.
-    pAltWaysSummary.hidden = false;
-    pAltWays.open = false;
   } else {
-    pDoneLead.textContent = H_pDoneLead_noto;
     pWayMail.hidden = true;
     pMailto.removeAttribute('href');
     pMailtoHint.textContent = '';
     pCodeHint.textContent = H_pCodeHint_noto;
-    pDownloadHint.textContent = H_pDownloadHint_noto;
-    // No mail address to prefill — the code is a plain way beside the file,
-    // so it shows open with no fold and no "had a problem?" framing (R7-9).
-    pAltWaysSummary.hidden = true;
-    pAltWays.open = true;
   }
-  numberWayTitles();
 }
 
 function showDone(code, model) {
@@ -406,8 +390,9 @@ function showDone(code, model) {
 
   pAskTo.hidden = !!state.to;
   pToInput.value = '';
-  pWayShare.hidden = !canShareAnswersFile();
+  pAltWays.open = false;
   renderMailWays(state.to);
+  preparePdf(code, model);
 
   pFormSection.hidden = true;
   pDraftBar.hidden = true;
@@ -445,7 +430,7 @@ function clearAll() {
 document.addEventListener('DOMContentLoaded', () => {
   // ----- URL params (§B.4.1 — `to` only; `id` is retired with the anon field) -----
   const params = new URLSearchParams(window.location.search);
-  state.to = EFORTSCode.validClalitEmail(params.get('to'));
+  state.to = EFORTSCode.validEmail(params.get('to'));
 
   // ----- element lookups -----
   pDraftBar = document.getElementById('pDraftBar');
@@ -459,36 +444,24 @@ document.addEventListener('DOMContentLoaded', () => {
   pFinish = document.getElementById('pFinish');
   pDone = document.getElementById('pDone');
   pDoneTitle = document.getElementById('pDoneTitle');
-  pDoneLead = document.getElementById('pDoneLead');
   pAskTo = document.getElementById('pAskTo');
   pToInput = document.getElementById('pToInput');
-  pWayShare = document.getElementById('pWayShare');
-  pShare = document.getElementById('pShare');
+  pSend = document.getElementById('pSend');
+  pSendHint = document.getElementById('pSendHint');
+  pDownloadOnly = document.getElementById('pDownloadOnly');
   pWayMail = document.getElementById('pWayMail');
-  pWayMailTitle = document.getElementById('pWayMailTitle');
   pMailto = document.getElementById('pMailto');
   pMailtoHint = document.getElementById('pMailtoHint');
   pAltWays = document.getElementById('pAltWays');
-  pAltWaysSummary = document.getElementById('pAltWaysSummary');
-  pWayCode = document.getElementById('pWayCode');
-  pWayCodeTitle = document.getElementById('pWayCodeTitle');
   pCode = document.getElementById('pCode');
   pCopy = document.getElementById('pCopy');
   pCopyStatus = document.getElementById('pCopyStatus');
   pCodeHint = document.getElementById('pCodeHint');
-  pWayFile = document.getElementById('pWayFile');
-  pWayFileTitle = document.getElementById('pWayFileTitle');
-  pDownload = document.getElementById('pDownload');
-  pDownloadHint = document.getElementById('pDownloadHint');
   pBack = document.getElementById('pBack');
   pClearDone = document.getElementById('pClearDone');
 
   // Keeps a stray typo out of the date field; today can't be a birth date.
   pDob.max = localToday();
-
-  [pWayMailTitle, pWayCodeTitle, pWayFileTitle].forEach((el) => {
-    el.dataset.base = el.textContent;
-  });
 
   // ----- build questionnaire (§B.3) -----
   buildQuestionnaire();
@@ -567,25 +540,28 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // ----- address typed by the parent (no ?to= in the link) -----
   pToInput.addEventListener('input', () => {
-    renderMailWays(EFORTSCode.validClalitEmail(pToInput.value));
+    renderMailWays(EFORTSCode.validEmail(pToInput.value));
   });
 
-  // ----- download (§B.4.8) -----
-  pDownload.addEventListener('click', downloadAnswers);
-
-  // ----- phone share (Web Share Level 2) -----
-  pShare.addEventListener('click', async () => {
-    try {
-      await navigator.share({
-        files: [buildShareFile()],
-        title: H_SH1,
-        text: H_SH2,
+  // ----- main button: share the prepared PDF (phones) or download it -----
+  pSend.addEventListener('click', () => {
+    const file = state.pdfFile;
+    if (file && state.canShare) {
+      // called synchronously inside the tap (user activation)
+      navigator.share({ files: [file], title: H_P_SHARE_TITLE }).catch((err) => {
+        // User cancelled: stay silent. Anything else: fall back to the file.
+        if (!err || err.name !== 'AbortError') downloadAnswers();
       });
-    } catch (err) {
-      // User cancelled: stay silent. Anything else: fall back to the file.
-      if (!err || err.name !== 'AbortError') downloadAnswers();
+      return;
     }
+    if (file) {
+      downloadAnswers();
+      return;
+    }
+    // not ready yet (rare): wait for the build, then download
+    if (state.pdfPromise) state.pdfPromise.then(downloadAnswers);
   });
+  pDownloadOnly.addEventListener('click', downloadAnswers);
 
   // ----- copy (§B.4.9) -----
   pCopy.addEventListener('click', () => {

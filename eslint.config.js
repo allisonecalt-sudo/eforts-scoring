@@ -31,6 +31,9 @@ module.exports = [
         MouseEvent: 'readonly',
         TouchEvent: 'readonly',
         Blob: 'readonly',
+        Response: 'readonly',
+        DecompressionStream: 'readonly',
+        Uint8Array: 'readonly',
         URL: 'readonly',
         URLSearchParams: 'readonly',
         // Supabase CDN global
@@ -60,7 +63,7 @@ module.exports = [
     // globals that items.js / eforts-code.js declare as top-level `const`
     // (classic scripts share one script-realm scope — see items.js /
     // eforts-code.js header comments and tests/helpers/eforts-app.js).
-    files: ['app.js', 'parent.js', 'import.js'],
+    files: ['app.js', 'parent.js', 'parent-pdf.js', 'import.js'],
     languageOptions: {
       globals: {
         items: 'readonly',
@@ -70,6 +73,11 @@ module.exports = [
         EFORTSCode: 'readonly',
       },
     },
+  },
+  {
+    // parent.js uses the builder that parent-pdf.js defines
+    files: ['parent.js'],
+    languageOptions: { globals: { EFORTSPdf: 'readonly' } },
   },
   {
     // Test suite (Node/CommonJS via Playwright Test) — separate globals

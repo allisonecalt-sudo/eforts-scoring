@@ -53,30 +53,12 @@
         <!-- Send the questionnaire to parents (easy-send) -->
         <section class="send-box" id="sendBox">
           <div class="send-title" id="sendTitle">שליחת השאלון להורים</div>
-          <label for="sendTo" id="sendToLabel">המייל שלך בכללית</label>
-          <input
-            type="email"
-            id="sendTo"
-            dir="ltr"
-            placeholder="name@clalit.org.il"
-            autocomplete="off"
-            spellcheck="false"
-            inputmode="email"
-          />
           <p class="send-hint" id="sendHint">
-            הכתובת נשמרת רק במכשיר הזה. ההורים ישלחו אליה את התשובות בלחיצה אחת.
+            זה הקישור להורים. שלחו אותו להורים בכל דרך שנוח לכם.
           </p>
           <input type="text" id="sendLink" class="send-link" dir="ltr" readonly aria-label="הקישור להורים" />
           <div class="import-actions">
             <button type="button" class="btn btn-primary" id="sendCopy">העתקת קישור להורים</button>
-            <a
-              class="btn btn-secondary"
-              id="sendWhatsapp"
-              href="https://wa.me/"
-              target="_blank"
-              rel="noopener noreferrer"
-              >שליחה בוואטסאפ</a
-            >
           </div>
           <p class="import-status" id="sendStatus" role="status" aria-live="polite"></p>
         </section>
@@ -85,17 +67,19 @@
         <details class="import-box" id="importBox" open>
           <summary id="importSummary">ייבוא תשובות מהורה</summary>
           <div class="import-body">
-            <label for="importCode" id="importCodeLabel"
-              >הדביק/י את הקוד מהמייל (אפשר להדביק את כל גוף המייל):</label
+            <p class="import-drop-hint" id="importDropHint">העלו את קובץ התשובות (PDF) שקיבלתם מההורים, או גררו אותו לכאן.</p>
+            <div class="import-actions">
+              <label class="btn btn-primary" for="importFile" id="importFileLabel"
+                >בחירת קובץ התשובות (PDF)</label
+              >
+              <input type="file" id="importFile" accept=".pdf,.txt,application/pdf,text/plain" hidden />
+            </div>
+            <label for="importCode" id="importCodeLabel" class="import-paste-label"
+              >או הדביקו את שורת הקוד:</label
             >
-            <p class="import-drop-hint" id="importDropHint">אפשר גם לגרור לכאן את קובץ התשובות (‎.txt).</p>
             <textarea id="importCode" rows="3" dir="ltr" spellcheck="false" autocomplete="off"></textarea>
             <div class="import-actions">
-              <button type="button" class="btn btn-primary" id="importCodeBtn">בדיקת הקוד</button>
-              <label class="btn btn-secondary" for="importFile" id="importFileLabel"
-                >או בחירת קובץ תשובות (‎.txt)</label
-              >
-              <input type="file" id="importFile" accept=".txt,text/plain" hidden />
+              <button type="button" class="btn btn-secondary" id="importCodeBtn">בדיקת הקוד</button>
             </div>
             <p class="import-status" id="importStatus" role="status" aria-live="polite"></p>
             <p class="import-edge" id="importEdge" hidden></p>

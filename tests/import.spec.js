@@ -18,7 +18,7 @@ const { test, expect } = require('@playwright/test');
 const fs = require('fs');
 const path = require('path');
 const { gotoApp } = require('./helpers/eforts-app');
-const { gotoParent, fillParent, GOLDEN, MODELS } = require('./helpers/eforts-parent');
+const { gotoParent, fillParent, downloadPdf, GOLDEN, MODELS } = require('./helpers/eforts-parent');
 
 test.use({ timezoneId: 'Asia/Jerusalem', locale: 'he-IL' });
 
@@ -180,10 +180,7 @@ test('file import path matches the code-paste path', async ({ page }) => {
   await fillParent(page, MODELS.G50);
   await page.locator('#pFinish').click();
 
-  const downloadPromise = page.waitForEvent('download');
-  await page.locator('#pDownload').click();
-  const download = await downloadPromise;
-  const filePath = await download.path();
+  const filePath = (await downloadPdf(page)).path;
   expect(filePath).toBeTruthy();
 
   await openImportBox(page);
