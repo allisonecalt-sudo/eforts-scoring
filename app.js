@@ -1783,6 +1783,8 @@ function importErrorText(code, params) {
       return 'הקובץ גדול מדי — זה לא קובץ תשובות של טופס ההורים.';
     case 'F2':
       return 'לא הצלחנו לקרוא את הקובץ.';
+    case 'F3':
+      return 'לא נמצא קוד EFORTS בקובץ. פתחו את קובץ ה-PDF, העתיקו את שורת הקוד שבתחתית העמוד והדביקו אותה כאן.';
     default:
       return 'שגיאה לא צפויה בקריאת הקוד.';
   }
@@ -1941,10 +1943,98 @@ function applyImportedAnswers() {
   anonField.focus();
 }
 
-// One path for a chosen OR dropped answers file.
+// ----- PDF answers file -----
+// The parent's PDF carries the whole code as one line of real text, so the
+// code is found by scanning the file's bytes (read as latin1). A PDF written
+// with compressed streams (other tools) is tried second: every Flate stream
+// is inflated with the browser's own DecompressionStream and scanned too.
+const PDF_CODE_RE = /EFORTS1\|[A-Za-z0-9=|,;:-]+/g;
+const PDF_MAX_BYTES = 10 * 1024 * 1024;
+
+function latin1(bytes) {
+  let out = '';
+  for (let i = 0; i < bytes.length; i += 8192) {
+    out += String.fromCharCode.apply(null, bytes.subarray(i, i + 8192));
+  }
+  return out;
+}
+
+async function inflateBytes(bytes) {
+  const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream('deflate'));
+  return new Uint8Array(await new Response(stream).arrayBuffer());
+}
+
+async function codesFromPdf(bytes) {
+  const raw = latin1(bytes);
+  const direct = raw.match(PDF_CODE_RE);
+  if (direct) return direct;
+
+  if (typeof DecompressionStream !== 'function') return [];
+  const found = [];
+  const streamRe = /obj\s*<<([\s\S]*?)>>\s*stream\r?\n/g;
+  let m;
+  while ((m = streamRe.exec(raw)) !== null) {
+    if (!/\/FlateDecode/.test(m[1])) continue;
+    const start = m.index + m[0].length;
+    let end = raw.indexOf('endstream', start);
+    if (end < 0) continue;
+    // the end-of-line before "endstream" is not part of the data
+    if (raw[end - 1] === '\n') end--;
+    if (raw[end - 1] === '\r') end--;
+    try {
+      const inflated = latin1(await inflateBytes(bytes.subarray(start, end)));
+      const hits = inflated.match(PDF_CODE_RE);
+      if (hits) found.push(...hits);
+    } catch {
+      // not a valid Flate stream — skip it
+    }
+  }
+  return found;
+}
+
+function looksLikePdf(file, bytes) {
+  if (/\.pdf$/i.test(file.name || '') || file.type === 'application/pdf') return true;
+  return bytes.length >= 4 && latin1(bytes.subarray(0, 4)) === '%PDF';
+}
+
+async function importFromPdf(file) {
+  if (file.size > PDF_MAX_BYTES) {
+    showImportError('F1', {});
+    return;
+  }
+  let codes;
+  try {
+    codes = await codesFromPdf(new Uint8Array(await file.arrayBuffer()));
+  } catch {
+    showImportError('F2', {});
+    return;
+  }
+  if (!codes.length) {
+    showImportError('F3', {});
+    return;
+  }
+  importParentAnswers(codes.join('\n'));
+}
+
+// One path for a chosen OR dropped answers file (PDF or .txt).
 async function importFromFile(file) {
   if (!file) return;
   clearImportPanel();
+  if (/\.pdf$/i.test(file.name || '') || file.type === 'application/pdf') {
+    await importFromPdf(file);
+    return;
+  }
+  // a PDF that lost its name/type: the first bytes still say %PDF
+  try {
+    const head = new Uint8Array(await file.slice(0, 4).arrayBuffer());
+    if (looksLikePdf(file, head)) {
+      await importFromPdf(file);
+      return;
+    }
+  } catch {
+    showImportError('F2', {});
+    return;
+  }
   if (file.size > 20000) {
     showImportError('F1', {});
     return;
@@ -1959,53 +2049,24 @@ async function importFromFile(file) {
   importParentAnswers(text);
 }
 
-// ===== SEND THE QUESTIONNAIRE TO PARENTS (easy-send) =====
-// Builds the parent link from wherever this page is served (same folder +
-// parent.html), with ?to=<the therapist's own clalit address> when valid, so
-// the parent page can open a ready mail. The address is remembered only in
-// this browser (localStorage), never sent anywhere.
-const THERAPIST_TO_KEY = 'eforts_therapist_to_v1';
-const S_COPIED_TO = 'הקישור הועתק ✓ ההורים ישלחו את התשובות אל {to}.';
-const S_COPIED_PLAIN = 'הקישור הועתק ✓ ההורים יתבקשו להקליד את כתובת המייל שלך.';
+// ===== SEND THE QUESTIONNAIRE TO PARENTS =====
+// Two plain links: this page's parent link (parent.html: parents fill in, get a
+// PDF, send it back however they like) and this page (upload the PDF below).
+// The link is built from wherever this page is served (same folder +
+// parent.html). Nothing is stored or sent from here.
+const S_COPIED = 'הקישור הועתק ✓';
 const S_COPY_FAIL = 'לא הצלחנו להעתיק אוטומטית. סמנ/י את הקישור שבשדה והעתיק/י אותו.';
-const S_BAD_ADDR = 'הכתובת צריכה להסתיים ב-clalit.org.il. בינתיים הקישור הוא ללא כתובת.';
-const S_WA_TO = 'שלום, הנה הקישור לשאלון EFORTS. בסוף המילוי יש כפתור שפותח מייל מוכן אליי.';
-const S_WA_PLAIN = 'שלום, הנה הקישור לשאלון EFORTS. בסוף המילוי תתבקשו להקליד את כתובת המייל שלי.';
 
-function parentLink(to) {
-  const base = new URL('parent.html', window.location.href).href;
-  return to ? `${base}?to=${to}` : base;
-}
-
-function whatsappHref(to) {
-  const msg = (to ? S_WA_TO : S_WA_PLAIN) + '\n' + parentLink(to);
-  return 'https://wa.me/?text=' + encodeURIComponent(msg);
-}
-
-function refreshSendPanel() {
-  const raw = document.getElementById('sendTo').value;
-  const to = EFORTSCode.validClalitEmail(raw);
-  document.getElementById('sendLink').value = parentLink(to);
-  document.getElementById('sendWhatsapp').href = whatsappHref(to);
-  const status = document.getElementById('sendStatus');
-  status.className = 'import-status';
-  status.textContent = raw.trim() && !to ? S_BAD_ADDR : '';
-  try {
-    if (to) localStorage.setItem(THERAPIST_TO_KEY, to);
-    else if (!raw.trim()) localStorage.removeItem(THERAPIST_TO_KEY);
-  } catch {
-    // storage unavailable — the panel works without remembering
-  }
-  return to;
+function parentLink() {
+  return new URL('parent.html', window.location.href).href;
 }
 
 function copyParentLink() {
-  const to = refreshSendPanel();
-  const link = parentLink(to);
+  const link = parentLink();
   const status = document.getElementById('sendStatus');
   const ok = () => {
     status.className = 'import-status ok';
-    status.textContent = to ? S_COPIED_TO.replace('{to}', to) : S_COPIED_PLAIN;
+    status.textContent = S_COPIED;
   };
   const fallback = () => {
     const field = document.getElementById('sendLink');
@@ -2030,15 +2091,8 @@ function copyParentLink() {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-  const sendTo = document.getElementById('sendTo');
-  try {
-    sendTo.value = EFORTSCode.validClalitEmail(localStorage.getItem(THERAPIST_TO_KEY));
-  } catch {
-    // storage unavailable
-  }
-  sendTo.addEventListener('input', refreshSendPanel);
+  document.getElementById('sendLink').value = parentLink();
   document.getElementById('sendCopy').addEventListener('click', copyParentLink);
-  refreshSendPanel();
 });
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -2049,6 +2103,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
   importCodeBtn.addEventListener('click', () => {
     importParentAnswers(document.getElementById('importCode').value);
+  });
+
+  // Pasting goes straight to the preview — no need to press the check button.
+  const importCode = document.getElementById('importCode');
+  importCode.addEventListener('paste', () => {
+    setTimeout(() => importParentAnswers(importCode.value), 0);
   });
 
   importFile.addEventListener('change', () => {

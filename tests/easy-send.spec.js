@@ -1,15 +1,17 @@
-/* global DOMException, File, Node, DataTransfer, DragEvent */
-// Easy-send (2026-10-05): getting a parent's answers back to the therapist
-// with as few taps as possible.
-//   parent.html  — done screen: typed clalit address -> mail way; phone share.
-//   index.html   — "send to parents" panel (link + WhatsApp), open import
-//                  box that also takes a dropped .txt.
-// Same file:// pattern as the other specs.
+/* global DOMException, File, DataTransfer, DragEvent, atob */
+// Easy-send: getting a parent's answers back to the therapist with as few
+// taps as possible. Two plain links:
+//   parent.html  — parent fills in, taps ONE button, gets/sends a PDF; the
+//                  mail + copy-code ways live in a closed fold.
+//   index.html   — "send to parents" panel (the plain parent link + copy),
+//                  open import box that takes a dropped PDF or .txt.
+// Same file:// pattern as the other specs. The PDF itself is covered in
+// pdf-send.spec.js.
 
 const { test, expect } = require('@playwright/test');
 const fs = require('fs');
 const { gotoApp } = require('./helpers/eforts-app');
-const { gotoParent, fillParent, GOLDEN, MODELS } = require('./helpers/eforts-parent');
+const { gotoParent, fillParent, downloadPdf, GOLDEN, MODELS } = require('./helpers/eforts-parent');
 
 test.use({ timezoneId: 'Asia/Jerusalem', locale: 'he-IL' });
 
@@ -18,12 +20,19 @@ test.beforeEach(async ({ page }) => {
 });
 
 const ADDR = 'dr.cohen@clalit.org.il';
+const ANY_ADDR = 'therapist@gmail.com';
 
 async function finishParent(page, query = '') {
   await gotoParent(page, query);
   await fillParent(page, MODELS.G50);
   await page.locator('#pFinish').click();
   await expect(page.locator('#pDone')).toBeVisible();
+}
+
+async function openFold(page) {
+  await page.locator('#pAltWays').evaluate((el) => {
+    el.open = true;
+  });
 }
 
 // Pretends to be a phone browser that can share files. Records what was
@@ -39,99 +48,69 @@ function stubShare(page, outcome = 'ok') {
   }, outcome);
 }
 
-test.describe('parent page — address field (no ?to=)', () => {
-  test('a valid clalit address reveals the mail way with a mailto that carries it', async ({
-    page,
-  }) => {
+test.describe('parent page — address field inside the fold (no ?to=)', () => {
+  test('any valid address reveals the mail way with a mailto that carries it', async ({ page }) => {
     await finishParent(page);
+    await openFold(page);
     await expect(page.locator('#pAskTo')).toBeVisible();
     await expect(page.locator('#pWayMail')).toBeHidden();
 
-    await page.locator('#pToInput').fill(ADDR);
-    await expect(page.locator('#pWayMail')).toBeVisible();
-    const href = await page.locator('#pMailto').getAttribute('href');
-    expect(href.startsWith(`mailto:${ADDR}?subject=`)).toBe(true);
-    expect(decodeURIComponent(/[?&]body=([^&]*)/.exec(href)[1])).toContain(GOLDEN.G50);
+    for (const addr of [ADDR, ANY_ADDR]) {
+      await page.locator('#pToInput').fill(addr);
+      await expect(page.locator('#pWayMail')).toBeVisible();
+      const href = await page.locator('#pMailto').getAttribute('href');
+      expect(href.startsWith(`mailto:${addr}?subject=`)).toBe(true);
+      expect(decodeURIComponent(/[?&]body=([^&]*)/.exec(href)[1])).toContain(GOLDEN.G50);
+    }
 
     // the address is not kept anywhere
     const stored = await page.evaluate(() => JSON.stringify({ ...localStorage }));
-    expect(stored).not.toContain('clalit.org.il');
+    expect(stored).not.toContain('@');
   });
 
   test('an invalid address never builds a mailto', async ({ page }) => {
     await finishParent(page);
-    for (const bad of [
-      'someone@gmail.com',
-      'x@clalit.org.il.evil.com',
-      'nobody',
-      '@clalit.org.il',
-    ]) {
+    await openFold(page);
+    for (const bad of ['nobody', '@clalit.org.il', 'a@b', 'a b@gmail.com', 'x@@gmail.com']) {
       await page.locator('#pToInput').fill(bad);
       await expect(page.locator('#pWayMail')).toBeHidden();
       expect(await page.locator('#pMailto').getAttribute('href')).toBeNull();
     }
     // good, then broken again: the mail way goes away
-    await page.locator('#pToInput').fill(ADDR);
+    await page.locator('#pToInput').fill(ANY_ADDR);
     await expect(page.locator('#pWayMail')).toBeVisible();
-    await page.locator('#pToInput').fill('dr.cohen@clalit.org.i');
+    await page.locator('#pToInput').fill('therapist@gmail.');
     await expect(page.locator('#pWayMail')).toBeHidden();
   });
 
   test('with a valid ?to= the field is not shown', async ({ page }) => {
     await finishParent(page, `?to=${ADDR}`);
+    await openFold(page);
     await expect(page.locator('#pAskTo')).toBeHidden();
     await expect(page.locator('#pWayMail')).toBeVisible();
   });
 });
 
-test.describe('parent page — phone share', () => {
-  test('hidden when the browser has no canShare', async ({ page }) => {
+test.describe('parent page — the main button', () => {
+  test('no canShare: the label is the computer one and there is no "just download" link', async ({
+    page,
+  }) => {
     await page.addInitScript(() => {
       Object.defineProperty(navigator, 'canShare', { value: undefined, configurable: true });
     });
     await finishParent(page);
-    await expect(page.locator('#pWayShare')).toBeHidden();
+    await expect(page.locator('#pSend')).toHaveText('הורדת קובץ התשובות (PDF)');
+    await expect(page.locator('#pDownloadOnly')).toBeHidden();
   });
 
-  test('hidden when canShare says no to files', async ({ page }) => {
+  test('canShare says no to files: the computer label stays', async ({ page }) => {
     await page.addInitScript(() => {
       navigator.canShare = () => false;
       navigator.share = async () => {};
     });
     await finishParent(page);
-    await expect(page.locator('#pWayShare')).toBeHidden();
-  });
-
-  test('shares one File whose text equals the download text', async ({ page }) => {
-    await stubShare(page);
-    await finishParent(page);
-    await expect(page.locator('#pWayShare')).toBeVisible();
-
-    const downloadPromise = page.waitForEvent('download');
-    await page.locator('#pDownload').click();
-    const download = await downloadPromise;
-    const downloadBytes = fs.readFileSync(await download.path());
-
-    await page.locator('#pShare').click();
-    const shared = await page.evaluate(async () => {
-      const d = window.__shared;
-      const f = d.files[0];
-      return {
-        count: d.files.length,
-        isFile: f instanceof File,
-        name: f.name,
-        bytes: Array.from(new Uint8Array(await f.arrayBuffer())),
-        hasTitle: !!d.title,
-        hasText: !!d.text,
-      };
-    });
-    expect(shared.count).toBe(1);
-    expect(shared.isFile).toBe(true);
-    expect(shared.name).toBe(download.suggestedFilename());
-    expect(shared.name).toBe('EFORTS-answers-2026-09-28.txt');
-    expect(Buffer.from(shared.bytes).equals(downloadBytes)).toBe(true);
-    expect(downloadBytes.toString('utf8')).toContain(GOLDEN.G50);
-    expect(shared.hasTitle && shared.hasText).toBe(true);
+    await expect(page.locator('#pSend')).toHaveText('הורדת קובץ התשובות (PDF)');
+    await expect(page.locator('#pDownloadOnly')).toBeHidden();
   });
 
   test('cancelling the share is silent; any other error falls back to the download', async ({
@@ -139,9 +118,10 @@ test.describe('parent page — phone share', () => {
   }) => {
     await stubShare(page, 'abort');
     await finishParent(page);
+    await expect(page.locator('#pSend')).toHaveText('שליחת קובץ התשובות (PDF)');
     let downloads = 0;
     page.on('download', () => downloads++);
-    await page.locator('#pShare').click();
+    await page.locator('#pSend').click();
     await page.waitForTimeout(400);
     expect(downloads).toBe(0);
 
@@ -149,43 +129,37 @@ test.describe('parent page — phone share', () => {
     await page2.clock.setFixedTime(new Date('2026-09-28T10:00:00+03:00'));
     await stubShare(page2, 'fail');
     await finishParent(page2);
+    await expect(page2.locator('#pSend')).toHaveText('שליחת קובץ התשובות (PDF)');
     const downloadPromise = page2.waitForEvent('download');
-    await page2.locator('#pShare').click();
-    expect((await downloadPromise).suggestedFilename()).toBe('EFORTS-answers-2026-09-28.txt');
+    await page2.locator('#pSend').click();
+    expect((await downloadPromise).suggestedFilename()).toBe('EFORTS-answers-2026-09-28.pdf');
   });
 
-  test('order on the done screen: email, share, download, copy code', async ({ page }) => {
-    await stubShare(page);
+  test('the done screen order: main button first, then the closed fold', async ({ page }) => {
     await finishParent(page, `?to=${ADDR}`);
-    const order = await page.evaluate(() =>
-      ['pWayMail', 'pWayShare', 'pWayFile', 'pWayCode'].map((id) => {
-        const el = document.getElementById(id);
-        return { id, hidden: el.hidden, top: el.getBoundingClientRect().top };
-      }),
-    );
-    expect(order.slice(0, 3).every((o) => !o.hidden)).toBe(true);
-    const tops = order.slice(0, 3).map((o) => o.top);
-    expect([...tops].sort((a, b) => a - b)).toEqual(tops);
-    const position = await page.evaluate(() => {
-      const ids = ['pWayMail', 'pWayShare', 'pWayFile', 'pWayCode'];
-      const els = ids.map((id) => document.getElementById(id));
-      return els.every(
-        (el, i) =>
-          i === 0 || els[i - 1].compareDocumentPosition(el) & Node.DOCUMENT_POSITION_FOLLOWING,
-      );
+    const order = await page.evaluate(() => {
+      const top = (id) => document.getElementById(id).getBoundingClientRect().top;
+      return { main: top('pSend'), fold: top('pAltWays') };
     });
-    expect(position).toBeTruthy();
+    expect(order.main).toBeLessThan(order.fold);
+    await expect(page.locator('#pAltWays')).toHaveJSProperty('open', false);
+    // nothing about WhatsApp anywhere on the parent page
+    expect(await page.locator('#pDone').innerText()).not.toContain('וואטסאפ');
   });
 
-  test('still no network calls and nothing new in the file', async ({ page }) => {
+  test('still no network calls', async ({ page }) => {
     const requests = [];
     page.on('request', (r) => {
-      if (!r.url().startsWith('file:') && !r.url().startsWith('data:')) requests.push(r.url());
+      if (
+        !r.url().startsWith('file:') &&
+        !r.url().startsWith('data:') &&
+        !r.url().startsWith('blob:')
+      )
+        requests.push(r.url());
     });
     await stubShare(page);
     await finishParent(page);
-    await page.locator('#pToInput').fill(ADDR);
-    await page.locator('#pShare').click();
+    await page.locator('#pSend').click();
     expect(requests).toEqual([]);
     const csp = await page
       .locator('meta[http-equiv="Content-Security-Policy"]')
@@ -194,105 +168,82 @@ test.describe('parent page — phone share', () => {
   });
 });
 
-test.describe('practitioner page — send panel', () => {
-  test('the copied link carries parent.html?to= and the address; WhatsApp wraps the link', async ({
+test.describe('practitioner page — send panel (two plain links)', () => {
+  test('shows the plain parent link; copy puts exactly that link on the clipboard', async ({
     page,
     context,
   }) => {
     await context.grantPermissions(['clipboard-read', 'clipboard-write']).catch(() => {});
     await gotoApp(page);
-    await page.locator('#sendTo').fill(ADDR);
 
     const link = await page.locator('#sendLink').inputValue();
-    expect(link).toContain(`parent.html?to=${ADDR}`);
+    expect(link.endsWith('/parent.html')).toBe(true);
+    expect(link).not.toContain('?');
 
     await page.locator('#sendCopy').click();
-    await expect(page.locator('#sendStatus')).toContainText(ADDR);
+    await expect(page.locator('#sendStatus')).toHaveText('הקישור הועתק ✓');
     await expect(page.locator('#sendStatus')).toHaveClass(/ok/);
     const clip = await page.evaluate(() => navigator.clipboard.readText()).catch(() => null);
     if (clip !== null) expect(clip).toBe(link);
-
-    const wa = await page.locator('#sendWhatsapp').getAttribute('href');
-    expect(wa.startsWith('https://wa.me/?text=')).toBe(true);
-    const msg = decodeURIComponent(wa.slice('https://wa.me/?text='.length));
-    expect(msg).toContain(link);
-    expect(wa).toContain(encodeURIComponent(link));
   });
 
-  test('an invalid or empty address copies the plain link', async ({ page }) => {
+  test('no WhatsApp button and no address field any more', async ({ page }) => {
     await gotoApp(page);
-    await page.locator('#sendTo').fill('someone@gmail.com');
-    let link = await page.locator('#sendLink').inputValue();
-    expect(link.endsWith('parent.html')).toBe(true);
-    expect(link).not.toContain('?to=');
-    await expect(page.locator('#sendStatus')).toContainText('clalit.org.il');
-    expect(await page.locator('#sendWhatsapp').getAttribute('href')).not.toContain('to%3D');
-
-    await page.locator('#sendTo').fill('');
-    await page.locator('#sendCopy').click();
-    link = await page.locator('#sendLink').inputValue();
-    expect(link.endsWith('parent.html')).toBe(true);
-    await expect(page.locator('#sendStatus')).toContainText('יתבקשו להקליד');
+    await expect(page.locator('#sendWhatsapp')).toHaveCount(0);
+    await expect(page.locator('#sendTo')).toHaveCount(0);
+    expect(await page.locator('#sendBox').innerText()).not.toContain('וואטסאפ');
+    await expect(page.locator('#sendHint')).toHaveText(
+      'זה הקישור להורים. שלחו אותו להורים בכל דרך שנוח לכם.',
+    );
   });
 
-  test('the address is remembered on this device only', async ({ page }) => {
+  test('the link the panel builds opens the parent page', async ({ page }) => {
     await gotoApp(page);
-    await page.locator('#sendTo').fill(ADDR);
-    expect(await page.evaluate(() => localStorage.getItem('eforts_therapist_to_v1'))).toBe(ADDR);
-
-    await gotoApp(page);
-    await expect(page.locator('#sendTo')).toHaveValue(ADDR);
-    expect(await page.locator('#sendLink').inputValue()).toContain(`?to=${ADDR}`);
-
-    await page.locator('#sendTo').fill('');
-    expect(await page.evaluate(() => localStorage.getItem('eforts_therapist_to_v1'))).toBeNull();
-  });
-
-  test('the link the panel builds is accepted by the parent page', async ({ page }) => {
-    await gotoApp(page);
-    await page.locator('#sendTo').fill(ADDR);
     const link = await page.locator('#sendLink').inputValue();
     await page.goto(link);
     await page.waitForSelector('#pQuestionnaire .p-item');
     await fillParent(page, MODELS.G50);
     await page.locator('#pFinish').click();
-    expect((await page.locator('#pMailto').getAttribute('href')).startsWith(`mailto:${ADDR}`)).toBe(
-      true,
-    );
+    await expect(page.locator('#pDone')).toBeVisible();
   });
 });
 
 test.describe('practitioner page — import box', () => {
-  async function answersFile(page) {
-    await gotoParent(page);
-    await fillParent(page, MODELS.G50);
-    await page.locator('#pFinish').click();
-    const downloadPromise = page.waitForEvent('download');
-    await page.locator('#pDownload').click();
-    return (await downloadPromise).path();
+  async function pdfFile(page) {
+    await finishParent(page);
+    return (await downloadPdf(page)).path;
   }
 
   test('open by default', async ({ page }) => {
     await gotoApp(page);
     await expect(page.locator('#importBox')).toHaveJSProperty('open', true);
     await expect(page.locator('#importCode')).toBeVisible();
+    await expect(page.locator('#importDropHint')).toHaveText(
+      'אפשר לגרור לכאן את קובץ התשובות (PDF), או להדביק את שורת הקוד בתיבה.',
+    );
+    expect(await page.locator('#importFile').getAttribute('accept')).toBe(
+      '.pdf,.txt,application/pdf,text/plain',
+    );
   });
 
-  test('dropping a .txt on the box imports it, same as the file input', async ({ page }) => {
-    const filePath = await answersFile(page);
-    const text = fs.readFileSync(filePath, 'utf8');
+  test('dropping a PDF on the box imports it, same as the file input', async ({ page }) => {
+    const filePath = await pdfFile(page);
+    const bytes = fs.readFileSync(filePath).toString('base64');
 
     await gotoApp(page);
-    await page.locator('#importBox').evaluate((box, t) => {
+    await page.locator('#importBox').evaluate(async (box, b64) => {
+      const bin = atob(b64);
+      const arr = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
       const dt = new DataTransfer();
-      dt.items.add(new File([t], 'EFORTS-answers-2026-09-28.txt', { type: 'text/plain' }));
+      dt.items.add(new File([arr], 'EFORTS-answers-2026-09-28.pdf', { type: 'application/pdf' }));
       // drop on a child, not the box itself: "anywhere on the box"
       box
         .querySelector('#importStatus')
         .dispatchEvent(
           new DragEvent('drop', { dataTransfer: dt, bubbles: true, cancelable: true }),
         );
-    }, text);
+    }, bytes);
     await expect(page.locator('#importPreview')).toBeVisible();
     const dropPreview = await page.locator('#importPreviewList').innerText();
 
@@ -316,6 +267,16 @@ test.describe('practitioner page — import box', () => {
     expect(droppedModel.length).toBe(30);
   });
 
+  test('a plain .txt file with the code still imports', async ({ page }) => {
+    await gotoApp(page);
+    await page.setInputFiles('#importFile', {
+      name: 'EFORTS-answers.txt',
+      mimeType: 'text/plain',
+      buffer: Buffer.from('﻿' + GOLDEN.G50 + '\r\n\r\nהערה כלשהי\r\n', 'utf8'),
+    });
+    await expect(page.locator('#importPreview')).toBeVisible();
+  });
+
   test('dropping something that is not an answers file shows the normal error', async ({
     page,
   }) => {
@@ -333,15 +294,16 @@ test.describe('practitioner page — import box', () => {
 });
 
 test.describe('phone width — no horizontal overflow', () => {
-  test('parent done screen with the address field, mail and share ways', async ({ page }) => {
+  test('parent done screen with the fold open and the address field', async ({ page }) => {
     await stubShare(page);
     for (const width of [360, 412]) {
       await page.setViewportSize({ width, height: 800 });
       await finishParent(page);
+      await openFold(page);
       const fits = () =>
         page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth);
       expect(await fits()).toBe(true);
-      await page.locator('#pToInput').fill('a.very.long.therapist.name.indeed@clalit.org.il');
+      await page.locator('#pToInput').fill('a.very.long.therapist.name.indeed@example.org');
       expect(await fits()).toBe(true);
     }
   });
@@ -353,7 +315,6 @@ test.describe('phone width — no horizontal overflow', () => {
     for (const width of [360, 412]) {
       await page.setViewportSize({ width, height: 800 });
       await gotoApp(page);
-      await page.locator('#sendTo').fill('a.very.long.therapist.name.indeed@clalit.org.il');
       await page.locator('#sendCopy').click();
       const outside = await page.evaluate(() =>
         [...document.querySelectorAll('#sendBox, #sendBox *, #importBox, #importBox *')]
