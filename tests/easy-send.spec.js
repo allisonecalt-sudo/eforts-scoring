@@ -219,8 +219,17 @@ test.describe('practitioner page — import box', () => {
     await expect(page.locator('#importBox')).toHaveJSProperty('open', true);
     await expect(page.locator('#importCode')).toBeVisible();
     await expect(page.locator('#importDropHint')).toHaveText(
-      'אפשר לגרור לכאן את קובץ התשובות (PDF), או להדביק את שורת הקוד בתיבה.',
+      'העלו את קובץ התשובות (PDF) שקיבלתם מההורים, או גררו אותו לכאן.',
     );
+    await expect(page.locator('#importFileLabel')).toHaveText('בחירת קובץ התשובות (PDF)');
+    await expect(page.locator('#importFileLabel')).toHaveClass(/btn-primary/);
+    await expect(page.locator('#importCodeLabel')).toHaveText('או הדביקו את שורת הקוד:');
+    await expect(page.locator('#importCodeBtn')).toHaveClass(/btn-secondary/);
+    const y = (sel) => page.locator(sel).evaluate((el) => el.getBoundingClientRect().top);
+    expect(await y('#importDropHint')).toBeLessThan(await y('#importFileLabel'));
+    expect(await y('#importFileLabel')).toBeLessThan(await y('#importCodeLabel'));
+    expect(await y('#importCodeLabel')).toBeLessThan(await y('#importCode'));
+    expect(await y('#importCode')).toBeLessThan(await y('#importCodeBtn'));
     expect(await page.locator('#importFile').getAttribute('accept')).toBe(
       '.pdf,.txt,application/pdf,text/plain',
     );
