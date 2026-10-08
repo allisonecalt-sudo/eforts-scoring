@@ -77,7 +77,7 @@ async function runRoundTrip(
   await fillParent(page, MODELS[modelName]);
   await page.locator('#pFinish').click();
   await expect(page.locator('#pDone')).toBeVisible();
-  const code = await page.locator('#pCode').textContent();
+  const code = await page.evaluate((m) => EFORTSCode.encode(m), MODELS[modelName]);
   expect(code).toBe(GOLDEN[modelName]);
 
   await openImportBox(page);
@@ -161,7 +161,7 @@ test('preview rows show the parent-reported details before apply', async ({ page
   await gotoParent(page);
   await fillParent(page, MODELS.G50);
   await page.locator('#pFinish').click();
-  const code = await page.locator('#pCode').textContent();
+  const code = await page.evaluate((m) => EFORTSCode.encode(m), MODELS.G50);
 
   await openImportBox(page);
   await importByCode(page, code);

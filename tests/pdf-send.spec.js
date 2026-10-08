@@ -107,7 +107,7 @@ test('a2: the PDF is one A4 page for a normal fill, and not huge', async ({ page
   const pages = (buf.toString('latin1').match(/\/Type \/Page\b/g) || []).length;
   expect(pages).toBe(1);
   expect(buf.length).toBeLessThan(1500000);
-  expect(buf.toString('latin1')).toContain(await page.locator('#pCode').textContent());
+  expect(buf.toString('latin1')).toContain(await page.evaluate(() => state.code));
 });
 
 test('b: upload the parent PDF in the practitioner app -> preview -> apply fills the form', async ({

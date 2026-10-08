@@ -2,7 +2,7 @@
 // Easy-send: getting a parent's answers back to the therapist with as few
 // taps as possible. Two plain links:
 //   parent.html  — parent fills in, taps ONE button, gets/sends a PDF; the
-//                  copy-code way lives in a closed fold. No email address
+//                  answer is the PDF only. No email address
 //                  anywhere on the page.
 //   index.html   — "send to parents" panel (the plain parent link + copy),
 //                  open import box that takes a dropped PDF or .txt.
@@ -29,12 +29,6 @@ async function finishParent(page, query = '') {
   await expect(page.locator('#pDone')).toBeVisible();
 }
 
-async function openFold(page) {
-  await page.locator('#pAltWays').evaluate((el) => {
-    el.open = true;
-  });
-}
-
 // Pretends to be a phone browser that can share files. Records what was
 // shared on window.__shared; `outcome` decides how share() ends.
 function stubShare(page, outcome = 'ok') {
@@ -51,18 +45,12 @@ function stubShare(page, outcome = 'ok') {
 test.describe('parent page — no email address anywhere', () => {
   test('the done screen has no address input and no mailto link', async ({ page }) => {
     await finishParent(page);
-    await openFold(page);
     await expect(page.locator('#pDone input[type="email"]')).toHaveCount(0);
     await expect(page.locator('#pDone input[type="text"], #pDone input:not([type])')).toHaveCount(
       0,
     );
     await expect(page.locator('a[href^="mailto:"]')).toHaveCount(0);
     await expect(page.locator('#pAskTo, #pWayMail, #pMailto')).toHaveCount(0);
-    // the fold holds only the copy-code way
-    await expect(page.locator('#pAltWaysSummary')).toHaveText('נתקלתם בבעיה?');
-    await expect(page.locator('#pAltWays .p-way')).toHaveCount(1);
-    await expect(page.locator('#pWayCode')).toBeVisible();
-    await expect(page.locator('#pCodeHint')).toHaveText('הדביקו את השורה במייל למטפל/ת.');
     await expect(page.locator('#pSendHint')).toHaveText(
       'הקובץ יישמר במחשב. שלחו אותו במייל למטפל/ת.',
     );
@@ -70,7 +58,6 @@ test.describe('parent page — no email address anywhere', () => {
 
   test('an old link with ?to= opens and works exactly like the plain link', async ({ page }) => {
     await finishParent(page, `?to=${ADDR}`);
-    await expect(page.locator('#pCode')).toHaveText(GOLDEN.G50);
     await expect(page.locator('#pDone input[type="email"]')).toHaveCount(0);
     await expect(page.locator('a[href^="mailto:"]')).toHaveCount(0);
     expect(await page.locator('#pDone').innerText()).not.toContain('@');
@@ -124,14 +111,10 @@ test.describe('parent page — the main button', () => {
     expect((await downloadPromise).suggestedFilename()).toBe('EFORTS-answers-2026-09-28.pdf');
   });
 
-  test('the done screen order: main button first, then the closed fold', async ({ page }) => {
+  test('the done screen has only the main button and no fold', async ({ page }) => {
     await finishParent(page);
-    const order = await page.evaluate(() => {
-      const top = (id) => document.getElementById(id).getBoundingClientRect().top;
-      return { main: top('pSend'), fold: top('pAltWays') };
-    });
-    expect(order.main).toBeLessThan(order.fold);
-    await expect(page.locator('#pAltWays')).toHaveJSProperty('open', false);
+    await expect(page.locator('#pSend')).toBeVisible();
+    await expect(page.locator('#pAltWays')).toHaveCount(0);
     // nothing about WhatsApp anywhere on the parent page
     expect(await page.locator('#pDone').innerText()).not.toContain('וואטסאפ');
   });
@@ -294,12 +277,11 @@ test.describe('practitioner page — import box', () => {
 });
 
 test.describe('phone width — no horizontal overflow', () => {
-  test('parent done screen with the fold open', async ({ page }) => {
+  test('parent done screen with the main button', async ({ page }) => {
     await stubShare(page);
     for (const width of [360, 412]) {
       await page.setViewportSize({ width, height: 800 });
       await finishParent(page);
-      await openFold(page);
       const fits = () =>
         page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth);
       expect(await fits()).toBe(true);

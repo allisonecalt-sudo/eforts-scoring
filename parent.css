@@ -183,71 +183,12 @@ fieldset#pSexField {
   padding-top: 14px;
   margin-top: 14px;
 }
-.p-way-title,
-.p-way-heading {
-  display: block;
-  font-size: 0.95rem;
-  font-weight: 700;
-  margin-bottom: 8px;
-}
-#pToInput {
-  width: 100%;
-  min-height: 48px;
-  direction: ltr;
-  text-align: left;
-  font-size: 1rem;
-  padding: 10px 12px;
-  border: 1.5px solid var(--border);
-  border-radius: 8px;
-  background: #fafbfc;
-}
-#pToInput:focus {
-  outline: 3px solid rgba(0, 119, 182, 0.35);
-  outline-offset: 1px;
-}
-
-/* Mail is the one primary way to send; code/file are a collapsed fallback
-   (item 27) so the done screen doesn't present three equal options. */
-.p-alt-ways {
-  border-top: 1px solid var(--border);
-  padding-top: 14px;
-  margin-top: 14px;
-}
-.p-alt-ways summary {
-  cursor: pointer;
-  font-size: 0.88rem;
-  font-weight: 600;
-  color: var(--text-secondary);
-  padding: 2px 0;
-}
-.p-alt-ways summary:hover {
-  color: var(--text);
-}
-.p-alt-ways .p-way:first-of-type {
-  border-top: none;
-  padding-top: 0;
-}
 .p-done .btn {
   display: block;
   width: 100%;
   text-align: center;
   text-decoration: none;
   margin-top: 8px;
-}
-
-.p-code {
-  direction: ltr;
-  text-align: left;
-  font-family: ui-monospace, 'Cascadia Mono', Consolas, monospace;
-  font-size: 0.85rem;
-  white-space: pre-wrap;
-  word-break: break-all;
-  background: #f8fafc;
-  border: 1.5px dashed var(--border);
-  border-radius: 8px;
-  padding: 12px;
-  margin: 0;
-  user-select: all;
 }
 
 .p-version {
@@ -283,4 +224,9 @@ fieldset#pSexField {
   border-top: none;
   padding-top: 0;
   margin-top: 10px;
+}
+
+.p-done .p-error {
+  color: var(--red);
+  font-weight: 600;
 }
