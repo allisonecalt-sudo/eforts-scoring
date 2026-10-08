@@ -22,7 +22,7 @@ test("runtime: no request/websocket leaves the page's own origin", async ({ page
   page.on('request', (req) => urls.push(req.url()));
   page.on('websocket', (ws) => urls.push(ws.url()));
 
-  await gotoParent(page, '?to=test@clalit.org.il');
+  await gotoParent(page);
   await fillParent(page, MODELS.G50);
   await page.locator('#pFinish').click();
 
