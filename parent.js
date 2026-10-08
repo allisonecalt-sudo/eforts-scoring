@@ -40,9 +40,10 @@ const H_ML2 = 'שלום,\r\nהנה התשובות שלנו לשאלון EFORTS:\
 // to ANY therapist by ANY channel. One main button; mail + copy-code live in
 // the "had a problem?" fold.
 const H_P_SHARE = 'שליחת קובץ התשובות (PDF)';
-const H_P_SHARE_HINT = 'ייפתח חלון השיתוף של הטלפון. בחרו מייל ושלחו את הקובץ למטפל/ת.';
+const H_P_SHARE_HINT =
+  'ייפתח חלון השיתוף של הטלפון. בחרו מייל ושלחו את הקובץ לכתובת המייל שקיבלתם מהמטפל/ת.';
 const H_P_DL = 'הורדת קובץ התשובות (PDF)';
-const H_P_DL_HINT = 'הקובץ יישמר במחשב. צרפו אותו למייל למטפל/ת.';
+const H_P_DL_HINT = 'הקובץ יישמר במחשב. שלחו אותו כקובץ מצורף לכתובת המייל שקיבלתם מהמטפל/ת.';
 const H_P_SHARE_TITLE = 'EFORTS';
 
 const state = {
