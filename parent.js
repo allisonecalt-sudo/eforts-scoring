@@ -24,18 +24,16 @@ const H_M0 = 'כדי לסיים, צריך להשלים עוד: ';
 const H_S1 = 'מין הילד/ה';
 const H_S2 = 'תאריך לידה';
 const H_S3 = 'תשובות לשאלות {nums}';
-const H_C2 = 'השורה הועתקה ✓';
-const H_C3 = 'לא הצלחנו להעתיק אוטומטית. סמנו את השורה והעתיקו אותה.';
-const H_pCodeHint = 'הדביקו את השורה במייל למטפל/ת.';
 const H_D3 = 'למחוק את כל התשובות ששמרתם במכשיר הזה?';
 // PDF send (2026-10-07): the answers travel as a PDF file the parent can send
-// to ANY therapist by ANY channel. One main button; copy-code lives in the
-// "had a problem?" fold. No email address anywhere on this page.
+// to ANY therapist by ANY channel. One main button. No email address and no
+// copy-code backup on this page.
 const H_P_SHARE = 'שליחת קובץ התשובות (PDF)';
 const H_P_SHARE_HINT = 'בחרו מייל ושלחו את הקובץ למטפל/ת.';
 const H_P_DL = 'הורדת קובץ התשובות (PDF)';
 const H_P_DL_HINT = 'הקובץ יישמר במחשב. שלחו אותו במייל למטפל/ת.';
 const H_P_SHARE_TITLE = 'EFORTS';
+const H_P_ERROR = 'לא הצלחנו ליצור את הקובץ. רעננו את הדף ונסו שוב.';
 
 const state = {
   code: '',
@@ -43,6 +41,8 @@ const state = {
   pdfFile: null,
   pdfPngs: [],
   pdfPromise: null,
+  pdfFailed: false,
+  model: null,
   canShare: false,
 };
 
@@ -62,15 +62,9 @@ let pDraftBar,
   pSend,
   pSendHint,
   pDownloadOnly,
-  pAltWays,
-  pCode,
-  pCopy,
-  pCopyStatus,
-  pCodeHint,
+  pSendError,
   pBack,
   pClearDone;
-
-let copyStatusTimer = null;
 
 function localToday() {
   const d = new Date();
@@ -303,40 +297,45 @@ function canShareFile(file) {
 // any tap: navigator.share() needs the tap's user activation, which an await
 // on a build inside the handler would lose.
 function preparePdf(code, model) {
+  state.model = model;
+  state.pdfFailed = false;
+  pSendError.hidden = true;
   state.pdfFile = null;
   state.pdfPngs = [];
   state.canShare = false;
   pSend.textContent = H_P_DL;
   pSendHint.textContent = H_P_DL_HINT;
   pDownloadOnly.hidden = true;
-  const promise = EFORTSPdf.build(code, model).then(
-    (res) => {
-      if (state.pdfPromise !== promise) return;
-      state.pdfFile = res.file;
-      state.pdfPngs = res.pngs;
-      if (canShareFile(res.file)) {
-        state.canShare = true;
-        pSend.textContent = H_P_SHARE;
-        pSendHint.textContent = H_P_SHARE_HINT;
-        pDownloadOnly.hidden = false;
-      }
-    },
-    () => {
-      // PDF could not be built: the copy-code way in the fold still works
-      if (state.pdfPromise === promise) pAltWays.open = true;
-    },
-  );
+  const promise = Promise.resolve()
+    .then(() => EFORTSPdf.build(code, model))
+    .then(
+      (res) => {
+        if (state.pdfPromise !== promise) return;
+        state.pdfFile = res.file;
+        state.pdfPngs = res.pngs;
+        if (canShareFile(res.file)) {
+          state.canShare = true;
+          pSend.textContent = H_P_SHARE;
+          pSendHint.textContent = H_P_SHARE_HINT;
+          pDownloadOnly.hidden = false;
+        }
+      },
+      () => {
+        // PDF could not be built: say so; a tap on the button retries the build
+        if (state.pdfPromise !== promise) return;
+        state.pdfFailed = true;
+        pSendError.textContent = H_P_ERROR;
+        pSendError.hidden = false;
+      },
+    );
   state.pdfPromise = promise;
+  return promise;
 }
 
 function showDone(code, model) {
   state.code = code;
   state.date = model.date;
 
-  pCode.textContent = code;
-
-  pAltWays.open = false;
-  pCodeHint.textContent = H_pCodeHint;
   preparePdf(code, model);
 
   pFormSection.hidden = true;
@@ -388,11 +387,7 @@ document.addEventListener('DOMContentLoaded', () => {
   pSend = document.getElementById('pSend');
   pSendHint = document.getElementById('pSendHint');
   pDownloadOnly = document.getElementById('pDownloadOnly');
-  pAltWays = document.getElementById('pAltWays');
-  pCode = document.getElementById('pCode');
-  pCopy = document.getElementById('pCopy');
-  pCopyStatus = document.getElementById('pCopyStatus');
-  pCodeHint = document.getElementById('pCodeHint');
+  pSendError = document.getElementById('pSendError');
   pBack = document.getElementById('pBack');
   pClearDone = document.getElementById('pClearDone');
 
@@ -490,54 +485,15 @@ document.addEventListener('DOMContentLoaded', () => {
       downloadAnswers();
       return;
     }
+    // the build failed earlier: try again, then download
+    if (state.pdfFailed && state.model) {
+      preparePdf(state.code, state.model).then(downloadAnswers);
+      return;
+    }
     // not ready yet (rare): wait for the build, then download
     if (state.pdfPromise) state.pdfPromise.then(downloadAnswers);
   });
   pDownloadOnly.addEventListener('click', downloadAnswers);
-
-  // ----- copy (§B.4.9) -----
-  pCopy.addEventListener('click', () => {
-    if (copyStatusTimer) {
-      clearTimeout(copyStatusTimer);
-      copyStatusTimer = null;
-    }
-
-    const fallback = () => {
-      let ok = false;
-      try {
-        const range = document.createRange();
-        range.selectNodeContents(pCode);
-        const sel = window.getSelection();
-        sel.removeAllRanges();
-        sel.addRange(range);
-        ok = document.execCommand('copy');
-      } catch {
-        ok = false;
-      }
-      if (ok) {
-        pCopyStatus.textContent = H_C2;
-        copyStatusTimer = setTimeout(() => {
-          pCopyStatus.textContent = '';
-        }, 2000);
-      } else {
-        pCopyStatus.textContent = H_C3;
-      }
-    };
-
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(state.code).then(
-        () => {
-          pCopyStatus.textContent = H_C2;
-          copyStatusTimer = setTimeout(() => {
-            pCopyStatus.textContent = '';
-          }, 2000);
-        },
-        () => fallback(),
-      );
-    } else {
-      fallback();
-    }
-  });
 
   // ----- back (§B.4.11) -----
   pBack.addEventListener('click', () => {

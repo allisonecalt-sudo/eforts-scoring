@@ -1,3 +1,4 @@
+/* global EFORTSPdf */
 // Locks parent.html/parent.js end to end: fill -> code -> PDF file,
 // validation, the localStorage draft, and the "no clinical output on this
 // page" + "single source of instrument text" guards.
@@ -24,7 +25,6 @@ test('fill -> code -> PDF file (G50)', async ({ page }) => {
 
   await expect(page.locator('#pDone')).toBeVisible();
   await expect(page.locator('#pFormSection')).toBeHidden();
-  await expect(page.locator('#pCode')).toHaveText(GOLDEN.G50);
 
   const pdf = await downloadPdf(page);
   expect(pdf.name).toBe('EFORTS-answers-2026-09-28.pdf');
@@ -33,15 +33,39 @@ test('fill -> code -> PDF file (G50)', async ({ page }) => {
   expect(buf.toString('latin1')).toContain(GOLDEN.G50);
 });
 
-test('the fold is closed and holds only the copy-code way', async ({ page }) => {
+test('the done screen has no copy-code backup and no fold', async ({ page }) => {
   await gotoParent(page);
   await fillParent(page, MODELS.G50);
   await page.locator('#pFinish').click();
+  await expect(page.locator('#pDone')).toBeVisible();
+  await expect(page.locator('#pAltWays, #pCode, #pCopy')).toHaveCount(0);
+  await expect(page.locator('#pSendError')).toBeHidden();
+});
 
-  await expect(page.locator('#pAltWays')).toHaveJSProperty('open', false);
-  await page.locator('#pAltWays summary').click();
-  await expect(page.locator('#pWayCode')).toBeVisible();
-  await expect(page.locator('#pAltWays .p-way')).toHaveCount(1);
+test('PDF build failure shows #pSendError, keeps the button enabled; a tap retries and downloads', async ({
+  page,
+}) => {
+  await gotoParent(page);
+  await fillParent(page, MODELS.G50);
+  await page.evaluate(() => {
+    window.__realBuild = EFORTSPdf.build;
+    EFORTSPdf.build = () => Promise.reject(new Error('boom'));
+  });
+  await page.locator('#pFinish').click();
+  await expect(page.locator('#pSendError')).toBeVisible();
+  await expect(page.locator('#pSendError')).toHaveAttribute('role', 'alert');
+  await expect(page.locator('#pSendError')).toHaveText(
+    'לא הצלחנו ליצור את הקובץ. רעננו את הדף ונסו שוב.',
+  );
+  await expect(page.locator('#pSend')).toBeEnabled();
+
+  await page.evaluate(() => {
+    EFORTSPdf.build = window.__realBuild;
+  });
+  const pdf = await downloadPdf(page);
+  expect(pdf.name).toBe('EFORTS-answers-2026-09-28.pdf');
+  expect(fs.readFileSync(pdf.path).toString('latin1')).toContain(GOLDEN.G50);
+  await expect(page.locator('#pSendError')).toBeHidden();
 });
 
 test('validation: 29 of 30 answered blocks finish and marks the missing item', async ({ page }) => {

@@ -28,13 +28,6 @@ test("runtime: no request/websocket leaves the page's own origin", async ({ page
 
   await downloadPdf(page);
 
-  // the copy-code way sits in the closed fold
-  await page.locator('#pAltWays').evaluate((el) => {
-    el.open = true;
-  });
-
-  await page.locator('#pCopy').click();
-
   const offending = urls.filter(
     (u) => !(u.startsWith(REPO_URL) || u.startsWith('blob:') || u.startsWith('data:')),
   );

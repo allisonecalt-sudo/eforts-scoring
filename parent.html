@@ -99,21 +99,9 @@
         <div id="pWayMain" class="p-way p-way-main">
           <button type="button" id="pSend" class="btn btn-primary">הורדת קובץ התשובות (PDF)</button>
           <p id="pSendHint" class="p-hint">הקובץ יישמר במחשב. שלחו אותו במייל למטפל/ת.</p>
+          <p id="pSendError" class="p-hint p-error" role="alert" hidden>לא הצלחנו ליצור את הקובץ. רעננו את הדף ונסו שוב.</p>
           <button type="button" id="pDownloadOnly" class="btn btn-link" hidden>או: הורדת הקובץ למכשיר</button>
         </div>
-
-        <details id="pAltWays" class="p-alt-ways">
-          <summary id="pAltWaysSummary">נתקלתם בבעיה?</summary>
-
-          <div id="pWayCode" class="p-way">
-            <h3 id="pWayCodeTitle" class="p-way-title">העתקת שורת התשובות</h3>
-            <p id="pCodeNote" class="p-hint">העתיקו את השורה כמו שהיא, בלי לשנות בה דבר.</p>
-            <pre id="pCode" class="p-code" dir="ltr"></pre>
-            <button type="button" id="pCopy" class="btn btn-secondary">העתקת השורה</button>
-            <p id="pCopyStatus" class="p-hint" role="status"></p>
-            <p id="pCodeHint" class="p-hint">הדביקו את השורה במייל למטפל/ת.</p>
-          </div>
-        </details>
 
         <p id="pDoneNote" class="p-hint">על התוצאות תשוחחו עם צוות הריפוי בעיסוק.</p>
         <button type="button" id="pBack" class="btn btn-back">חזרה לתשובות</button>
