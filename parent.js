@@ -13,8 +13,8 @@
 //
 // Zero network: no fetch/XHR/beacon/socket/new-tab-opener anywhere below (the
 // page's CSP also blocks connect-src at the browser level). The only
-// "network-looking" thing this file does is build a mailto: link and a
-// blob: download — neither leaves the device until the parent acts on it.
+// "network-looking" thing this file does is build a
+// blob: download — it does not leave the device until the parent acts on it.
 
 const DRAFT_KEY = 'eforts_parent_draft_v1';
 const DRAFT_MAX_AGE_MS = 14 * 24 * 3600 * 1000;
@@ -26,26 +26,18 @@ const H_S2 = 'תאריך לידה';
 const H_S3 = 'תשובות לשאלות {nums}';
 const H_C2 = 'השורה הועתקה ✓';
 const H_C3 = 'לא הצלחנו להעתיק אוטומטית. סמנו את השורה והעתיקו אותה.';
-const H_pMailtoHint = 'ייפתח מייל אל {to} עם התשובות. נשאר רק ללחוץ "שליחה".';
-const H_pCodeHint_to = 'הדביקו את השורה בגוף מייל חדש אל {to}.';
-// Gemini review R7-10 (7.16): "מהמטפל/ת" implies a shared inbox or a
-// secretary, but one therapist hands out the link and gets the mail back at
-// her own address — name no institution here, the link is the source.
-const H_pCodeHint_noto = 'הדביקו את השורה בגוף מייל חדש לכתובת שקיבלתם מהמטפל/ת.';
+const H_pCodeHint = 'הדביקו את השורה במייל למטפל/ת.';
 const H_D3 = 'למחוק את כל התשובות ששמרתם במכשיר הזה?';
-const H_ML1 = 'תשובות שאלון EFORTS';
-const H_ML2 = 'שלום,\r\nהנה התשובות שלנו לשאלון EFORTS:\r\n\r\n{code}\r\n';
 // PDF send (2026-10-07): the answers travel as a PDF file the parent can send
-// to ANY therapist by ANY channel. One main button; mail + copy-code live in
-// the "had a problem?" fold.
+// to ANY therapist by ANY channel. One main button; copy-code lives in the
+// "had a problem?" fold. No email address anywhere on this page.
 const H_P_SHARE = 'שליחת קובץ התשובות (PDF)';
-const H_P_SHARE_HINT = 'בחרו מייל ושלחו את הקובץ לכתובת שקיבלתם מהמטפל/ת.';
+const H_P_SHARE_HINT = 'בחרו מייל ושלחו את הקובץ למטפל/ת.';
 const H_P_DL = 'הורדת קובץ התשובות (PDF)';
-const H_P_DL_HINT = 'הקובץ יישמר במחשב. צרפו אותו למייל לכתובת שקיבלתם מהמטפל/ת.';
+const H_P_DL_HINT = 'הקובץ יישמר במחשב. שלחו אותו במייל למטפל/ת.';
 const H_P_SHARE_TITLE = 'EFORTS';
 
 const state = {
-  to: '',
   code: '',
   date: '',
   pdfFile: null,
@@ -67,14 +59,9 @@ let pDraftBar,
   pFinish,
   pDone,
   pDoneTitle,
-  pAskTo,
-  pToInput,
   pSend,
   pSendHint,
   pDownloadOnly,
-  pWayMail,
-  pMailto,
-  pMailtoHint,
   pAltWays,
   pCode,
   pCopy,
@@ -288,29 +275,6 @@ function allResolved() {
 }
 
 // ===== DONE SCREEN =====
-function buildMailto(to, code) {
-  const subject = H_ML1;
-  let body = H_ML2.replace('{code}', code);
-  let href =
-    'mailto:' +
-    to +
-    '?subject=' +
-    encodeURIComponent(subject) +
-    '&body=' +
-    encodeURIComponent(body);
-  if (href.length > 1800) {
-    body = code + '\r\n';
-    href =
-      'mailto:' +
-      to +
-      '?subject=' +
-      encodeURIComponent(subject) +
-      '&body=' +
-      encodeURIComponent(body);
-  }
-  return href;
-}
-
 function downloadAnswers() {
   const file = state.pdfFile;
   if (!file) return;
@@ -365,32 +329,14 @@ function preparePdf(code, model) {
   state.pdfPromise = promise;
 }
 
-// Shows/hides the ways that depend on a mail address. `to` is '' when there
-// is no valid address (yet). Nothing here stores the address.
-function renderMailWays(to) {
-  if (to) {
-    pWayMail.hidden = false;
-    pMailto.href = buildMailto(to, state.code);
-    pMailtoHint.textContent = H_pMailtoHint.replace('{to}', to);
-    pCodeHint.textContent = H_pCodeHint_to.replace('{to}', to);
-  } else {
-    pWayMail.hidden = true;
-    pMailto.removeAttribute('href');
-    pMailtoHint.textContent = '';
-    pCodeHint.textContent = H_pCodeHint_noto;
-  }
-}
-
 function showDone(code, model) {
   state.code = code;
   state.date = model.date;
 
   pCode.textContent = code;
 
-  pAskTo.hidden = !!state.to;
-  pToInput.value = '';
   pAltWays.open = false;
-  renderMailWays(state.to);
+  pCodeHint.textContent = H_pCodeHint;
   preparePdf(code, model);
 
   pFormSection.hidden = true;
@@ -427,10 +373,6 @@ function clearAll() {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-  // ----- URL params (§B.4.1 — `to` only; `id` is retired with the anon field) -----
-  const params = new URLSearchParams(window.location.search);
-  state.to = EFORTSCode.validEmail(params.get('to'));
-
   // ----- element lookups -----
   pDraftBar = document.getElementById('pDraftBar');
   pDraftClear = document.getElementById('pDraftClear');
@@ -443,14 +385,9 @@ document.addEventListener('DOMContentLoaded', () => {
   pFinish = document.getElementById('pFinish');
   pDone = document.getElementById('pDone');
   pDoneTitle = document.getElementById('pDoneTitle');
-  pAskTo = document.getElementById('pAskTo');
-  pToInput = document.getElementById('pToInput');
   pSend = document.getElementById('pSend');
   pSendHint = document.getElementById('pSendHint');
   pDownloadOnly = document.getElementById('pDownloadOnly');
-  pWayMail = document.getElementById('pWayMail');
-  pMailto = document.getElementById('pMailto');
-  pMailtoHint = document.getElementById('pMailtoHint');
   pAltWays = document.getElementById('pAltWays');
   pCode = document.getElementById('pCode');
   pCopy = document.getElementById('pCopy');
@@ -536,11 +473,6 @@ document.addEventListener('DOMContentLoaded', () => {
   // ----- clear buttons -----
   pDraftClear.addEventListener('click', clearAll);
   pClearDone.addEventListener('click', clearAll);
-
-  // ----- address typed by the parent (no ?to= in the link) -----
-  pToInput.addEventListener('input', () => {
-    renderMailWays(EFORTSCode.validEmail(pToInput.value));
-  });
 
   // ----- main button: share the prepared PDF (phones) or download it -----
   pSend.addEventListener('click', () => {

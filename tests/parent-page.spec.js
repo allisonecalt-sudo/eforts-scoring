@@ -1,4 +1,4 @@
-// Locks parent.html/parent.js end to end: fill -> code -> file/mailto,
+// Locks parent.html/parent.js end to end: fill -> code -> PDF file,
 // validation, the localStorage draft, and the "no clinical output on this
 // page" + "single source of instrument text" guards.
 //
@@ -17,8 +17,8 @@ test.beforeEach(async ({ page }) => {
   await page.clock.setFixedTime(new Date('2026-09-28T10:00:00+03:00'));
 });
 
-test('fill -> code -> PDF file (G50, with a valid ?to=)', async ({ page }) => {
-  await gotoParent(page, '?to=test@clalit.org.il');
+test('fill -> code -> PDF file (G50)', async ({ page }) => {
+  await gotoParent(page);
   await fillParent(page, MODELS.G50);
   await page.locator('#pFinish').click();
 
@@ -33,42 +33,15 @@ test('fill -> code -> PDF file (G50, with a valid ?to=)', async ({ page }) => {
   expect(buf.toString('latin1')).toContain(GOLDEN.G50);
 });
 
-test('mailto link lives in the closed fold, with ?to=', async ({ page }) => {
-  await gotoParent(page, '?to=test@clalit.org.il');
-  await fillParent(page, MODELS.G50);
-  await page.locator('#pFinish').click();
-
-  await expect(page.locator('#pAltWays')).toHaveJSProperty('open', false);
-  const href = await page.locator('#pMailto').getAttribute('href');
-  expect(href.startsWith('mailto:test@clalit.org.il?subject=')).toBe(true);
-  expect(href.length).toBeLessThanOrEqual(1800);
-  const bodyMatch = /[?&]body=([^&]*)/.exec(href);
-  const body = decodeURIComponent(bodyMatch[1]);
-  expect(body).toContain(GOLDEN.G50);
-});
-
-test('no ?to= — the fold holds the address field and the copy-code way; no mail way yet', async ({
-  page,
-}) => {
+test('the fold is closed and holds only the copy-code way', async ({ page }) => {
   await gotoParent(page);
   await fillParent(page, MODELS.G50);
   await page.locator('#pFinish').click();
 
   await expect(page.locator('#pAltWays')).toHaveJSProperty('open', false);
-  await expect(page.locator('#pWayMail')).toBeHidden();
   await page.locator('#pAltWays summary').click();
-  await expect(page.locator('#pAskTo')).toBeVisible();
   await expect(page.locator('#pWayCode')).toBeVisible();
-  // the old per-way numbering is gone
-  const titles = await page.locator('.p-way-title').allTextContents();
-  expect(titles.some((t) => /^\d\. /.test(t))).toBe(false);
-});
-
-test('?to= that is not an email address is ignored (treated as no-to)', async ({ page }) => {
-  await gotoParent(page, '?to=nobody');
-  await fillParent(page, MODELS.G50);
-  await page.locator('#pFinish').click();
-  await expect(page.locator('#pWayMail')).toBeHidden();
+  await expect(page.locator('#pAltWays .p-way')).toHaveCount(1);
 });
 
 test('validation: 29 of 30 answered blocks finish and marks the missing item', async ({ page }) => {

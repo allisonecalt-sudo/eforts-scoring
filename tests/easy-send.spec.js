@@ -2,7 +2,8 @@
 // Easy-send: getting a parent's answers back to the therapist with as few
 // taps as possible. Two plain links:
 //   parent.html  — parent fills in, taps ONE button, gets/sends a PDF; the
-//                  mail + copy-code ways live in a closed fold.
+//                  copy-code way lives in a closed fold. No email address
+//                  anywhere on the page.
 //   index.html   — "send to parents" panel (the plain parent link + copy),
 //                  open import box that takes a dropped PDF or .txt.
 // Same file:// pattern as the other specs. The PDF itself is covered in
@@ -20,7 +21,6 @@ test.beforeEach(async ({ page }) => {
 });
 
 const ADDR = 'dr.cohen@clalit.org.il';
-const ANY_ADDR = 'therapist@gmail.com';
 
 async function finishParent(page, query = '') {
   await gotoParent(page, query);
@@ -48,46 +48,35 @@ function stubShare(page, outcome = 'ok') {
   }, outcome);
 }
 
-test.describe('parent page — address field inside the fold (no ?to=)', () => {
-  test('any valid address reveals the mail way with a mailto that carries it', async ({ page }) => {
+test.describe('parent page — no email address anywhere', () => {
+  test('the done screen has no address input and no mailto link', async ({ page }) => {
     await finishParent(page);
     await openFold(page);
-    await expect(page.locator('#pAskTo')).toBeVisible();
-    await expect(page.locator('#pWayMail')).toBeHidden();
-
-    for (const addr of [ADDR, ANY_ADDR]) {
-      await page.locator('#pToInput').fill(addr);
-      await expect(page.locator('#pWayMail')).toBeVisible();
-      const href = await page.locator('#pMailto').getAttribute('href');
-      expect(href.startsWith(`mailto:${addr}?subject=`)).toBe(true);
-      expect(decodeURIComponent(/[?&]body=([^&]*)/.exec(href)[1])).toContain(GOLDEN.G50);
-    }
-
-    // the address is not kept anywhere
-    const stored = await page.evaluate(() => JSON.stringify({ ...localStorage }));
-    expect(stored).not.toContain('@');
+    await expect(page.locator('#pDone input[type="email"]')).toHaveCount(0);
+    await expect(page.locator('#pDone input[type="text"], #pDone input:not([type])')).toHaveCount(
+      0,
+    );
+    await expect(page.locator('a[href^="mailto:"]')).toHaveCount(0);
+    await expect(page.locator('#pAskTo, #pWayMail, #pMailto')).toHaveCount(0);
+    // the fold holds only the copy-code way
+    await expect(page.locator('#pAltWaysSummary')).toHaveText('נתקלתם בבעיה?');
+    await expect(page.locator('#pAltWays .p-way')).toHaveCount(1);
+    await expect(page.locator('#pWayCode')).toBeVisible();
+    await expect(page.locator('#pCodeHint')).toHaveText('הדביקו את השורה במייל למטפל/ת.');
+    await expect(page.locator('#pSendHint')).toHaveText(
+      'הקובץ יישמר במחשב. שלחו אותו במייל למטפל/ת.',
+    );
   });
 
-  test('an invalid address never builds a mailto', async ({ page }) => {
-    await finishParent(page);
-    await openFold(page);
-    for (const bad of ['nobody', '@clalit.org.il', 'a@b', 'a b@gmail.com', 'x@@gmail.com']) {
-      await page.locator('#pToInput').fill(bad);
-      await expect(page.locator('#pWayMail')).toBeHidden();
-      expect(await page.locator('#pMailto').getAttribute('href')).toBeNull();
-    }
-    // good, then broken again: the mail way goes away
-    await page.locator('#pToInput').fill(ANY_ADDR);
-    await expect(page.locator('#pWayMail')).toBeVisible();
-    await page.locator('#pToInput').fill('therapist@gmail.');
-    await expect(page.locator('#pWayMail')).toBeHidden();
-  });
-
-  test('with a valid ?to= the field is not shown', async ({ page }) => {
+  test('an old link with ?to= opens and works exactly like the plain link', async ({ page }) => {
     await finishParent(page, `?to=${ADDR}`);
-    await openFold(page);
-    await expect(page.locator('#pAskTo')).toBeHidden();
-    await expect(page.locator('#pWayMail')).toBeVisible();
+    await expect(page.locator('#pCode')).toHaveText(GOLDEN.G50);
+    await expect(page.locator('#pDone input[type="email"]')).toHaveCount(0);
+    await expect(page.locator('a[href^="mailto:"]')).toHaveCount(0);
+    expect(await page.locator('#pDone').innerText()).not.toContain('@');
+    const pdf = await downloadPdf(page);
+    expect(pdf.name).toBe('EFORTS-answers-2026-09-28.pdf');
+    expect(fs.readFileSync(pdf.path).toString('latin1')).toContain(GOLDEN.G50);
   });
 });
 
@@ -136,7 +125,7 @@ test.describe('parent page — the main button', () => {
   });
 
   test('the done screen order: main button first, then the closed fold', async ({ page }) => {
-    await finishParent(page, `?to=${ADDR}`);
+    await finishParent(page);
     const order = await page.evaluate(() => {
       const top = (id) => document.getElementById(id).getBoundingClientRect().top;
       return { main: top('pSend'), fold: top('pAltWays') };
@@ -305,7 +294,7 @@ test.describe('practitioner page — import box', () => {
 });
 
 test.describe('phone width — no horizontal overflow', () => {
-  test('parent done screen with the fold open and the address field', async ({ page }) => {
+  test('parent done screen with the fold open', async ({ page }) => {
     await stubShare(page);
     for (const width of [360, 412]) {
       await page.setViewportSize({ width, height: 800 });
@@ -313,8 +302,6 @@ test.describe('phone width — no horizontal overflow', () => {
       await openFold(page);
       const fits = () =>
         page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth);
-      expect(await fits()).toBe(true);
-      await page.locator('#pToInput').fill('a.very.long.therapist.name.indeed@example.org');
       expect(await fits()).toBe(true);
     }
   });
