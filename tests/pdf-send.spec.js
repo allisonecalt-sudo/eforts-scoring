@@ -67,7 +67,7 @@ test('a: parent finishes -> main button downloads the PDF; the code is in the fi
   await expect(page.locator('#pDoneLead')).toHaveText('נשאר רק לשלוח את התשובות למטפל/ת:');
   await expect(page.locator('#pSend')).toHaveText('הורדת קובץ התשובות (PDF)');
   await expect(page.locator('#pSendHint')).toHaveText(
-    'הקובץ יישמר במחשב. שלחו אותו כקובץ מצורף לכתובת המייל שקיבלתם מהמטפל/ת.',
+    'הקובץ יישמר במחשב. צרפו אותו למייל לכתובת שקיבלתם מהמטפל/ת.',
   );
   await expect(page.locator('#pDownloadOnly')).toBeHidden();
 
@@ -156,7 +156,7 @@ test('d: a PDF without a code shows F3', async ({ page }) => {
   await expect(page.locator('#importPreview')).toBeHidden();
   await expect(page.locator('#importStatus')).toHaveClass(/err/);
   await expect(page.locator('#importStatus')).toHaveText(
-    'לא נמצא קוד EFORTS בקובץ. פתחו את קובץ ה-PDF, העתיקו את שורת הקוד שבתחתית העמוד והדביקו אותה כאן.',
+    'לא נמצא קוד בקובץ. פתח/י את ה-PDF, העתק/י את שורת הקוד שבתחתית העמוד והדבק/י אותה כאן.',
   );
 });
 
@@ -212,10 +212,10 @@ test('g: phone path — share label, share gets one PDF File, the link downloads
   await finishParent(page);
   await expect(page.locator('#pSend')).toHaveText('שליחת קובץ התשובות (PDF)');
   await expect(page.locator('#pSendHint')).toHaveText(
-    'ייפתח חלון השיתוף של הטלפון. בחרו מייל ושלחו את הקובץ לכתובת המייל שקיבלתם מהמטפל/ת.',
+    'בחרו מייל ושלחו את הקובץ לכתובת שקיבלתם מהמטפל/ת.',
   );
   await expect(page.locator('#pDownloadOnly')).toBeVisible();
-  await expect(page.locator('#pDownloadOnly')).toHaveText('או: רק להוריד את הקובץ למכשיר');
+  await expect(page.locator('#pDownloadOnly')).toHaveText('או: הורדת הקובץ למכשיר');
 
   let downloads = 0;
   page.on('download', () => downloads++);

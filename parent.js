@@ -26,13 +26,12 @@ const H_S2 = 'תאריך לידה';
 const H_S3 = 'תשובות לשאלות {nums}';
 const H_C2 = 'השורה הועתקה ✓';
 const H_C3 = 'לא הצלחנו להעתיק אוטומטית. סמנו את השורה והעתיקו אותה.';
-const H_pMailtoHint =
-  'ייפתח מייל אל {to} עם התשובות בפנים. נשאר רק ללחוץ על "שליחה". לא נפתח מייל? אפשר להשתמש בשורת התשובות שלמטה.';
-const H_pCodeHint_to = 'הדביקו את שורת התשובות בגוף מייל חדש אל {to}.';
+const H_pMailtoHint = 'ייפתח מייל אל {to} עם התשובות. נשאר רק ללחוץ "שליחה".';
+const H_pCodeHint_to = 'הדביקו את השורה בגוף מייל חדש אל {to}.';
 // Gemini review R7-10 (7.16): "מהמטפל/ת" implies a shared inbox or a
 // secretary, but one therapist hands out the link and gets the mail back at
 // her own address — name no institution here, the link is the source.
-const H_pCodeHint_noto = 'הדביקו את שורת התשובות בגוף מייל חדש לכתובת המייל שקיבלתם יחד עם הקישור.';
+const H_pCodeHint_noto = 'הדביקו את השורה בגוף מייל חדש לכתובת שקיבלתם מהמטפל/ת.';
 const H_D3 = 'למחוק את כל התשובות ששמרתם במכשיר הזה?';
 const H_ML1 = 'תשובות שאלון EFORTS';
 const H_ML2 = 'שלום,\r\nהנה התשובות שלנו לשאלון EFORTS:\r\n\r\n{code}\r\n';
@@ -40,10 +39,9 @@ const H_ML2 = 'שלום,\r\nהנה התשובות שלנו לשאלון EFORTS:\
 // to ANY therapist by ANY channel. One main button; mail + copy-code live in
 // the "had a problem?" fold.
 const H_P_SHARE = 'שליחת קובץ התשובות (PDF)';
-const H_P_SHARE_HINT =
-  'ייפתח חלון השיתוף של הטלפון. בחרו מייל ושלחו את הקובץ לכתובת המייל שקיבלתם מהמטפל/ת.';
+const H_P_SHARE_HINT = 'בחרו מייל ושלחו את הקובץ לכתובת שקיבלתם מהמטפל/ת.';
 const H_P_DL = 'הורדת קובץ התשובות (PDF)';
-const H_P_DL_HINT = 'הקובץ יישמר במחשב. שלחו אותו כקובץ מצורף לכתובת המייל שקיבלתם מהמטפל/ת.';
+const H_P_DL_HINT = 'הקובץ יישמר במחשב. צרפו אותו למייל לכתובת שקיבלתם מהמטפל/ת.';
 const H_P_SHARE_TITLE = 'EFORTS';
 
 const state = {

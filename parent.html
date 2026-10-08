@@ -54,13 +54,12 @@
 
         <section id="pIntro" class="info-card">
           <div class="info-card-title" id="pIntroTitle">לפני שמתחילים</div>
-          <p id="pWelcome">צוות הריפוי בעיסוק ביקש מכם למלא את השאלון הזה.</p>
           <div class="p-instr">
             <div class="p-instr-label" id="pInstrLabel">הוראות (מתוך השאלון)</div>
             <p id="pInstr">במסגרת השגרות השונות בחיי היום יום אנו וילדינו מבצעים פעילויות רבות. מטרת השאלון היא לקבל תמונה על אופן הניהול העצמי של ילדך בשגרות היום יום. המשפטים הבאים מתייחסים לאופן הביצוע של ילדך בפעילויות הקשורות בשגרות יום יומיות שכיחות כמו שגרות הבוקר והערב, שגרת משחק ופנאי ושגרה של תפקוד חברתי. נא סמן/י √ מתחת לתשובה שמבטאת באופן הטוב ביותר את תפקוד ילדך בשלושת החודשים האחרונים בכל פעילות. בבקשה סמן/י תשובה בכל המשפטים. <em>השאלות מנוסחות בלשון זכר, אך מכוונות לבנים ולבנות כאחד.</em></p>
           </div>
           <p id="pHow">בכל שאלה לחצו על התשובה המתאימה ביותר. אפשר לשנות תשובה בכל שלב.</p>
-          <p id="pPrivacy" class="p-privacy">🔒 התשובות נשמרות רק במכשיר שלכם ובקובץ שתורידו. שום דבר לא נשלח מהדף הזה — את התשובות שולחים אתם, לצוות הריפוי בעיסוק.</p>
+          <p id="pPrivacy" class="p-privacy">🔒 התשובות נשמרות רק במכשיר שלכם. הדף לא שולח אותן לשום מקום — בסוף אתם שולחים את הקובץ.</p>
         </section>
 
         <section id="pDetails" class="info-card">
@@ -98,8 +97,8 @@
 
         <div id="pWayMain" class="p-way p-way-main">
           <button type="button" id="pSend" class="btn btn-primary">הורדת קובץ התשובות (PDF)</button>
-          <p id="pSendHint" class="p-hint">הקובץ יישמר במחשב. שלחו אותו כקובץ מצורף לכתובת המייל שקיבלתם מהמטפל/ת.</p>
-          <button type="button" id="pDownloadOnly" class="btn btn-link" hidden>או: רק להוריד את הקובץ למכשיר</button>
+          <p id="pSendHint" class="p-hint">הקובץ יישמר במחשב. צרפו אותו למייל לכתובת שקיבלתם מהמטפל/ת.</p>
+          <button type="button" id="pDownloadOnly" class="btn btn-link" hidden>או: הורדת הקובץ למכשיר</button>
         </div>
 
         <details id="pAltWays" class="p-alt-ways">
@@ -108,7 +107,6 @@
           <div id="pAskTo" class="p-way" hidden>
             <label id="pAskToLabel" for="pToInput" class="p-way-heading">המייל של המטפל/ת</label>
             <input type="email" id="pToInput" dir="ltr" placeholder="name@example.com" autocomplete="off" spellcheck="false" inputmode="email">
-            <p id="pAskToHint" class="p-hint">כתובת המייל של המטפל/ת.</p>
           </div>
 
           <div id="pWayMail" class="p-way" hidden>
@@ -119,7 +117,7 @@
 
           <div id="pWayCode" class="p-way">
             <h3 id="pWayCodeTitle" class="p-way-title">העתקת שורת התשובות</h3>
-            <p id="pCodeNote" class="p-hint">שורת המספרים נקראת באופן אוטומטי במרפאה. פשוט העתיקו אותה כמו שהיא, בלי לשנות בה דבר.</p>
+            <p id="pCodeNote" class="p-hint">העתיקו את השורה כמו שהיא, בלי לשנות בה דבר.</p>
             <pre id="pCode" class="p-code" dir="ltr"></pre>
             <button type="button" id="pCopy" class="btn btn-secondary">העתקת השורה</button>
             <p id="pCopyStatus" class="p-hint" role="status"></p>
@@ -127,7 +125,7 @@
           </div>
         </details>
 
-        <p id="pDoneNote" class="p-hint">דף זה נועד להעברת התשובות בלבד. על התוצאות תשוחחו עם צוות הריפוי בעיסוק.</p>
+        <p id="pDoneNote" class="p-hint">על התוצאות תשוחחו עם צוות הריפוי בעיסוק.</p>
         <button type="button" id="pBack" class="btn btn-back">חזרה לתשובות</button>
         <button type="button" id="pClearDone" class="btn btn-danger">מחיקת התשובות מהמכשיר</button>
         <p id="pClearDoneHint" class="p-hint">מומלץ אחרי ששלחתם.</p>

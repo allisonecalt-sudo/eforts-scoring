@@ -193,7 +193,7 @@ test.describe('practitioner page — send panel (two plain links)', () => {
     await expect(page.locator('#sendTo')).toHaveCount(0);
     expect(await page.locator('#sendBox').innerText()).not.toContain('וואטסאפ');
     await expect(page.locator('#sendHint')).toHaveText(
-      'זה הקישור להורים. שלחו אותו להורים בכל דרך שנוח לכם.',
+      'שלח/י את הקישור הזה להורים, בכל דרך שנוחה לך.',
     );
   });
 
@@ -219,11 +219,13 @@ test.describe('practitioner page — import box', () => {
     await expect(page.locator('#importBox')).toHaveJSProperty('open', true);
     await expect(page.locator('#importCode')).toBeVisible();
     await expect(page.locator('#importDropHint')).toHaveText(
-      'העלו את קובץ התשובות (PDF) שקיבלתם מההורים, או גררו אותו לכאן.',
+      'העלה/י את קובץ ה-PDF שקיבלת מההורים, או גרור/י אותו לכאן.',
     );
     await expect(page.locator('#importFileLabel')).toHaveText('בחירת קובץ התשובות (PDF)');
     await expect(page.locator('#importFileLabel')).toHaveClass(/btn-primary/);
-    await expect(page.locator('#importCodeLabel')).toHaveText('או הדביקו את שורת הקוד:');
+    await expect(page.locator('#importCodeLabel')).toHaveText(
+      'או הדבק/י את שורת הקוד שבתחתית ה-PDF:',
+    );
     await expect(page.locator('#importCodeBtn')).toHaveClass(/btn-secondary/);
     const y = (sel) => page.locator(sel).evaluate((el) => el.getBoundingClientRect().top);
     expect(await y('#importDropHint')).toBeLessThan(await y('#importFileLabel'));
