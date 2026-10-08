@@ -29,6 +29,8 @@ const EFORTSPdf = (() => {
   const P_ITEM = 'פריט ';
   const P_FOOTER =
     'לשימוש המטפל/ת: יש להעלות קובץ זה לאפליקציית EFORTS, בתיבה "ייבוא תשובות מהורה".';
+  const P_WITH = 'מי נמצא עם הילד בדרך כלל:';
+  const P_WITH_NONE = 'לא סומן';
   const P_CODE_LABEL = 'שורת הקוד (אם ההעלאה לא עובדת, אפשר להעתיק ולהדביק אותה):';
 
   function fmtDate(iso) {
@@ -38,7 +40,7 @@ const EFORTSPdf = (() => {
 
   function companionLabel(value) {
     const opt = COMPANION.options.find((o) => o.value === value);
-    return opt ? opt.label : '—';
+    return opt ? opt.label : P_WITH_NONE;
   }
 
   // The lines of the Hebrew body, in order. kind: title | line | heading | item
@@ -49,11 +51,9 @@ const EFORTSPdf = (() => {
       { kind: 'line', text: P_SEX + (model.sex === 'male' ? P_SEX_M : P_SEX_F) },
       { kind: 'line', text: P_DOB + fmtDate(model.dob) },
     ];
+    lines.push({ kind: 'line', text: P_WITH });
     SECTIONS.forEach((s) => {
-      lines.push({
-        kind: 'line',
-        text: `${s.title} — ${COMPANION.question} ${companionLabel(model.with[s.key])}`,
-      });
+      lines.push({ kind: 'line', text: `${s.title}: ${companionLabel(model.with[s.key])}` });
     });
     SECTIONS.forEach((s) => {
       lines.push({ kind: 'heading', text: s.title });
