@@ -472,6 +472,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // ----- clear buttons -----
   pDraftClear.addEventListener('click', clearAll);
+  document.getElementById('pReset').addEventListener('click', clearAll);
   pClearDone.addEventListener('click', clearAll);
 
   // ----- main button: share the prepared PDF (phones) or download it -----

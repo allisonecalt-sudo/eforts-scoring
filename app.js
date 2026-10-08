@@ -1730,6 +1730,9 @@ function resetForm() {
     const el = document.getElementById('companion_' + k);
     if (el) el.value = '';
   });
+  document.getElementById('importCode').value = '';
+  clearImportPanel();
+  importPreviewData = null;
   document.getElementById('results').style.display = 'none';
   document.getElementById('formSection').style.display = 'block';
   document.getElementById('progressWrap').style.display = '';
