@@ -70,6 +70,11 @@ test('AI export: fixed summary, 2-decimal cutoffs, clinician-slot prompt', async
   expect(text).toContain('ציון החתך: 3.00');
   expect(text).toContain('קרוב לציון החתך');
   expect(text).toContain('מספר אנונימי: 77');
+  // the number stays in the details line only; the AI prompt says pronoun only
+  expect(text.split('מספר אנונימי: 77').length).toBe(2);
+  expect(text.match(/77/g).length).toBe(1);
+  expect(text).toContain('אין מספר, שם או ת״ז; רק כינוי גוף.');
+  expect(text).not.toContain('המספר האנונימי מופיע');
   expect(text).toContain('תמונה כללית');
   expect(text).toContain('אם מצרפים ממצאי הערכה אלו לתמונה הקלינית בשטח עולה כי');
   expect(text).toContain('אל תחשב מחדש אף ציון');
