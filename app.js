@@ -626,8 +626,15 @@ function calculate() {
       </div>
     </div>
 
+    <div class="parent-box">
+      <div class="parent-box-title">סיכום להורים</div>
+      <textarea id="parentNote" rows="2" dir="auto" placeholder="הערה אישית להורים (לא חובה) — למשל דבר אחד לנסות בבית"></textarea>
+      <div class="parent-box-hint">מומלץ למסור להורים בפגישה או מיד אחריה.</div>
+    </div>
+
     <div class="result-actions">
-      <button class="btn btn-pdf" onclick="printResults()">שמור כ-PDF</button>
+      <button class="btn btn-pdf" onclick="printResults()">PDF למטפל/ת</button>
+      <button class="btn btn-parent-pdf" onclick="printParentResults()">PDF להורים</button>
       <button class="btn btn-ai" onclick="downloadForAI()">הורד ל-AI</button>
       <button class="btn btn-back" onclick="goBack()">חזרה לשאלון</button>
       <button class="btn btn-danger" onclick="resetForm()">שאלון חדש</button>
@@ -722,20 +729,11 @@ function scoreRow(id, label, score, cutoff, cardItems, scores, type) {
   ${drillHtml}`;
 }
 
-function buildSummary(d) {
-  const belowCutoff = (s, c) => s < c;
-  const m = d.isMale;
-  const g = (male, female) => (m ? male : female);
-  const hisAge = g('גילו', 'גילה');
-  const got = g('קיבל', 'קיבלה');
-  // canon C4: never "הילד/הילדה". Her ruling 2026-10-09: the anonymous
-  // number is NOT written inside summary sentences (it stays in the results
-  // header, the print header, the AI file's details line and file names);
-  // pronouns / possessive suffixes cover it. Sex unset -> slash forms.
-  const hisMotivation = d.sexUnset
-    ? 'גיוס המוטיבציה שלו/שלה'
-    : g('גיוס המוטיבציה שלו', 'גיוס המוטיבציה שלה');
-
+// Per-item phrasings, shared by buildSummary (clinical) and the parent
+// sheet. diffPhrase = difficulty direction (score 1-2), strengthPhrase =
+// strength direction (score 4-5). isMale picks the gendered forms.
+function itemPhrases(isMale) {
+  const g = (male, female) => (isMale ? male : female);
   // Short clinical phrasings per item — difficulty direction (score 1-2)
   const diffPhrase = {
     1: 'מתקשה להתניע את שגרת הבוקר באופן עצמאי',
@@ -809,6 +807,24 @@ function buildSummary(d) {
     29: `לשקול תגובות אפשריות לפני ש${g('מגיב', 'מגיבה')}`,
     30: `לחשוב על השפעת ${g('תגובותיו על חבריו', 'תגובותיה על חברותיה')}`,
   };
+  return { diffPhrase, strengthPhrase };
+}
+
+function buildSummary(d) {
+  const belowCutoff = (s, c) => s < c;
+  const m = d.isMale;
+  const g = (male, female) => (m ? male : female);
+  const hisAge = g('גילו', 'גילה');
+  const got = g('קיבל', 'קיבלה');
+  // canon C4: never "הילד/הילדה". Her ruling 2026-10-09: the anonymous
+  // number is NOT written inside summary sentences (it stays in the results
+  // header, the print header, the AI file's details line and file names);
+  // pronouns / possessive suffixes cover it. Sex unset -> slash forms.
+  const hisMotivation = d.sexUnset
+    ? 'גיוס המוטיבציה שלו/שלה'
+    : g('גיוס המוטיבציה שלו', 'גיוס המוטיבציה שלה');
+
+  const { diffPhrase, strengthPhrase } = itemPhrases(m);
 
   const efNames = { wm: 'זיכרון עבודה', inh: 'עכבה', flex: 'גמישות מחשבתית' };
   // FX1-r2 fix 3: definite-article forms, used only when a strength
@@ -1456,6 +1472,259 @@ function downloadForAI() {
   URL.revokeObjectURL(url);
 }
 
+// ===== PARENT RESULTS SHEET =====
+// A short, number-free summary to hand parents in or after the meeting.
+// Two levels only (as expected for age / harder than expected). Built from
+// the same scores, cutoffs and cutoffStatus() as everything else; item
+// wording comes from itemPhrases(). Never shows scores, cutoffs, item
+// numbers, the anonymous number or the clinical summary.
+const PARENT_ROUTINES = [
+  { key: 'morning', name: 'שגרת הבוקר והערב' },
+  { key: 'play', name: 'משחק ופנאי' },
+  { key: 'social', name: 'מצבים חברתיים' },
+];
+const PARENT_SKILLS = [
+  {
+    key: 'inh',
+    name: 'עצירה לפני תגובה (עכבה)',
+    desc: 'להתעלם מהסחות, לסיים דבר אחד לפני שעוברים לבא, ולעצור לחשוב לפני שמגיבים.',
+  },
+  {
+    key: 'wm',
+    name: 'החזקת מידע בראש (זיכרון עבודה)',
+    desc: 'לזכור מה צריך לעשות ובאיזה סדר, ולהתמיד בלי תזכורות.',
+  },
+  {
+    key: 'flex',
+    name: 'יוזמה וגמישות (גמישות מחשבתית)',
+    desc: 'ליזום, לתכנן, ולמצוא פתרון כשמשהו לא מסתדר.',
+  },
+];
+
+function buildParentSheetHtml(p) {
+  const { sexRaw, ageText, fillDateText, scores, c, note } = p;
+  const G = (m, f, unset) => (sexRaw === 'male' ? m : sexRaw === 'female' ? f : unset);
+  const CHILD = G('בנכם', 'בתכם', 'ילדכם');
+  const TO_CHILD = G('לבנכם', 'לבתכם', 'לילדכם');
+  const MANAGES = G('מתנהל', 'מתנהלת', 'מתנהל/ת');
+  const AGE = G('לגילו', 'לגילה', 'לגילו/ה');
+  const SUCCEEDS = G('מצליח', 'מצליחה', 'מצליח/ה');
+  const { diffPhrase, strengthPhrase } = itemPhrases(sexRaw !== 'female');
+  const e = escapeHtml;
+
+  const routineAvg = (key) => avg(items.filter((i) => i.routine === key).map((i) => scores[i.num]));
+  const skillAvg = (key) => avg(items.filter((i) => i.ef === key).map((i) => scores[i.num]));
+  const routines = PARENT_ROUTINES.map((r) => ({
+    ...r,
+    below: cutoffStatus(routineAvg(r.key), c[r.key], 'routine').key === 'below',
+  }));
+  const skills = PARENT_SKILLS.map((s) => ({
+    ...s,
+    below: cutoffStatus(skillAvg(s.key), c[s.key], 'ef').key === 'below',
+  }));
+  const totalAvg = avg(PARENT_ROUTINES.map((r) => routineAvg(r.key)));
+  const totalBelow = cutoffStatus(totalAvg, c.total, 'total').key === 'below';
+  const anyRoutine = routines.some((r) => r.below);
+  const anySkill = skills.some((s) => s.below);
+
+  let brief;
+  let mode;
+  if (anyRoutine) {
+    mode = 'B';
+    brief = `על פי התשובות שלכם, יש שגרות שקשות ${TO_CHILD} יותר מהצפוי ${AGE}. הפירוט בהמשך.`;
+  } else if (anySkill) {
+    mode = 'C';
+    brief = `על פי התשובות שלכם, ${CHILD} ${MANAGES} בשגרות היום-יום כצפוי ${AGE}, ועם זאת עלה קושי באחת המיומנויות. הפירוט בהמשך.`;
+  } else if (totalBelow) {
+    mode = 'D';
+    brief = `על פי התשובות שלכם, התמונה הכללית מעט נמוכה מהצפוי ${AGE}, גם אם אף שגרה לבדה אינה בולטת. נשוחח על כך יחד.`;
+  } else {
+    mode = 'A';
+    brief = `על פי התשובות שלכם, ${CHILD} ${MANAGES} בשגרות היום-יום כצפוי ${AGE}.`;
+  }
+
+  // What's going well: routines not below cutoff, then up to 3 strengths.
+  const goodLines = routines.filter((r) => !r.below).map((r) => `${r.name}: כצפוי לגיל.`);
+  const strongItems = items
+    .filter((i) => scores[i.num] >= 4)
+    .sort((a, b) => scores[b.num] - scores[a.num] || a.num - b.num);
+  const strengths = [];
+  strongItems.forEach((i) => {
+    const ph = strengthPhrase[i.num];
+    if (strengths.length < 3 && !strengths.includes(ph)) strengths.push(ph);
+  });
+  strengths.forEach((ph) => goodLines.push(`${SUCCEEDS} ${ph}.`));
+  const goodHtml = goodLines.length
+    ? `<ul>${goodLines.map((l) => `<li>${e(l)}</li>`).join('')}</ul>`
+    : `<p>נשוחח יחד גם על מה שהולך טוב: חלק מזה לא נמדד בשאלון.</p>`;
+
+  // What's harder than expected (B: routines, C: skills).
+  const harderBlock = (title, itemList) => {
+    const hard = itemList
+      .filter((i) => scores[i.num] <= 2)
+      .sort((a, b) => scores[a.num] - scores[b.num] || a.num - b.num);
+    const ex = [];
+    hard.forEach((i) => {
+      const ph = diffPhrase[i.num];
+      if (ex.length < 2 && !ex.includes(ph)) ex.push(ph);
+    });
+    return (
+      `<p class="hard">${e(title)}: קשה יותר מהצפוי לגיל — כדאי לדבר על זה.</p>` +
+      (ex.length
+        ? `<p class="eg">למשל, לפי התשובות שלכם:</p><ul>${ex.map((x) => `<li>${e(x)}.</li>`).join('')}</ul>`
+        : '')
+    );
+  };
+  let harderHtml = '';
+  if (mode === 'B') {
+    harderHtml = routines
+      .filter((r) => r.below)
+      .map((r) =>
+        harderBlock(
+          r.name,
+          items.filter((i) => i.routine === r.key),
+        ),
+      )
+      .join('');
+  } else if (mode === 'C') {
+    harderHtml = skills
+      .filter((s) => s.below)
+      .map((s) =>
+        harderBlock(
+          s.name,
+          items.filter((i) => i.ef === s.key),
+        ),
+      )
+      .join('');
+  }
+
+  const chip = (below) =>
+    below
+      ? '<span class="chip chip-hard">קשה יותר מהצפוי</span>'
+      : '<span class="chip chip-ok">כצפוי לגיל</span>';
+  const skillsHtml = skills
+    .map(
+      (s) =>
+        `<div class="skill"><div class="skill-head"><b>${e(s.name)}</b>${chip(s.below)}</div><div class="skill-desc">${e(s.desc)}</div></div>`,
+    )
+    .join('');
+
+  const noteText = (note || '').trim();
+  const noteHtml = noteText
+    ? `<p class="note-label">הערה מהמטפל/ת:</p><p class="note">${e(noteText).split('\n').join('<br>')}</p>`
+    : '';
+
+  const sexWord = sexRaw === 'male' ? 'בן' : sexRaw === 'female' ? 'בת' : '';
+  const meta = [sexWord, ageText, `תאריך מילוי: ${fillDateText}`].filter(Boolean).join(' · ');
+
+  return `<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;600;700&display=swap');
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Heebo', sans-serif; direction: rtl; color: #1a202c; line-height: 1.55; padding: 18px; max-width: 760px; margin: 0 auto; font-size: 13px; }
+  .head { text-align: center; margin-bottom: 8px; }
+  .logos { display: flex; align-items: flex-end; justify-content: center; gap: 14px; margin-bottom: 6px; }
+  .logos img { height: 28px; width: auto; max-width: 100px; object-fit: contain; }
+  .q-title { font-size: 12px; font-weight: 700; margin-top: 4px; line-height: 1.4; }
+  .q-authors { font-size: 11px; color: #475569; margin-top: 2px; }
+  h1 { text-align: center; font-size: 20px; margin: 10px 0 2px; }
+  .meta { text-align: center; font-size: 12px; color: #475569; margin-bottom: 10px; }
+  h2 { font-size: 14px; font-weight: 700; color: #0f4c75; margin: 12px 0 4px; padding-bottom: 2px; border-bottom: 1px solid #94a3b8; }
+  p { margin: 0 0 4px; }
+  ul { margin: 0 18px 4px 0; padding: 0; }
+  li { margin-bottom: 2px; }
+  .hard { font-weight: 600; margin-top: 6px; }
+  .eg { color: #475569; }
+  .skill { margin-bottom: 6px; }
+  .skill-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+  .skill-desc { color: #475569; }
+  .chip { display: inline-block; white-space: nowrap; font-size: 11px; font-weight: 700; padding: 1px 9px; border-radius: 10px; border: 1.5px solid; }
+  .chip-ok { color: #1b5e20; border-color: #2e7d32; }
+  .chip-hard { color: #8a5a00; border-color: #c27c00; }
+  .note-label { font-weight: 700; margin-top: 6px; }
+  .note { border: 1px solid #94a3b8; border-radius: 6px; padding: 6px 10px; }
+  .footer { text-align: center; font-size: 10px; color: #64748b; margin-top: 14px; padding-top: 6px; border-top: 1px solid #cbd5e1; }
+  section { break-inside: avoid; }
+  @media print { body { padding: 8px; } }
+</style>
+</head>
+<body>
+  <div class="head">
+    <div class="logos">
+      <img src="assets/haifa.jpg" alt="אוניברסיטת חיפה">
+      <img src="assets/chap.png" alt="המעבדה לתפקוד אנושי מורכב (CHAP)">
+      <img src="assets/clalit.svg" alt="שירותי בריאות כללית">
+    </div>
+    <div class="q-title">שאלון למדידת יכולת הניהול העצמי של ילדים בשגרות היום יום (EFORTS)</div>
+    <div class="q-authors">כרמית פריש ופרופ' שרה רוזנבלום, אוניברסיטת חיפה</div>
+  </div>
+  <h1>סיכום התוצאות להורים</h1>
+  <div class="meta">${e(meta)}</div>
+
+  <section><h2>מה זה הסיכום הזה</h2>
+  <p>הסיכום מבוסס על התשובות שלכם בשאלון. זהו שאלון סינון: הוא עוזר להבין איך ${CHILD} ${MANAGES} בשגרות היום-יום, אבל הוא אינו אבחנה ואינו ציון על ההורות שלכם. תקופה עמוסה, מחלה או שבוע קשה יכולים להשפיע על התשובות.</p></section>
+
+  <section><h2>בקצרה</h2><p>${brief}</p></section>
+
+  <section><h2>מה הולך טוב</h2>${goodHtml}</section>
+
+  ${harderHtml ? `<section><h2>מה קשה יותר מהצפוי</h2>${harderHtml}</section>` : ''}
+
+  <section><h2>שלוש המיומנויות שהשאלון בודק</h2>${skillsHtml}</section>
+
+  <section><h2>מה הלאה</h2>
+  <p>נשוחח יחד על התוצאות, על מה שראינו במפגש ועל ההמשך.</p>${noteHtml}</section>
+
+  <section><h2>לשאלות</h2><p>אפשר לפנות לצוות הריפוי בעיסוק.</p></section>
+
+  <div class="footer">EFORTS — Frisch &amp; Rosenblum, 2014 · הסיכום נכתב להורים ואינו מחליף את דוח האבחון.</div>
+</body>
+</html>`;
+}
+
+function printParentResults() {
+  const btn = document.querySelector('.btn-parent-pdf');
+  btn.disabled = true;
+  btn.textContent = 'מכין להדפסה…';
+  try {
+    const scores = {};
+    items.forEach((item) => {
+      const checked = document.querySelector(`input[name="q${item.num}"]:checked`);
+      if (checked) scores[item.num] = parseInt(checked.value);
+    });
+    const fillIso = getFillDateValue();
+    const fd = new Date(fillIso || Date.now());
+    const two = (n) => String(n).padStart(2, '0');
+    const html = buildParentSheetHtml({
+      sexRaw: document.getElementById('childGender').value,
+      ageText: document.getElementById('calcAge').textContent,
+      fillDateText: `${two(fd.getDate())}/${two(fd.getMonth() + 1)}/${fd.getFullYear()}`,
+      scores,
+      c: cutoffs[document.getElementById('ageGroup').value],
+      note: document.getElementById('parentNote').value,
+    });
+    const printWindow = window.open('', '_blank', 'width=800,height=900');
+    if (!printWindow) {
+      alert('הדפדפן חסם את חלון ההדפסה. יש לאפשר חלונות קופצים לאתר זה ולנסות שוב.');
+    } else {
+      printWindow.document.open();
+      printWindow.document.write(html);
+      printWindow.document.close();
+      setTimeout(() => {
+        printWindow.focus();
+        printWindow.print();
+      }, 600);
+    }
+  } catch (err) {
+    alert('שגיאה ביצירת PDF: ' + err.message);
+  }
+  btn.disabled = false;
+  btn.textContent = 'PDF להורים';
+}
+
 async function printResults() {
   const btn = document.querySelector('.btn-pdf');
   btn.disabled = true;
@@ -1658,7 +1927,7 @@ async function printResults() {
     if (!printWindow) {
       alert('הדפדפן חסם את חלון ההדפסה. יש לאפשר חלונות קופצים לאתר זה ולנסות שוב.');
       btn.disabled = false;
-      btn.textContent = 'שמור כ-PDF';
+      btn.textContent = 'PDF למטפל/ת';
       return;
     }
     printWindow.document.open();
@@ -1675,7 +1944,7 @@ async function printResults() {
   }
 
   btn.disabled = false;
-  btn.textContent = 'שמור כ-PDF';
+  btn.textContent = 'PDF למטפל/ת';
 }
 
 function toggleDrill(id) {

@@ -171,7 +171,7 @@ test('item 10: a blocked print popup shows a Hebrew warning and restores the but
   await page.click('.btn-pdf');
 
   await expect(page.locator('.btn-pdf')).toBeEnabled();
-  await expect(page.locator('.btn-pdf')).toHaveText('שמור כ-PDF');
+  await expect(page.locator('.btn-pdf')).toHaveText('PDF למטפל/ת');
   expect(dialogMessage).toContain('חלונות קופצים');
 });
 

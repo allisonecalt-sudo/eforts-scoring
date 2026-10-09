@@ -498,6 +498,18 @@ body {
   background: #8fc2db;
   cursor: wait;
 }
+.btn-parent-pdf {
+  background: #fff;
+  color: var(--blue);
+  border: 1.5px solid var(--blue);
+}
+.btn-parent-pdf:hover {
+  background: #eef6ff;
+}
+.btn-parent-pdf:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
 .btn-ai {
   background: #fff;
   color: var(--text);
@@ -832,8 +844,35 @@ body {
 }
 
 /* Result action buttons */
+.parent-box {
+  margin: 16px 0 0;
+  padding: 10px 14px;
+  background: #f8fafc;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+.parent-box-title {
+  font-size: 0.9rem;
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+.parent-box textarea {
+  width: 100%;
+  font: inherit;
+  font-size: 0.88rem;
+  padding: 8px;
+  border: 1.5px solid var(--border);
+  border-radius: 6px;
+  resize: vertical;
+}
+.parent-box-hint {
+  font-size: 0.78rem;
+  color: #64748b;
+  margin-top: 4px;
+}
 .result-actions {
   display: flex;
+  flex-wrap: wrap;
   gap: 10px;
   margin: 16px 0;
 }
