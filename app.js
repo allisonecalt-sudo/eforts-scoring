@@ -604,6 +604,7 @@ function calculate() {
         anonId,
         gender,
         isMale,
+        sexUnset: !genderRaw,
         ageText,
         ageLabel,
         morningAvg,
@@ -727,10 +728,13 @@ function buildSummary(d) {
   const g = (male, female) => (m ? male : female);
   const hisAge = g('גילו', 'גילה');
   const got = g('קיבל', 'קיבלה');
-  // canon C4: never "הילד/הילדה" — the anonymous number replaces it
-  // everywhere a noun-subject is needed; pronouns (g('הוא','היא')) cover
-  // the rest.
-  const anonId = d.anonId || '—';
+  // canon C4: never "הילד/הילדה". Her ruling 2026-10-09: the anonymous
+  // number is NOT written inside summary sentences (it stays in the results
+  // header, the print header, the AI file's details line and file names);
+  // pronouns / possessive suffixes cover it. Sex unset -> slash forms.
+  const hisMotivation = d.sexUnset
+    ? 'גיוס המוטיבציה שלו/שלה'
+    : g('גיוס המוטיבציה שלו', 'גיוס המוטיבציה שלה');
 
   // Short clinical phrasings per item — difficulty direction (score 1-2)
   const diffPhrase = {
@@ -1239,7 +1243,7 @@ function buildSummary(d) {
     if (strongItemsAll.length >= 2) {
       // canon D "Strengths" part: motivation + small successes + recruiting
       // strengths from an easier routine toward the harder ones, named with
-      // the anonymous number — never "הילד" (rule 25).
+      // pronouns / possessives (no anonymous number, no "הילד" — rule 25).
       // Gemini review item 3: "כמו כן מומלץ לשים דגש" repeated the
       // מ-ל-צ root right after "מומלץ על טיפול" — Carmit's C32 wording
       // ("תוך שימת דגש על") folds this into ONE sentence instead.
@@ -1254,7 +1258,7 @@ function buildSummary(d) {
       // target ("...אל המשימות שקשות לו יותר" implied a harder routine that
       // doesn't exist here).
       if (weakRoutines.length === 0) {
-        rec += `, תוך שימת דגש על גיוס מוטיבציה של ${anonId}, איסוף חוויות של הצלחה גם אם קטנות.`;
+        rec += `, תוך שימת דגש על ${hisMotivation}, איסוף חוויות של הצלחה גם אם קטנות.`;
       } else {
         // Gemini review R7-5a (7.10): joinHe ("A, B וC"), never the flat
         // "A וB וC" a plain join(' ו') produces for three routines. Guarded
@@ -1266,7 +1270,7 @@ function buildSummary(d) {
         const strengthRoutines =
           okRoutines.length > 0 ? joinHe(okRoutines.map((r) => r.inName)) : '';
         const strengthSlot = strengthRoutines || strengthNounSlot(woven) || 'במשימות אחרות';
-        rec += `, תוך שימת דגש על גיוס מוטיבציה של ${anonId}, איסוף חוויות של הצלחה גם אם קטנות, וגיוס ${g('כוחותיו', 'כוחותיה')} המתבטאים ${strengthSlot} אל המשימות שקשות ${g('לו', 'לה')} יותר.`;
+        rec += `, תוך שימת דגש על ${hisMotivation}, איסוף חוויות של הצלחה גם אם קטנות, וגיוס ${g('כוחותיו', 'כוחותיה')} המתבטאים ${strengthSlot} אל המשימות שקשות ${g('לו', 'לה')} יותר.`;
       }
     } else {
       rec += '.';
@@ -1414,6 +1418,7 @@ function buildExportText() {
     anonId: anonIdText,
     gender,
     isMale,
+    sexUnset: !genderRaw,
     ageText,
     ageLabel,
     morningAvg,
@@ -1440,7 +1445,8 @@ function downloadForAI() {
   // outside letters/digits/hyphen so a pasted "<script>" etc. can't reach
   // the downloaded file's name.
   const anonId = (getAnonId() || 'eforts').replace(/[^0-9A-Za-zא-ת-]/g, '_');
-  const date = new Date().toISOString().slice(0, 10);
+  // her ruling 2026-10-09: the questionnaire's FILL date, not today's
+  const date = getFillDateValue() || new Date().toISOString().slice(0, 10);
   const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -1485,6 +1491,7 @@ async function printResults() {
       anonId,
       gender,
       isMale,
+      sexUnset: !document.getElementById('childGender').value,
       ageText,
       ageLabel,
       morningAvg,

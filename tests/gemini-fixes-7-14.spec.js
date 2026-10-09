@@ -97,8 +97,8 @@ test('item 8: an anonId with HTML renders literally in results + summary; the ex
   // FX2 (Gemini review item 2) replaced the one place the two-below-EF
   // routine clause embedded anonId mid-sentence ("בכך ש-${anonId}") with a
   // pronoun — so all-2s no longer puts anonId inside buildSummary()'s own
-  // output. The מומלץ paragraph's "גיוס מוטיבציה של ${anonId}" clause is
-  // now the only spot that does, and it only renders when >=2 items score
+  // output. (Since 2026-10-09 even the מומלץ paragraph's motivation clause
+  // uses a possessive, not the number.) That clause only renders when >=2 items score
   // 4-5 (FX2 spec §C), so two items are bumped to 4 to reach it.
   const html = await fillAndCalculate(page, {
     sex: 'male',
@@ -112,14 +112,19 @@ test('item 8: an anonId with HTML renders literally in results + summary; the ex
   expect(html).toContain('&lt;b&gt;x&lt;/b&gt;');
 
   const summaryHtml = await page.locator('.summary-text').innerHTML();
+  // her ruling 2026-10-09: the number is not written inside summary sentences
   expect(summaryHtml).not.toContain('<b>x</b>');
-  expect(summaryHtml).toContain('&lt;b&gt;x&lt;/b&gt;');
+  expect(summaryHtml).not.toContain('&lt;b&gt;x&lt;/b&gt;');
+  expect(summaryHtml).toContain('גיוס המוטיבציה שלו');
 
   const downloadPromise = page.waitForEvent('download');
   await page.click('.btn-ai');
   const download = await downloadPromise;
   expect(download.suggestedFilename()).not.toContain('<');
   expect(download.suggestedFilename()).not.toContain('>');
+  // named by the questionnaire's fill date, not today's
+  const fillIso = await page.evaluate(() => getFillDateValue());
+  expect(download.suggestedFilename()).toBe(`EFORTS__b_x__b__${fillIso}.txt`);
 });
 
 // ===== Item 9: fmtScore =====
