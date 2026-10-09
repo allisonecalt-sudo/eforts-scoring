@@ -45,7 +45,8 @@ module.exports = [
         'warn',
         {
           argsIgnorePattern: '^_',
-          varsIgnorePattern: '^(toggleDrill|goBack|resetForm|printResults|downloadForAI)$',
+          varsIgnorePattern:
+            '^(toggleDrill|goBack|resetForm|printResults|printParentResults|downloadForAI)$',
         },
       ],
       'no-undef': 'error',
@@ -103,6 +104,7 @@ module.exports = [
         items: 'readonly',
         cutoffs: 'readonly',
         avg: 'readonly',
+        cutoffStatus: 'readonly',
         buildSummary: 'readonly',
         calculate: 'readonly',
         updateAge: 'readonly',
