@@ -1571,7 +1571,7 @@ function buildParentSheetHtml(p) {
     return (
       `<p class="hard">${e(title)}: קשה יותר מהצפוי לגיל — כדאי לדבר על זה.</p>` +
       (ex.length
-        ? `<p class="eg">למשל, לפי התשובות שלכם:</p><ul>${ex.map((x) => `<li>${e(x)}</li>`).join('')}</ul>`
+        ? `<p class="eg">למשל, לפי התשובות שלכם:</p><ul>${ex.map((x) => `<li>${e(x)}.</li>`).join('')}</ul>`
         : '')
     );
   };
