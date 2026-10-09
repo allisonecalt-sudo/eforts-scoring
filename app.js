@@ -604,6 +604,7 @@ function calculate() {
         anonId,
         gender,
         isMale,
+        sexUnset: !genderRaw,
         ageText,
         ageLabel,
         morningAvg,
@@ -727,10 +728,13 @@ function buildSummary(d) {
   const g = (male, female) => (m ? male : female);
   const hisAge = g('גילו', 'גילה');
   const got = g('קיבל', 'קיבלה');
-  // canon C4: never "הילד/הילדה" — the anonymous number replaces it
-  // everywhere a noun-subject is needed; pronouns (g('הוא','היא')) cover
-  // the rest.
-  const anonId = d.anonId || '—';
+  // canon C4: never "הילד/הילדה". Her ruling 2026-10-09: the anonymous
+  // number is NOT written inside summary sentences (it stays in the results
+  // header, the print header, the AI file's details line and file names);
+  // pronouns / possessive suffixes cover it. Sex unset -> slash forms.
+  const hisMotivation = d.sexUnset
+    ? 'גיוס המוטיבציה שלו/שלה'
+    : g('גיוס המוטיבציה שלו', 'גיוס המוטיבציה שלה');
 
   // Short clinical phrasings per item — difficulty direction (score 1-2)
   const diffPhrase = {
@@ -1239,7 +1243,7 @@ function buildSummary(d) {
     if (strongItemsAll.length >= 2) {
       // canon D "Strengths" part: motivation + small successes + recruiting
       // strengths from an easier routine toward the harder ones, named with
-      // the anonymous number — never "הילד" (rule 25).
+      // pronouns / possessives (no anonymous number, no "הילד" — rule 25).
       // Gemini review item 3: "כמו כן מומלץ לשים דגש" repeated the
       // מ-ל-צ root right after "מומלץ על טיפול" — Carmit's C32 wording
       // ("תוך שימת דגש על") folds this into ONE sentence instead.
@@ -1254,7 +1258,7 @@ function buildSummary(d) {
       // target ("...אל המשימות שקשות לו יותר" implied a harder routine that
       // doesn't exist here).
       if (weakRoutines.length === 0) {
-        rec += `, תוך שימת דגש על גיוס מוטיבציה של ${anonId}, איסוף חוויות של הצלחה גם אם קטנות.`;
+        rec += `, תוך שימת דגש על ${hisMotivation}, איסוף חוויות של הצלחה גם אם קטנות.`;
       } else {
         // Gemini review R7-5a (7.10): joinHe ("A, B וC"), never the flat
         // "A וB וC" a plain join(' ו') produces for three routines. Guarded
@@ -1266,7 +1270,7 @@ function buildSummary(d) {
         const strengthRoutines =
           okRoutines.length > 0 ? joinHe(okRoutines.map((r) => r.inName)) : '';
         const strengthSlot = strengthRoutines || strengthNounSlot(woven) || 'במשימות אחרות';
-        rec += `, תוך שימת דגש על גיוס מוטיבציה של ${anonId}, איסוף חוויות של הצלחה גם אם קטנות, וגיוס ${g('כוחותיו', 'כוחותיה')} המתבטאים ${strengthSlot} אל המשימות שקשות ${g('לו', 'לה')} יותר.`;
+        rec += `, תוך שימת דגש על ${hisMotivation}, איסוף חוויות של הצלחה גם אם קטנות, וגיוס ${g('כוחותיו', 'כוחותיה')} המתבטאים ${strengthSlot} אל המשימות שקשות ${g('לו', 'לה')} יותר.`;
       }
     } else {
       rec += '.';
@@ -1280,7 +1284,7 @@ function buildSummary(d) {
 // AI-13: the new prompt. Top-level so buildExportText() can call it. The
 // template literal's lines sit flush left — anything indented inside the
 // backticks would end up in the downloaded file.
-function aiPrompt(anonIdText, gender) {
+function aiPrompt(gender) {
   return `הנחיות לכלי ה-AI:
 
 1. מה כבר קיים. הציונים חושבו בכלי, והסיכום הקליני שלמעלה (תמונה כללית, משמעות קלינית ופסקת "מומלץ") נכתב בכלי לפי כללי הכתיבה שנגזרו מהנוסח של מחברות השאלון. אל תחשב מחדש אף ציון, אל תשנה אף מספר, ואל תכתוב מחדש את הסיכום או חלק ממנו.
@@ -1296,7 +1300,7 @@ function aiPrompt(anonIdText, gender) {
 - בלי שרשראות שלילה ("לא עושה, לא זוכר") ובלי ניגוד מהסוג "לא X אלא Y".
 - בלי תוויות אבחנתיות או תכונתיות ("אימפולסיבי", ADHD, "קשב" כאבחנה). מתארים התנהגות: פזיזות, מוסחות, קושי בעכבה.
 - "איחור" או "עיכוב" לעולם אינם קביעה כללית; קושי נכתב תמיד בתחום שלו.
-- כינוי למטופל/ת: כינוי גוף ("הוא", "היא"), או המספר האנונימי (${anonIdText}) לכל היותר פעם אחת בפסקה. לעולם לא "הילד" או "הילדה", לעולם לא שם או ת״ז, ואין לבקש אותם.
+- כינוי למטופל/ת: רק כינוי גוף ("הוא", "היא"). לעולם לא המספר האנונימי, לעולם לא "הילד" או "הילדה", לעולם לא שם או ת״ז, ואין לבקש אותם.
 - מין: ${gender}. התאמת מין בכל פועל, כינוי וסיומת. אם המין לא צוין, שאל לפני שאתה כותב.
 - עברית בלבד. המילה הלועזית היחידה: EFORTS.
 
@@ -1313,7 +1317,7 @@ function aiPrompt(anonIdText, gender) {
 לפני שאתה עונה, בדוק:
 [ ] לא חישבתי ולא שיניתי אף ציון, ולא כתבתי מחדש את הסיכום.
 [ ] כל משפט נשען על הקובץ או על דברי המטפל/ת, ואף משפט לא סותר ציון של פריט.
-[ ] אין "הילד" או "הילדה", אין שם ואין ת״ז; המספר האנונימי מופיע לכל היותר פעם בפסקה.
+[ ] אין "הילד" או "הילדה", אין מספר, שם או ת״ז; רק כינוי גוף.
 [ ] התאמת מין בכל מקום.
 [ ] פעלים רכים; בלי שרשראות שלילה, בלי תוויות אבחנתיות, בלי "איחור" כללי.
 [ ] מונחים ומספרים בדיוק בצורה שלמעלה.
@@ -1414,6 +1418,7 @@ function buildExportText() {
     anonId: anonIdText,
     gender,
     isMale,
+    sexUnset: !genderRaw,
     ageText,
     ageLabel,
     morningAvg,
@@ -1429,7 +1434,7 @@ function buildExportText() {
   text += `\nהסיכום הקליני שנכתב בכלי (קבוע — אין לשנות):\n`;
   text += summaryHtmlToText(summaryHtml) + '\n';
 
-  text += '\n' + aiPrompt(anonIdText, gender);
+  text += '\n' + aiPrompt(gender);
 
   return text;
 }
@@ -1440,7 +1445,8 @@ function downloadForAI() {
   // outside letters/digits/hyphen so a pasted "<script>" etc. can't reach
   // the downloaded file's name.
   const anonId = (getAnonId() || 'eforts').replace(/[^0-9A-Za-zא-ת-]/g, '_');
-  const date = new Date().toISOString().slice(0, 10);
+  // her ruling 2026-10-09: the questionnaire's FILL date, not today's
+  const date = getFillDateValue() || new Date().toISOString().slice(0, 10);
   const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -1485,6 +1491,7 @@ async function printResults() {
       anonId,
       gender,
       isMale,
+      sexUnset: !document.getElementById('childGender').value,
       ageText,
       ageLabel,
       morningAvg,
