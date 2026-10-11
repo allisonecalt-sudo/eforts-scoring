@@ -134,15 +134,15 @@ test('O10: a warning scrolls to its field, focuses and marks it, and sits under 
   await page.locator('#calcBottom').scrollIntoViewIfNeeded();
   await page.locator('#calcBottom').click();
   await expect(page.locator('#warning')).toBeVisible();
-  await expect(page.locator('#birthDay')).toBeFocused();
-  await expect(page.locator('#birthDay')).toHaveClass(/field-invalid/);
-  await expect(page.locator('#birthDay')).toHaveAttribute('aria-invalid', 'true');
+  await expect(page.locator('#anonId')).toBeFocused();
+  await expect(page.locator('#anonId')).toHaveClass(/field-invalid/);
+  await expect(page.locator('#anonId')).toHaveAttribute('aria-invalid', 'true');
   // the message is in the same card as the field, after it, and on screen
   await expect
     .poll(
       () =>
         page.evaluate(() => {
-          const f = document.getElementById('birthDay').getBoundingClientRect();
+          const f = document.getElementById('anonId').getBoundingClientRect();
           const w = document.getElementById('warning').getBoundingClientRect();
           return w.top >= f.bottom && w.top >= 0 && w.bottom <= window.innerHeight;
         }),
