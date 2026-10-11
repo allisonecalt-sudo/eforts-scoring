@@ -10,7 +10,14 @@
 const { test, expect } = require('@playwright/test');
 const fs = require('fs');
 const path = require('path');
-const { gotoParent, fillParent, downloadPdf, GOLDEN, MODELS } = require('./helpers/eforts-parent');
+const {
+  setDob,
+  gotoParent,
+  fillParent,
+  downloadPdf,
+  GOLDEN,
+  MODELS,
+} = require('./helpers/eforts-parent');
 
 test.use({ timezoneId: 'Asia/Jerusalem', locale: 'he-IL' });
 
@@ -27,7 +34,7 @@ test('fill -> code -> PDF file (G50)', async ({ page }) => {
   await expect(page.locator('#pFormSection')).toBeHidden();
 
   const pdf = await downloadPdf(page);
-  expect(pdf.name).toBe('EFORTS-answers-2026-09-28.pdf');
+  expect(pdf.name).toBe('EFORTS-answers-2026-09-28-1000.pdf');
   const buf = fs.readFileSync(pdf.path);
   expect(buf.subarray(0, 4).toString('latin1')).toBe('%PDF');
   expect(buf.toString('latin1')).toContain(GOLDEN.G50);
@@ -63,7 +70,7 @@ test('PDF build failure shows #pSendError, keeps the button enabled; a tap retri
     EFORTSPdf.build = window.__realBuild;
   });
   const pdf = await downloadPdf(page);
-  expect(pdf.name).toBe('EFORTS-answers-2026-09-28.pdf');
+  expect(pdf.name).toBe('EFORTS-answers-2026-09-28-1000.pdf');
   expect(fs.readFileSync(pdf.path).toString('latin1')).toContain(GOLDEN.G50);
   await expect(page.locator('#pSendError')).toBeHidden();
 });
@@ -72,7 +79,7 @@ test('validation: 29 of 30 answered blocks finish and marks the missing item', a
   await gotoParent(page);
   const model = { ...MODELS.G50, answers: MODELS.G50.answers.slice() };
   await page.locator('label[for="pSex_m"]').click();
-  await page.locator('#pDob').fill(model.dob);
+  await setDob(page, model.dob);
   for (let i = 0; i < model.answers.length; i++) {
     if (i + 1 === 17) continue; // leave item 17 unanswered
     await page.locator(`label[for="pq${i + 1}_${model.answers[i]}"]`).click();

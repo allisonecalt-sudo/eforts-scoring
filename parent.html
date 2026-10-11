@@ -74,9 +74,13 @@
                 <label for="pSex_f">בת</label>
               </div>
             </fieldset>
-            <div class="info-field" id="pDobField">
-              <label id="pDobLabel" for="pDob">תאריך לידה</label>
-              <input type="date" id="pDob" min="1900-01-01">
+            <div class="info-field" id="pDobField" role="group" aria-labelledby="pDobLabel">
+              <div id="pDobLabel" class="p-field-label">תאריך לידה</div>
+              <div class="p-dob-row">
+                <select id="pDobDay" aria-label="יום לידה"><option value="">יום</option></select>
+                <select id="pDobMonth" aria-label="חודש לידה"><option value="">חודש</option></select>
+                <select id="pDobYear" aria-label="שנת לידה"><option value="">שנה</option></select>
+              </div>
               <p id="pDobError" class="p-hint p-field-error" role="alert" hidden></p>
               <p id="pDobHint" class="p-hint">אין צורך לכתוב שם. נזהה את השאלון לפי תאריך הלידה.</p>
             </div>

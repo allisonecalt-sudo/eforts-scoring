@@ -27,6 +27,7 @@ const H_S2_VALID = 'תאריך לידה תקין';
 const H_S3 = 'תשובות לשאלות {nums}';
 const H_S3_ONE = 'תשובה לשאלה {nums}';
 const H_DOB_BAD = 'תאריך הלידה לא נראה תקין. בדקו אותו שוב.';
+const H_DOB_NOSUCH = 'התאריך אינו קיים בלוח השנה.';
 const H_DOB_AGE = 'השאלון מיועד לילדים בגילאי 3 עד 11. בדקו את תאריך הלידה.';
 const H_D3 = 'למחוק את כל התשובות ששמרתם במכשיר הזה?';
 // PDF send (2026-10-07): the answers travel as a PDF file the parent can send
@@ -50,7 +51,6 @@ const state = {
   model: null,
   canShare: false,
   attempted: false,
-  dobTouched: false,
 };
 const JSPDF_SRC = 'assets/vendor/jspdf.umd.min.js';
 
@@ -62,7 +62,9 @@ let pDraftBar,
   pProgressFill,
   pProgressText,
   pDetails,
-  pDob,
+  pDobDay,
+  pDobMonth,
+  pDobYear,
   pDobError,
   pDobField,
   pSexField,
@@ -175,6 +177,20 @@ function updateProgress() {
   pProgressFill.style.width = (answered / items.length) * 100 + '%';
 }
 
+// Coming back to a saved draft: land on the first thing still to do, below
+// the sticky progress bar (scroll-margin-top in parent.css).
+function scrollToFirstGap() {
+  let target = null;
+  if (!sexChosen() || dobStatus()) target = pDetails;
+  else {
+    const firstOpen = items.find(
+      (it) => !document.querySelector(`input[name="pq${it.num}"]:checked`),
+    );
+    target = firstOpen ? document.getElementById('pItem' + firstOpen.num) : pFinish;
+  }
+  target.scrollIntoView({ block: 'start' });
+}
+
 // ===== DRAFT (localStorage, §B.5) =====
 function withValues() {
   return {
@@ -197,7 +213,7 @@ function saveDraft() {
       v: 1,
       savedAt: Date.now(),
       sex: sexChecked ? sexChecked.value : '',
-      dob: pDob.value || '',
+      dob: getDobIso(),
       with: with_,
       answers,
     };
@@ -249,7 +265,7 @@ function restoreDraft() {
     const r = document.getElementById(data.sex === 'male' ? 'pSex_m' : 'pSex_f');
     if (r) r.checked = true;
   }
-  if (data.dob) pDob.value = data.dob;
+  if (data.dob) setDobIso(data.dob);
   if (data.with) {
     ['morning', 'play', 'social'].forEach((k) => {
       const el = document.getElementById('pWith_' + k);
@@ -278,16 +294,85 @@ function sexChosen() {
   return !!document.querySelector('input[name="pSex"]:checked');
 }
 
-// '' = fine, 'empty' = not filled, 'bad' = impossible date, 'age' = outside 3-11.
+// ----- date of birth: three selects in Hebrew order (day, month, year) -----
+// A native date input follows the BROWSER language (mm/dd on an English
+// browser), so parents swap day and month. Three labelled selects cannot.
+const H_MONTHS = [
+  'ינואר',
+  'פברואר',
+  'מרץ',
+  'אפריל',
+  'מאי',
+  'יוני',
+  'יולי',
+  'אוגוסט',
+  'ספטמבר',
+  'אוקטובר',
+  'נובמבר',
+  'דצמבר',
+];
+
+function addOption(select, value, text) {
+  const o = document.createElement('option');
+  o.value = String(value);
+  o.textContent = text;
+  select.appendChild(o);
+  return o;
+}
+
+function buildDobSelects() {
+  const year = new Date().getFullYear();
+  for (let d = 1; d <= 31; d++) addOption(pDobDay, d, String(d));
+  H_MONTHS.forEach((name, i) => addOption(pDobMonth, i + 1, name));
+  for (let y = year - 13; y <= year - 2; y++) addOption(pDobYear, y, String(y));
+}
+
+function dobParts() {
+  return [pDobYear.value, pDobMonth.value, pDobDay.value];
+}
+
+// 'YYYY-MM-DD' when all three are chosen and the day exists in that month.
+function getDobIso() {
+  const [y, m, d] = dobParts();
+  if (!y || !m || !d) return '';
+  const dt = new Date(Number(y), Number(m) - 1, Number(d));
+  if (dt.getMonth() !== Number(m) - 1 || dt.getDate() !== Number(d)) return '';
+  return `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+}
+
+// Accepts the ISO strings older drafts stored (and '' to clear).
+function setDobIso(iso) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso || '');
+  if (!m) {
+    pDobDay.value = '';
+    pDobMonth.value = '';
+    pDobYear.value = '';
+    return;
+  }
+  const y = String(Number(m[1]));
+  if (![...pDobYear.options].some((o) => o.value === y)) {
+    // outside the normal range: keep it so the age check can say so
+    addOption(pDobYear, y, y);
+    const sorted = [...pDobYear.options].slice(1).sort((a, b) => Number(a.value) - Number(b.value));
+    sorted.forEach((x) => pDobYear.appendChild(x));
+  }
+  pDobYear.value = y;
+  pDobMonth.value = String(Number(m[2]));
+  pDobDay.value = String(Number(m[3]));
+}
+
+// '' = fine, 'empty' = not (fully) filled, 'nosuch' = a day that is not in
+// that month (31 Feb), 'bad' = today/future, 'age' = outside 3-11.
 function dobStatus() {
-  const v = pDob.value;
-  if (!v) return 'empty';
-  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(v);
+  const [y, m, d] = dobParts();
+  if (!y || !m || !d) return 'empty';
+  const v = getDobIso();
+  if (!v) return 'nosuch';
   const today = localToday();
-  if (!m || v >= today || v < '1900-01-01') return 'bad';
+  if (v >= today || v < '1900-01-01') return 'bad';
   const [ty, tm, td] = today.split('-').map(Number);
-  let age = ty - Number(m[1]);
-  if (tm < Number(m[2]) || (tm === Number(m[2]) && td < Number(m[3]))) age--;
+  let age = ty - Number(y);
+  if (tm < Number(m) || (tm === Number(m) && td < Number(d))) age--;
   return age < 3 || age >= 12 ? 'age' : '';
 }
 
@@ -300,18 +385,15 @@ function coarsePointer() {
 }
 
 // Paints the date field's own error + highlight (live, on every change).
+// A message only exists once all three selects are chosen, so nothing flashes
+// while a parent is still picking.
 function paintDob() {
   const st = dobStatus();
-  const msg = st === 'bad' ? H_DOB_BAD : st === 'age' ? H_DOB_AGE : '';
-  // a half-typed year must not flash an error: show it only once the field has
-  // lost focus (or «סיום» was tapped); live after that
-  const show = state.dobTouched || state.attempted;
-  pDobError.textContent = show ? msg : '';
-  pDobError.hidden = !show || !msg;
-  pDobField.classList.toggle(
-    'p-field-missing',
-    (show && (st === 'bad' || st === 'age')) || (state.attempted && st === 'empty'),
-  );
+  const msg =
+    st === 'bad' ? H_DOB_BAD : st === 'nosuch' ? H_DOB_NOSUCH : st === 'age' ? H_DOB_AGE : '';
+  pDobError.textContent = msg;
+  pDobError.hidden = !msg;
+  pDobField.classList.toggle('p-field-missing', !!msg || (state.attempted && st === 'empty'));
 }
 
 // Re-reads the whole form. After the first "סיום" tap the missing message is
@@ -453,14 +535,13 @@ function clearAll() {
   document.querySelectorAll('input[type="radio"]').forEach((r) => {
     r.checked = false;
   });
-  pDob.value = '';
+  setDobIso('');
   ['pWith_morning', 'pWith_play', 'pWith_social'].forEach((id) => {
     const el = document.getElementById(id);
     if (el) el.value = '';
   });
 
   state.attempted = false;
-  state.dobTouched = false;
   pDraftBar.hidden = true;
   pDone.hidden = true;
   pFormSection.hidden = false;
@@ -478,7 +559,9 @@ document.addEventListener('DOMContentLoaded', () => {
   pProgressFill = document.getElementById('pProgressFill');
   pProgressText = document.getElementById('pProgressText');
   pDetails = document.getElementById('pDetails');
-  pDob = document.getElementById('pDob');
+  pDobDay = document.getElementById('pDobDay');
+  pDobMonth = document.getElementById('pDobMonth');
+  pDobYear = document.getElementById('pDobYear');
   pDobError = document.getElementById('pDobError');
   pDobField = document.getElementById('pDobField');
   pSexField = document.getElementById('pSexField');
@@ -494,8 +577,7 @@ document.addEventListener('DOMContentLoaded', () => {
   pBack = document.getElementById('pBack');
   pClearDone = document.getElementById('pClearDone');
 
-  // Keeps a stray typo out of the date field; today can't be a birth date.
-  pDob.max = localToday();
+  buildDobSelects();
 
   // ----- build questionnaire (§B.3) -----
   buildQuestionnaire();
@@ -513,11 +595,8 @@ document.addEventListener('DOMContentLoaded', () => {
     saveDraft();
     checkForm(false);
   });
-  pDob.addEventListener('blur', () => {
-    state.dobTouched = true;
-    checkForm(false);
-  });
   checkForm(false);
+  if (restored) requestAnimationFrame(scrollToFirstGap);
 
   // ----- finish / validate (§B.4.6) -----
   pFinish.addEventListener('click', () => {
@@ -527,7 +606,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const model = {
       sex: document.querySelector('input[name="pSex"]:checked').value,
-      dob: pDob.value,
+      dob: getDobIso(),
       date: localToday(),
       with: withValues(),
       answers: items.map((it) =>

@@ -3,7 +3,7 @@
 // eforts-code.js and the vendored jsPDF).
 //
 // What the file is: the parent's answers as a plain file the parent can send
-// to ANY therapist by ANY channel (WhatsApp, any email). The practitioner app
+// to ANY therapist by ANY channel (any app, any email). The practitioner app
 // reads it back through the machine line (the full EFORTS1 code as REAL PDF
 // text, one line) — see app.js importFromFile().
 //
@@ -152,7 +152,8 @@ const EFORTSPdf = (() => {
     const labelLines = wrap(last.ctx, P_CODE_LABEL, maxW);
     // the real-text code line sits at MM_H - 12 mm; the label ends just above it
     const codeLineY = Math.round(((MM_H - 12) / MM_H) * PAGE_H);
-    let ly = codeLineY - 34 - (labelLines.length - 1) * 28;
+    // text is drawn from its TOP: leave room for the code line's height
+    let ly = Math.max(fy + 8, codeLineY - 66 - (labelLines.length - 1) * 28);
     labelLines.forEach((p) => {
       last.ctx.fillText(p, right, ly);
       ly += 28;
@@ -189,7 +190,10 @@ const EFORTSPdf = (() => {
     doc.setProperties({ title: 'EFORTS parent answers', subject: code, keywords: code });
 
     const blob = doc.output('blob');
-    const file = new window.File([blob], `EFORTS-answers-${model.date}.pdf`, {
+    const now = new Date();
+    const stamp =
+      String(now.getHours()).padStart(2, '0') + String(now.getMinutes()).padStart(2, '0');
+    const file = new window.File([blob], `EFORTS-answers-${model.date}-${stamp}.pdf`, {
       type: 'application/pdf',
     });
     return { file, pngs };
