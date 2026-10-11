@@ -25,6 +25,13 @@ const H_S1 = 'מין הילד/ה';
 const H_S2 = 'תאריך לידה';
 const H_S2_VALID = 'תאריך לידה תקין';
 const H_S3 = 'תשובות לשאלות {nums}';
+const H_S3_MANY = 'עוד {n} שאלות';
+const H_M0_MANY = 'כדי לסיים, צריך להשלים: ';
+const H_GAP_ONE = 'חסרה תשובה אחת';
+const H_GAP_MANY = 'חסרות {n} תשובות';
+const H_GAP_DETAILS = 'חסרים פרטי הילד/ה';
+const H_EVENING = 'שגרת ערב';
+const H_MORNING = 'שגרת בוקר';
 const H_S3_ONE = 'תשובה לשאלה {nums}';
 const H_DOB_BAD = 'תאריך הלידה לא נראה תקין. בדקו אותו שוב.';
 const H_DOB_NOSUCH = 'התאריך אינו קיים בלוח השנה.';
@@ -34,11 +41,13 @@ const H_D3 = 'למחוק את כל התשובות ששמרתם במכשיר הז
 // to ANY therapist by ANY channel. One main button. No email address and no
 // copy-code backup on this page.
 const H_P_SHARE = 'שליחת קובץ התשובות (PDF)';
-const H_P_SHARE_HINT = 'בחרו מייל ושלחו את הקובץ למטפל/ת.';
+const H_P_SHARE_HINT = 'בחרו מייל ושלחו את הקובץ לכתובת שקיבלתם מהמטפל/ת.';
+const H_P_SHARED = 'נשלח? מצוין. אפשר לסגור את הדף.';
+const H_P_SAVED_A = 'הקובץ נשמר בתיקיית ההורדות (';
+const H_P_SAVED_B = '). עכשיו פתחו את המייל, צרפו את הקובץ ושלחו למטפל/ת.';
 const H_P_DL = 'הורדת קובץ התשובות (PDF)';
-const H_P_DL_HINT = 'הקובץ יישמר במחשב. שלחו אותו במייל למטפל/ת.';
+const H_P_DL_HINT = 'צרפו את הקובץ למייל ושלחו לכתובת שקיבלתם מהמטפל/ת.';
 const H_P_SHARE_TITLE = 'EFORTS';
-const H_P_DL_HINT_DEVICE = 'הקובץ יישמר במכשיר. שלחו אותו במייל למטפל/ת.';
 const H_P_ERROR = 'לא הצלחנו ליצור את הקובץ. רעננו את הדף ונסו שוב.';
 
 const state = {
@@ -78,6 +87,8 @@ let pDraftBar,
   pDownloadOnly,
   pSendError,
   pBack,
+  pBarGap,
+  pBarNote,
   pClearDone;
 
 function localToday() {
@@ -104,23 +115,27 @@ function buildQuestionnaire() {
 
     const companionRow = document.createElement('div');
     companionRow.className = 'companion-row';
-    const label = document.createElement('label');
-    label.setAttribute('for', 'pWith_' + s.key);
+    const label = document.createElement('div');
+    label.id = 'pWithLbl_' + s.key;
+    label.className = 'companion-label';
     label.textContent = COMPANION.question;
-    const select = document.createElement('select');
-    select.id = 'pWith_' + s.key;
-    const emptyOpt = document.createElement('option');
-    emptyOpt.value = '';
-    emptyOpt.textContent = '—';
-    select.appendChild(emptyOpt);
+    // four buttons in the בן/בת style; none chosen by default; tap again to unchoose
+    const group = document.createElement('div');
+    group.id = 'pWith_' + s.key;
+    group.className = 'p-choice-row';
+    group.setAttribute('role', 'group');
+    group.setAttribute('aria-labelledby', label.id);
     COMPANION.options.forEach((o) => {
-      const opt = document.createElement('option');
-      opt.value = o.value;
-      opt.textContent = o.label;
-      select.appendChild(opt);
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'p-choice';
+      b.dataset.value = o.value;
+      b.setAttribute('aria-pressed', 'false');
+      b.textContent = o.label;
+      group.appendChild(b);
     });
     companionRow.appendChild(label);
-    companionRow.appendChild(select);
+    companionRow.appendChild(group);
     header.appendChild(companionRow);
     section.appendChild(header);
 
@@ -132,6 +147,12 @@ function buildQuestionnaire() {
     items
       .filter((it) => it.num >= s.range[0] && it.num <= s.range[1])
       .forEach((item) => {
+        if (s.key === 'morning' && (item.num === 1 || item.num === 9)) {
+          const div = document.createElement('div');
+          div.className = 'sub-divider';
+          div.textContent = item.num === 1 ? H_MORNING : H_EVENING;
+          section.appendChild(div);
+        }
         const fieldset = document.createElement('fieldset');
         fieldset.className = 'p-item';
         fieldset.id = 'pItem' + item.num;
@@ -192,12 +213,19 @@ function scrollToFirstGap() {
 }
 
 // ===== DRAFT (localStorage, §B.5) =====
+function getWith(key) {
+  const on = document.querySelector(`#pWith_${key} .p-choice[aria-pressed="true"]`);
+  return on ? on.dataset.value : '';
+}
+
+function setWith(key, value) {
+  document.querySelectorAll(`#pWith_${key} .p-choice`).forEach((b) => {
+    b.setAttribute('aria-pressed', b.dataset.value === value ? 'true' : 'false');
+  });
+}
+
 function withValues() {
-  return {
-    morning: document.getElementById('pWith_morning').value,
-    play: document.getElementById('pWith_play').value,
-    social: document.getElementById('pWith_social').value,
-  };
+  return { morning: getWith('morning'), play: getWith('play'), social: getWith('social') };
 }
 
 function saveDraft() {
@@ -268,8 +296,7 @@ function restoreDraft() {
   if (data.dob) setDobIso(data.dob);
   if (data.with) {
     ['morning', 'play', 'social'].forEach((k) => {
-      const el = document.getElementById('pWith_' + k);
-      if (el && data.with[k]) el.value = data.with[k];
+      if (data.with[k]) setWith(k, data.with[k]);
     });
   }
   if (data.answers) {
@@ -324,7 +351,8 @@ function buildDobSelects() {
   const year = new Date().getFullYear();
   for (let d = 1; d <= 31; d++) addOption(pDobDay, d, String(d));
   H_MONTHS.forEach((name, i) => addOption(pDobMonth, i + 1, name));
-  for (let y = year - 13; y <= year - 2; y++) addOption(pDobYear, y, String(y));
+  // newest first: this year - 3 down to this year - 12
+  for (let y = year - 3; y >= year - 12; y--) addOption(pDobYear, y, String(y));
 }
 
 function dobParts() {
@@ -353,7 +381,7 @@ function setDobIso(iso) {
   if (![...pDobYear.options].some((o) => o.value === y)) {
     // outside the normal range: keep it so the age check can say so
     addOption(pDobYear, y, y);
-    const sorted = [...pDobYear.options].slice(1).sort((a, b) => Number(a.value) - Number(b.value));
+    const sorted = [...pDobYear.options].slice(1).sort((a, b) => Number(b.value) - Number(a.value));
     sorted.forEach((x) => pDobYear.appendChild(x));
   }
   pDobYear.value = y;
@@ -408,9 +436,12 @@ function checkForm(scroll) {
   const problems = [];
   if (!sexOk) problems.push(H_S1);
   if (dobSt) problems.push(dobSt === 'empty' ? H_S2 : H_S2_VALID);
+  const many = missingItems.length > 5;
   if (missingItems.length) {
     problems.push(
-      (missingItems.length === 1 ? H_S3_ONE : H_S3).replace('{nums}', missingItems.join(', ')),
+      many
+        ? H_S3_MANY.replace('{n}', String(missingItems.length))
+        : (missingItems.length === 1 ? H_S3_ONE : H_S3).replace('{nums}', missingItems.join(', ')),
     );
   }
   paintDob();
@@ -419,11 +450,12 @@ function checkForm(scroll) {
     const el = document.getElementById('pItem' + it.num);
     if (el) el.classList.toggle('p-missing', state.attempted && missingItems.includes(it.num));
   });
+  paintBarGap(missingItems.length, !sexOk || !!dobSt);
   if (!problems.length || !state.attempted) {
     pMissing.hidden = true;
     return { problems, sexOk, dobSt };
   }
-  pMissing.textContent = H_M0 + problems.join('; ');
+  pMissing.textContent = (many ? H_M0_MANY : H_M0) + problems.join('; ');
   // only sex/date missing: the message sits right under the details card
   if (!missingItems.length) pDetails.insertAdjacentElement('afterend', pMissing);
   else pActions.insertAdjacentElement('beforebegin', pMissing);
@@ -433,6 +465,33 @@ function checkForm(scroll) {
     target.scrollIntoView({ behavior: 'smooth', block: missingItems.length ? 'center' : 'start' });
   }
   return { problems, sexOk, dobSt };
+}
+
+// The tappable "N answers missing" in the sticky bar (after a «סיום» with gaps).
+function paintBarGap(nItems, detailsMissing) {
+  const on = state.attempted && (nItems > 0 || detailsMissing);
+  pBarGap.hidden = !on;
+  if (!on) return;
+  pBarGap.textContent =
+    nItems === 0
+      ? H_GAP_DETAILS
+      : nItems === 1
+        ? H_GAP_ONE
+        : H_GAP_MANY.replace('{n}', String(nItems));
+}
+
+function jumpToGap(afterNum) {
+  const missing = items
+    .map((it) => it.num)
+    .filter((n) => !document.querySelector(`input[name="pq${n}"]:checked`));
+  let target = null;
+  if (missing.length) {
+    const next = missing.find((n) => n > (afterNum || 0)) || missing[0];
+    target = document.getElementById('pItem' + next);
+  } else if (!sexChosen() || dobStatus()) {
+    target = pDetails;
+  }
+  if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 function loadJsPdf() {
@@ -458,6 +517,14 @@ function downloadAnswers() {
   a.click();
   a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
+  // say what happened and what to do next (the tap used to change nothing visible)
+  pSendHint.textContent = '';
+  pSendHint.appendChild(document.createTextNode(H_P_SAVED_A));
+  const bdi = document.createElement('bdi');
+  bdi.dir = 'ltr';
+  bdi.textContent = file.name;
+  pSendHint.appendChild(bdi);
+  pSendHint.appendChild(document.createTextNode(H_P_SAVED_B));
 }
 
 // Web Share Level 2: only when this browser can share this very PDF.
@@ -483,7 +550,7 @@ function preparePdf(code, model) {
   state.pdfPngs = [];
   state.canShare = false;
   pSend.textContent = H_P_DL;
-  pSendHint.textContent = coarsePointer() ? H_P_DL_HINT_DEVICE : H_P_DL_HINT;
+  pSendHint.textContent = H_P_DL_HINT;
   pDownloadOnly.hidden = true;
   const promise = Promise.resolve()
     .then(() => EFORTSPdf.build(code, model))
@@ -536,10 +603,7 @@ function clearAll() {
     r.checked = false;
   });
   setDobIso('');
-  ['pWith_morning', 'pWith_play', 'pWith_social'].forEach((id) => {
-    const el = document.getElementById(id);
-    if (el) el.value = '';
-  });
+  ['morning', 'play', 'social'].forEach((k) => setWith(k, ''));
 
   state.attempted = false;
   pDraftBar.hidden = true;
@@ -575,6 +639,8 @@ document.addEventListener('DOMContentLoaded', () => {
   pDownloadOnly = document.getElementById('pDownloadOnly');
   pSendError = document.getElementById('pSendError');
   pBack = document.getElementById('pBack');
+  pBarGap = document.getElementById('pBarGap');
+  pBarNote = document.getElementById('pBarNote');
   pClearDone = document.getElementById('pClearDone');
 
   buildDobSelects();
@@ -590,13 +656,34 @@ document.addEventListener('DOMContentLoaded', () => {
   updateProgress();
 
   // ----- change handling (§B.4.5) -----
-  pFormSection.addEventListener('change', () => {
+  pFormSection.addEventListener('change', (e) => {
+    const m = e.target && e.target.name && /^pq(\d+)$/.exec(e.target.name);
+    const wasMissing = m && document.getElementById('pItem' + m[1]).classList.contains('p-missing');
     updateProgress();
     saveDraft();
     checkForm(false);
+    // after answering a highlighted item, move on to the next gap
+    if (wasMissing && state.attempted) jumpToGap(Number(m[1]));
   });
+  pFormSection.addEventListener('click', (e) => {
+    const b = e.target && e.target.closest && e.target.closest('.p-choice');
+    if (!b) return;
+    const on = b.getAttribute('aria-pressed') === 'true';
+    b.parentElement.querySelectorAll('.p-choice').forEach((x) => {
+      x.setAttribute('aria-pressed', 'false');
+    });
+    if (!on) b.setAttribute('aria-pressed', 'true');
+    b.dispatchEvent(new Event('change', { bubbles: true }));
+  });
+  pBarGap.addEventListener('click', () => jumpToGap(0));
   checkForm(false);
-  if (restored) requestAnimationFrame(scrollToFirstGap);
+  if (restored) {
+    requestAnimationFrame(scrollToFirstGap);
+    pBarNote.hidden = false;
+    setTimeout(() => {
+      pBarNote.hidden = true;
+    }, 6000);
+  }
 
   // ----- finish / validate (§B.4.6) -----
   pFinish.addEventListener('click', () => {
@@ -627,10 +714,15 @@ document.addEventListener('DOMContentLoaded', () => {
     const file = state.pdfFile;
     if (file && state.canShare) {
       // called synchronously inside the tap (user activation)
-      navigator.share({ files: [file], title: H_P_SHARE_TITLE }).catch((err) => {
-        // User cancelled: stay silent. Anything else: fall back to the file.
-        if (!err || err.name !== 'AbortError') downloadAnswers();
-      });
+      navigator.share({ files: [file], title: H_P_SHARE_TITLE }).then(
+        () => {
+          pSendHint.textContent = H_P_SHARED;
+        },
+        (err) => {
+          // User cancelled: keep the hint. Anything else: fall back to the file.
+          if (!err || err.name !== 'AbortError') downloadAnswers();
+        },
+      );
       return;
     }
     if (file) {

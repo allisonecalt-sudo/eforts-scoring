@@ -1,15 +1,18 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="he" dir="rtl">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta name="robots" content="noindex, nofollow">
-<meta name="referrer" content="no-referrer">
-<meta http-equiv="Content-Security-Policy" content="connect-src 'none'; form-action 'none'; base-uri 'none'; object-src 'none'">
-<title>EFORTS — שאלון להורים</title>
-<link rel="stylesheet" href="styles.css">
-<link rel="stylesheet" href="parent.css">
-</head>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="robots" content="noindex, nofollow" />
+    <meta name="referrer" content="no-referrer" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="connect-src 'none'; form-action 'none'; base-uri 'none'; object-src 'none'"
+    />
+    <title>EFORTS — שאלון להורים</title>
+    <link rel="stylesheet" href="styles.css" />
+    <link rel="stylesheet" href="parent.css" />
+  </head>
   <body>
     <div class="container">
       <!-- Header -->
@@ -43,23 +46,34 @@
 
       <div id="pDraftBar" class="p-draft-bar" hidden>
         <span id="pDraftBarText">המשכנו מאיפה שעצרתם. התשובות שסימנתם שמורות רק במכשיר הזה.</span>
-        <button type="button" id="pDraftClear" class="btn btn-secondary p-btn-small">מחיקת הטיוטה</button>
+        <button type="button" id="pDraftClear" class="btn btn-secondary p-btn-small">איפוס</button>
       </div>
 
       <div id="pFormSection">
         <div class="progress-wrap">
           <div class="progress-bar"><div class="progress-fill" id="pProgressFill"></div></div>
           <div class="progress-text"><bdi dir="ltr" id="pProgressText">0 / 30</bdi></div>
+          <button type="button" id="pBarGap" class="p-bar-gap" hidden></button>
+          <div id="pBarNote" class="p-bar-note" role="status" hidden>המשכנו מאיפה שעצרתם</div>
         </div>
 
         <section id="pIntro" class="info-card">
           <div class="info-card-title" id="pIntroTitle">לפני שמתחילים</div>
           <div class="p-instr">
             <div class="p-instr-label" id="pInstrLabel">הוראות (מתוך השאלון)</div>
-            <p id="pInstr">במסגרת השגרות השונות בחיי היום יום אנו וילדינו מבצעים פעילויות רבות. מטרת השאלון היא לקבל תמונה על אופן הניהול העצמי של ילדך בשגרות היום יום. המשפטים הבאים מתייחסים לאופן הביצוע של ילדך בפעילויות הקשורות בשגרות יום יומיות שכיחות כמו שגרות הבוקר והערב, שגרת משחק ופנאי ושגרה של תפקוד חברתי. נא סמן/י √ מתחת לתשובה שמבטאת באופן הטוב ביותר את תפקוד ילדך בשלושת החודשים האחרונים בכל פעילות. בבקשה סמן/י תשובה בכל המשפטים. <em>השאלות מנוסחות בלשון זכר, אך מכוונות לבנים ולבנות כאחד.</em></p>
+            <p id="pInstr">
+              במסגרת השגרות השונות בחיי היום יום אנו וילדינו מבצעים פעילויות רבות. מטרת השאלון היא
+              לקבל תמונה על אופן הניהול העצמי של ילדך בשגרות היום יום. המשפטים הבאים מתייחסים לאופן
+              הביצוע של ילדך בפעילויות הקשורות בשגרות יום יומיות שכיחות כמו שגרות הבוקר והערב, שגרת
+              משחק ופנאי ושגרה של תפקוד חברתי. נא סמן/י √ מתחת לתשובה שמבטאת באופן הטוב ביותר את
+              תפקוד ילדך בשלושת החודשים האחרונים בכל פעילות. בבקשה סמן/י תשובה בכל המשפטים.
+              <em>השאלות מנוסחות בלשון זכר, אך מכוונות לבנים ולבנות כאחד.</em>
+            </p>
           </div>
           <p id="pHow">בכל שאלה לחצו על התשובה המתאימה ביותר. אפשר לשנות תשובה בכל שלב.</p>
-          <p id="pPrivacy" class="p-privacy">🔒 התשובות נשמרות רק במכשיר שלכם. הדף לא שולח אותן לשום מקום — בסוף אתם שולחים את הקובץ.</p>
+          <p id="pPrivacy" class="p-privacy">
+            🔒 התשובות נשמרות רק במכשיר שלכם — אפשר לעצור ולהמשיך אחר כך. בסוף אתם שולחים את הקובץ.
+          </p>
         </section>
 
         <section id="pDetails" class="info-card">
@@ -68,18 +82,24 @@
             <fieldset id="pSexField" class="info-field">
               <legend id="pSexLegend">מין</legend>
               <div class="p-scale p-scale-2">
-                <input type="radio" name="pSex" id="pSex_m" value="male">
+                <input type="radio" name="pSex" id="pSex_m" value="male" />
                 <label for="pSex_m">בן</label>
-                <input type="radio" name="pSex" id="pSex_f" value="female">
+                <input type="radio" name="pSex" id="pSex_f" value="female" />
                 <label for="pSex_f">בת</label>
               </div>
             </fieldset>
             <div class="info-field" id="pDobField" role="group" aria-labelledby="pDobLabel">
               <div id="pDobLabel" class="p-field-label">תאריך לידה</div>
               <div class="p-dob-row">
-                <select id="pDobDay" aria-label="יום לידה"><option value="">יום</option></select>
-                <select id="pDobMonth" aria-label="חודש לידה"><option value="">חודש</option></select>
-                <select id="pDobYear" aria-label="שנת לידה"><option value="">שנה</option></select>
+                <select id="pDobDay" aria-label="יום לידה">
+                  <option value="">יום</option>
+                </select>
+                <select id="pDobMonth" aria-label="חודש לידה">
+                  <option value="">חודש</option>
+                </select>
+                <select id="pDobYear" aria-label="שנת לידה">
+                  <option value="">שנה</option>
+                </select>
               </div>
               <p id="pDobError" class="p-hint p-field-error" role="alert" hidden></p>
               <p id="pDobHint" class="p-hint">אין צורך לכתוב שם. נזהה את השאלון לפי תאריך הלידה.</p>
@@ -93,7 +113,7 @@
 
         <div class="actions">
           <button type="button" id="pFinish" class="btn btn-primary">סיום</button>
-          <button type="button" id="pReset" class="btn btn-secondary">איפוס</button>
+          <button type="button" id="pReset" class="p-textlink">איפוס</button>
         </div>
       </div>
 
@@ -104,14 +124,22 @@
         <div id="pWayMain" class="p-way p-way-main">
           <button type="button" id="pSend" class="btn btn-primary">הורדת קובץ התשובות (PDF)</button>
           <p id="pSendHint" class="p-hint">הקובץ יישמר במחשב. שלחו אותו במייל למטפל/ת.</p>
-          <p id="pSendError" class="p-hint p-error" role="alert" hidden>לא הצלחנו ליצור את הקובץ. רעננו את הדף ונסו שוב.</p>
-          <button type="button" id="pDownloadOnly" class="btn btn-link" hidden>או: הורדת הקובץ למכשיר</button>
+          <p id="pSendError" class="p-hint p-error" role="alert" hidden>
+            לא הצלחנו ליצור את הקובץ. רעננו את הדף ונסו שוב.
+          </p>
+          <button type="button" id="pDownloadOnly" class="btn btn-link" hidden>
+            או: הורדת הקובץ למכשיר
+          </button>
         </div>
 
-        <p id="pDoneNote" class="p-hint">על התוצאות תשוחחו עם צוות הריפוי בעיסוק.</p>
-        <button type="button" id="pBack" class="btn btn-back">חזרה לתשובות</button>
-        <button type="button" id="pClearDone" class="btn btn-danger">מחיקת התשובות מהמכשיר</button>
-        <p id="pClearDoneHint" class="p-hint">מומלץ אחרי ששלחתם.</p>
+        <div class="p-done-links">
+          <button type="button" id="pBack" class="p-textlink">חזרה לתשובות</button>
+          <p id="pClearDoneHint" class="p-hint">מומלץ אחרי ששלחתם.</p>
+          <button type="button" id="pClearDone" class="p-textlink p-textlink-danger">
+            מחיקת התשובות מהמכשיר
+          </button>
+        </div>
+        <p id="pDoneNote" class="p-hint p-small">על התוצאות תשוחחו עם צוות הריפוי בעיסוק.</p>
       </section>
 
       <p id="pVersion" class="p-version">גרסה 1.0</p>

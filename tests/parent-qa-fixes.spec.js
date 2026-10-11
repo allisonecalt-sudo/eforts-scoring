@@ -45,7 +45,7 @@ test.describe('1. share path only on phones', () => {
     await finish(page);
     await expect(page.locator('#pSend')).toHaveText('הורדת קובץ התשובות (PDF)');
     await expect(page.locator('#pSendHint')).toHaveText(
-      'הקובץ יישמר במחשב. שלחו אותו במייל למטפל/ת.',
+      'צרפו את הקובץ למייל ושלחו לכתובת שקיבלתם מהמטפל/ת.',
     );
     await expect(page.locator('#pDownloadOnly')).toBeHidden();
   });
@@ -64,7 +64,7 @@ test.describe('1. share path only on phones', () => {
     await finish(page);
     await expect(page.locator('#pSend')).toHaveText('הורדת קובץ התשובות (PDF)');
     await expect(page.locator('#pSendHint')).toHaveText(
-      'הקובץ יישמר במכשיר. שלחו אותו במייל למטפל/ת.',
+      'צרפו את הקובץ למייל ושלחו לכתובת שקיבלתם מהמטפל/ת.',
     );
     await expect(page.locator('#pDownloadOnly')).toBeHidden();
   });
@@ -158,7 +158,7 @@ test.describe('3-5. the missing message', () => {
     await expect(page.locator('#pMissing')).not.toContainText('תאריך לידה');
 
     // a companion change also re-checks; answering the last item hides it
-    await page.locator('#pWith_play').selectOption('mom');
+    await page.locator('#pWith_play .p-choice[data-value="mom"]').click();
     await expect(page.locator('#pMissing')).toBeVisible();
     await page.locator('label[for="pq17_2"]').click();
     await expect(page.locator('#pMissing')).toBeHidden();
@@ -205,9 +205,9 @@ test('7b. still blocked after the retry: the error message stays', async ({ page
 
 test('8. an undo that empties the form clears the saved draft', async ({ page }) => {
   await gotoParent(page);
-  await page.locator('#pWith_play').selectOption('mom');
+  await page.locator('#pWith_play .p-choice[data-value="mom"]').click();
   expect(await page.evaluate(() => localStorage.getItem('eforts_parent_draft_v1'))).not.toBeNull();
-  await page.locator('#pWith_play').selectOption('');
+  await page.locator('#pWith_play .p-choice[data-value="mom"]').click();
   expect(await page.evaluate(() => localStorage.getItem('eforts_parent_draft_v1'))).toBeNull();
 
   await setDob(page, '2021-02-28');
@@ -302,8 +302,8 @@ test.describe('fix-all: date selects, restore scroll, companion size, file name'
       'דצמבר',
     ]);
     const years = await page.$$eval('#pDobYear option', (o) => o.map((x) => x.value));
-    expect(years[1]).toBe('2013');
-    expect(years[years.length - 1]).toBe('2024');
+    expect(years[1]).toBe('2023');
+    expect(years[years.length - 1]).toBe('2014');
     const days = await page.$$eval('#pDobDay option', (o) => o.length);
     expect(days).toBe(32);
   });
@@ -382,16 +382,14 @@ test.describe('fix-all: date selects, restore scroll, companion size, file name'
     expect(top).toBeGreaterThanOrEqual(0);
   });
 
-  test('3. companion selects are at least 44px tall on a phone', async ({ page }) => {
+  test('3. companion buttons are at least 44px tall on a phone', async ({ page }) => {
     await page.setViewportSize({ width: 375, height: 700 });
     await gotoParent(page);
-    const h = await page.$eval('#pWith_morning', (e) => e.getBoundingClientRect().height);
-    expect(h).toBeGreaterThanOrEqual(44);
-    const [lw, cw] = await page.evaluate(() => {
-      const l = document.querySelector('label[for="pWith_morning"]');
-      return [l.getBoundingClientRect().width, l.parentElement.getBoundingClientRect().width];
-    });
-    expect(lw).toBeGreaterThan(cw * 0.8);
+    const hs = await page.$$eval('#pWith_morning .p-choice', (els) =>
+      els.map((e) => e.getBoundingClientRect().height),
+    );
+    expect(hs).toHaveLength(4);
+    hs.forEach((h) => expect(h).toBeGreaterThanOrEqual(44));
   });
 
   test('4. the missing band starts at the top of the question', async ({ page }) => {

@@ -57,7 +57,7 @@ test.describe('parent page — no email address anywhere', () => {
     await expect(page.locator('a[href^="mailto:"]')).toHaveCount(0);
     await expect(page.locator('#pAskTo, #pWayMail, #pMailto')).toHaveCount(0);
     await expect(page.locator('#pSendHint')).toHaveText(
-      'הקובץ יישמר במחשב. שלחו אותו במייל למטפל/ת.',
+      'צרפו את הקובץ למייל ושלחו לכתובת שקיבלתם מהמטפל/ת.',
     );
   });
 
