@@ -1116,8 +1116,13 @@ function buildSummary(d) {
       });
       // S4 (QA 2026-10-11): with NO function below its cutoff, a "close" one
       // is never the main explanation — the paragraph stays routine-only.
+      // S4b (re-check): the rule is PER PARAGRAPH — a close function may be
+      // named only as the secondary one, and only when a below-cutoff
+      // function is ALSO named in this same paragraph. Otherwise the
+      // paragraph falls to the routine-only branch (score sentence only).
+      const paragraphHasBelowEf = Object.keys(byEf).some((ef) => efStatusMap[ef] === 'below');
       const eligibleEfKeys = Object.keys(byEf).filter(
-        (ef) => efStatusMap[ef] === 'below' || (efStatusMap[ef] === 'close' && weakEFs.length > 0),
+        (ef) => efStatusMap[ef] === 'below' || (efStatusMap[ef] === 'close' && paragraphHasBelowEf),
       );
       const statusRank = { below: 0, close: 1 };
       const efOrder = eligibleEfKeys.sort(

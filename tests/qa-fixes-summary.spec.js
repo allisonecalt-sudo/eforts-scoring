@@ -296,3 +296,76 @@ test('parent sheet: a low routine with no 1-2 answer gets the fallback line', as
   const txt = await popup.locator('body').innerText();
   expect(txt).toContain('התמונה עולה מכמה תשובות יחד, ולא מתשובה אחת בולטת.');
 });
+
+// ===== S4b (re-check): the close-function rule is per paragraph =====
+// r2-close-primary-a / -b: a function is below overall, but one routine
+// paragraph's weak items all belong to the CLOSE function (flexibility).
+const CLOSE_PRIMARY = [
+  {
+    id: 'r2-close-primary-a',
+    male: true,
+    answers: [
+      2, 2, 3, 2, 3, 2, 3, 2, 3, 2, 2, 2, 2, 3, 3, 1, 3, 3, 3, 3, 3, 2, 3, 4, 3, 3, 3, 5, 3, 3,
+    ],
+  },
+  {
+    id: 'r2-close-primary-b',
+    male: false,
+    answers: [
+      2, 3, 4, 3, 1, 3, 2, 4, 1, 1, 3, 4, 3, 2, 4, 4, 2, 5, 3, 3, 1, 4, 4, 5, 5, 5, 1, 5, 5, 5,
+    ],
+  },
+];
+
+for (const c of CLOSE_PRIMARY) {
+  test(`S4b: ${c.id} - a close function is only ever the secondary «ולעיתים», never alone`, async ({
+    page,
+  }) => {
+    await gotoApp(page);
+    const r = await page.evaluate(
+      ({ answers, male }) => {
+        const scores = {};
+        items.forEach((it, i) => (scores[it.num] = answers[i]));
+        const cut = cutoffs['8-11'];
+        const rAvg = (k) => avg(items.filter((i) => i.routine === k).map((i) => scores[i.num]));
+        const eAvg = (k) => avg(items.filter((i) => i.ef === k).map((i) => scores[i.num]));
+        const m = rAvg('morning');
+        const p = rAvg('play');
+        const s = rAvg('social');
+        const html = buildSummary({
+          anonId: '1',
+          gender: male ? 'זכר' : 'נקבה',
+          isMale: male,
+          ageText: '',
+          ageLabel: '',
+          morningAvg: m,
+          playAvg: p,
+          socialAvg: s,
+          totalAvg: avg([m, p, s]),
+          inhAvg: eAvg('inh'),
+          wmAvg: eAvg('wm'),
+          flexAvg: eAvg('flex'),
+          c: cut,
+          scores,
+        });
+        const text = html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
+        return {
+          text,
+          flex: cutoffStatus(eAvg('flex'), cut.flex, 'ef').key,
+          wm: cutoffStatus(eAvg('wm'), cut.wm, 'ef').key,
+        };
+      },
+      { answers: c.answers, male: c.male },
+    );
+    expect(r.flex).toBe('close');
+    expect(r.wm).toBe('below');
+    // every sentence naming flexibility as a cause must be the secondary one
+    const causes =
+      r.text.match(/[^.]*(?:מושפע|קשור|נובע)[^.]*קושי ב(?:גמישות מחשבתית)[^.]*\./g) || [];
+    for (const s of causes) {
+      expect(s, s).toContain('ולעיתים על רקע קושי בגמישות מחשבתית');
+    }
+    expect(r.text).not.toMatch(/מושפע מקושי בגמישות מחשבתית/);
+    expect(r.text).not.toMatch(/קשור לקושי בגמישות מחשבתית/);
+  });
+}
