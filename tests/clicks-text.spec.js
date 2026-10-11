@@ -12,9 +12,8 @@ async function fillAndCalc(page, model, anon) {
   await page.locator('#importCode').fill(code);
   await page.locator('#importCodeBtn').click();
   await expect(page.locator('#importPreview')).toBeVisible();
+  await page.locator('#importAnon').fill(anon);
   await page.locator('#importApply').click();
-  await page.locator('#anonId').fill(anon);
-  await page.locator('button', { hasText: 'חשב ציונים' }).click();
   await expect(page.locator('#results')).toBeVisible();
 }
 
@@ -24,7 +23,7 @@ test.describe('Clicks text download', () => {
   }) => {
     await fillAndCalc(page, MODELS.G50, '7');
     const btn = page.locator('.btn-clicks');
-    await expect(btn).toHaveText('הורדה לקליקס (טקסט)');
+    await expect(btn).toHaveText('או: הורדה כקובץ טקסט (Notepad)');
     const dlP = page.waitForEvent('download');
     await btn.click();
     const dl = await dlP;
