@@ -64,11 +64,24 @@ function getAnonId() {
 // still print "נמוך מציון החתך" — reads like a software bug. Reveal a
 // 3rd decimal only in that exact collision; the comparison used for
 // status (cutoffStatus) always stays on the raw, unrounded numbers.
+// S2: round half-up on the exact value. A mean like 3.375 can sit a hair
+// under in floating point and toFixed() would then print 3.37.
+function round2(x) {
+  return (Math.round((x + 1e-9) * 100) / 100).toFixed(2);
+}
+// S3: when score < cutoff and both show the same at 2 decimals, show the
+// score FLOORED to 3 decimals (so it can never read as the cutoff); if
+// that still equals the cutoff at 3 decimals, floor to 4.
 function fmtScore(score, cutoff) {
-  if (score < cutoff && score.toFixed(2) === cutoff.toFixed(2)) {
-    return score.toFixed(3);
+  if (score < cutoff && round2(score) === cutoff.toFixed(2)) {
+    const floorTo = (digits) => {
+      const f = 10 ** digits;
+      return (Math.floor(score * f + 1e-9) / f).toFixed(digits);
+    };
+    const three = floorTo(3);
+    return three === cutoff.toFixed(3) ? floorTo(4) : three;
   }
-  return score.toFixed(2);
+  return round2(score);
 }
 
 // Item 17: shared by the drilldown badges (scoreRow) and the print item
@@ -811,6 +824,9 @@ function itemPhrases(isMale) {
   return { diffPhrase, strengthPhrase };
 }
 
+// canon B3: morning/evening twin pairs (items 1-16 only).
+const ITEM_TWIN = { 1: 9, 9: 1, 4: 12, 12: 4, 5: 13, 13: 5, 6: 14, 14: 6, 8: 16, 16: 8 };
+
 function buildSummary(d) {
   const belowCutoff = (s, c) => s < c;
   const m = d.isMale;
@@ -837,11 +853,11 @@ function buildSummary(d) {
   // rule 7, "a 3 may ride along"). 2↔10, 3↔11 are excluded because 10/11
   // carry no EF; 7↔15 is excluded because the two items sit under different
   // EFs. Only items 1-16 (morning/evening) have twins at all.
-  const twinOf = { 1: 9, 9: 1, 4: 12, 12: 4, 5: 13, 13: 5, 6: 14, 14: 6, 8: 16, 16: 8 };
+  const twinOf = ITEM_TWIN;
   const pairKey = (a, b) => [a, b].sort((x, y) => x - y).join('-');
   const twinMergePhrase = {
     '1-9': 'מתקשה ביוזמה של תחילת פעילות',
-    '4-12': 'קושי להתארגן על פי כללי הבית, כמו הנחת בגדים במקום ופינוי כלים',
+    '4-12': 'מתקשה להתארגן על פי כללי הבית, כמו הנחת בגדים במקום ופינוי כלים',
     '5-13': diffPhrase[5],
     '6-14': diffPhrase[6],
     '8-16': diffPhrase[8],
@@ -880,6 +896,15 @@ function buildSummary(d) {
   });
 
   const strongItemsAll = items.filter((i) => d.scores[i.num] >= 4);
+  // S1 (QA 2026-10-11): a function is named as a strength ONLY when its own
+  // status is clearly in norm (not below, not close, not at the cutoff).
+  // Items 10/11 carry no function but are working-memory-like, so they
+  // follow working memory.
+  const strengthFunctionOk = (num) => {
+    const it = items.find((x) => x.num === num);
+    const ef = it.ef || (num === 10 || num === 11 ? 'wm' : null);
+    return !ef || efStatusMap[ef] === 'above';
+  };
 
   const fmt = (n) => n.toFixed(2);
   const header = (t) =>
@@ -893,6 +918,10 @@ function buildSummary(d) {
   let intro = `על פי דיווח ההורים בשאלון ה-EFORTS, `;
   if (totalBelow && weakRoutines.length === 3) {
     intro += `עולה קושי בניהול עצמאי של שגרות היום-יום ביחס לבני ${hisAge} (${got} ציון כולל ${fmtScore(d.totalAvg, d.c.total)} כאשר ציון החתך הוא ${fmt(d.c.total)}). התפקוד בשלוש השגרות (בוקר וערב, פנאי ומשחק ושגרה חברתית) נמוך מהמצופה ${g('לגילו', 'לגילה')}.`;
+  } else if (totalBelow && weakRoutines.length === 0) {
+    // S6 (QA 2026-10-11): total below cutoff but no routine below — say so
+    // plainly; never a dangling "בעיקר" with nothing after it.
+    intro += `הציון הכולל נמוך מציון החתך (${got} ציון כולל ${fmtScore(d.totalAvg, d.c.total)} כאשר ציון החתך הוא ${fmt(d.c.total)}), אף שהציון בכל שגרה בנפרד אינו נמוך מציון החתך.`;
   } else if (totalBelow) {
     intro += `עולה קושי בניהול עצמאי של שגרות היום-יום ביחס לבני ${hisAge} (${got} ציון כולל ${fmtScore(d.totalAvg, d.c.total)} כאשר ציון החתך הוא ${fmt(d.c.total)}), בעיקר ${weakRoutines.map((r) => r.inName).join(' ו')}.`;
   } else if (weakRoutines.length > 0 || weakEFs.length > 0) {
@@ -927,7 +956,7 @@ function buildSummary(d) {
   s += para(intro);
 
   // ===== משמעות קלינית — routine by routine, EF attribution inside =====
-  if (weakRoutines.length > 0 || weakEFs.length > 0) {
+  if (weakRoutines.length > 0 || weakEFs.length > 0 || totalBelow) {
     s += header('משמעות קלינית');
 
     // canon F-7 / table row "Total in norm, profile weak" (MUST, Carmit
@@ -938,7 +967,10 @@ function buildSummary(d) {
     if (okRoutines.length > 0 && weakRoutines.length > 0) {
       if (!totalBelow) {
         const first = weakRoutines[0];
-        mergedFirstWeakPrefix = `ממצאי השאלון מורים על ציונים בטווח הנורמה (גבוהים מציון החתך) ${okRoutines.map((r) => r.inName).join(' ו')}, והציון ${first.inName} `;
+        mergedFirstWeakPrefix =
+          okRoutines.length === 1
+            ? `ממצאי השאלון מורים על ציון בטווח הנורמה (גבוה מציון החתך) ${okRoutines[0].inName}, והציון ${first.inName} `
+            : `ממצאי השאלון מורים על ציונים בטווח הנורמה (גבוהים מציון החתך) ${okRoutines.map((r) => r.inName).join(' ו')}, והציון ${first.inName} `;
       } else {
         // canon table row "Total below, only 1-2 routines low" (SHOULD,
         // deduced — no model verifies this exact mix). Credit the in-norm
@@ -946,7 +978,7 @@ function buildSummary(d) {
         // routine(s)' status — each gets its own paragraph below, so
         // nothing is announced twice either way.
         s += para(
-          `ממצאי השאלון מורים על ציונים בטווח הנורמה ${okRoutines.map((r) => r.inName).join(' ו')}.`,
+          `ממצאי השאלון מורים על ${okRoutines.length === 1 ? 'ציון' : 'ציונים'} בטווח הנורמה ${okRoutines.map((r) => r.inName).join(' ו')}.`,
         );
       }
     }
@@ -993,7 +1025,11 @@ function buildSummary(d) {
         if (!i.ef) return; // rule 21: items 10/11 are never EF evidence
         (byEf[i.ef] = byEf[i.ef] || []).push(i);
       });
-      const eligibleEfKeys = Object.keys(byEf).filter((ef) => efStatusMap[ef] !== 'above');
+      // S4 (QA 2026-10-11): with NO function below its cutoff, a "close" one
+      // is never the main explanation — the paragraph stays routine-only.
+      const eligibleEfKeys = Object.keys(byEf).filter(
+        (ef) => efStatusMap[ef] === 'below' || (efStatusMap[ef] === 'close' && weakEFs.length > 0),
+      );
       const statusRank = { below: 0, close: 1 };
       const efOrder = eligibleEfKeys.sort(
         (a, b) =>
@@ -1068,6 +1104,10 @@ function buildSummary(d) {
           // path (model 32 had none) — one form everywhere now: "– " (en
           // dash, spaced).
           attribution = `נראה כי הקושי התפקודי נובע לרוב מקושי ב${efNames[ef1]}, כמו למשל – ${ex1}, ולעיתים על רקע קושי ב${efNames[ef2]}, כפי שמתבטא בכך ש${g('הוא', 'היא')} ${ex2}.`;
+        } else if (usedEFs.has(ef1) && usedEFs.has(ef2)) {
+          // S7 / canon F22: both functions were already named in an earlier
+          // paragraph — a transition, not the same opener again.
+          attribution = `גם כאן נראה כי הקושי התפקודי קשור לקושי ב${efNames[ef1]}, כמו למשל – ${ex1}, וכן לקושי ב${efNames[ef2]}, שמתבטא בין השאר בכך ש${g('הוא', 'היא')} ${ex2}.`;
         } else {
           // canon rule 16: two EFs both below their own cutoffs share equal
           // weight — no "בעיקר" on the first.
@@ -1087,6 +1127,7 @@ function buildSummary(d) {
       const blamedEFs = new Set(chosen);
       const eligibleStrong = rStrong.filter((i) => {
         if (i.ef && blamedEFs.has(i.ef)) return false;
+        if (!strengthFunctionOk(i.num)) return false;
         const twinNum = twinOf[i.num];
         const twinScore = twinNum != null ? d.scores[twinNum] : undefined;
         if (twinScore != null && twinScore <= 2) return false;
@@ -1247,7 +1288,12 @@ function buildSummary(d) {
 
       efPara += `${statusSentence} (${bracket}).`;
     }
-    s += para(efPara);
+    // S6: total below with nothing else below — the cross-function paragraph
+    // only when some function is close to its cutoff.
+    const onlyTotalBelow = weakRoutines.length === 0 && weakEFs.length === 0;
+    if (!(onlyTotalBelow && efData.every((e) => efStatusMap[e.key] === 'above'))) {
+      s += para(efPara);
+    }
 
     // ===== המלצה =====
     let rec =
@@ -1275,7 +1321,7 @@ function buildSummary(d) {
       // target ("...אל המשימות שקשות לו יותר" implied a harder routine that
       // doesn't exist here).
       if (weakRoutines.length === 0) {
-        rec += `, תוך שימת דגש על ${hisMotivation}, איסוף חוויות של הצלחה גם אם קטנות.`;
+        rec += `, תוך שימת דגש על ${hisMotivation} ועל איסוף חוויות של הצלחה, גם אם קטנות.`;
       } else {
         // Gemini review R7-5a (7.10): joinHe ("A, B וC"), never the flat
         // "A וB וC" a plain join(' ו') produces for three routines. Guarded
@@ -1536,15 +1582,15 @@ function downloadForAI() {
 // wording comes from itemPhrases(). Never shows scores, cutoffs, item
 // numbers, the anonymous number or the clinical summary.
 const PARENT_ROUTINES = [
-  { key: 'morning', name: 'שגרת הבוקר והערב' },
-  { key: 'play', name: 'משחק ופנאי' },
-  { key: 'social', name: 'מצבים חברתיים' },
+  { key: 'morning', name: 'שגרת בוקר וערב', inBrief: 'שגרת הבוקר והערב' },
+  { key: 'play', name: 'שגרת פנאי ומשחק', inBrief: 'שגרת הפנאי והמשחק' },
+  { key: 'social', name: 'שגרה חברתית', inBrief: 'השגרה החברתית' },
 ];
 const PARENT_SKILLS = [
   {
     key: 'inh',
     name: 'עצירה לפני תגובה (עכבה)',
-    desc: 'להתעלם מהסחות, לסיים דבר אחד לפני שעוברים לבא, ולעצור לחשוב לפני שמגיבים.',
+    desc: 'להתעלם מהסחות, לסיים דבר אחד לפני שעוברים לבא ולעצור לחשוב לפני שמגיבים.',
   },
   {
     key: 'wm',
@@ -1554,7 +1600,7 @@ const PARENT_SKILLS = [
   {
     key: 'flex',
     name: 'יוזמה וגמישות (גמישות מחשבתית)',
-    desc: 'ליזום, לתכנן, ולמצוא פתרון כשמשהו לא מסתדר.',
+    desc: 'ליזום, לתכנן ולמצוא פתרון כשמשהו לא מסתדר.',
   },
 ];
 
@@ -1588,10 +1634,14 @@ function buildParentSheetHtml(p) {
   let mode;
   if (anyRoutine) {
     mode = 'B';
-    brief = `על פי התשובות שלכם, יש שגרות שקשות ${TO_CHILD} יותר מהצפוי ${AGE}. הפירוט בהמשך.`;
+    const lowRoutines = routines.filter((r) => r.below);
+    brief =
+      lowRoutines.length === 1
+        ? `על פי התשובות שלכם, ${lowRoutines[0].inBrief} קשה ${TO_CHILD} יותר מהצפוי ${AGE}. הפירוט בהמשך.`
+        : `על פי התשובות שלכם, יש שגרות שקשות ${TO_CHILD} יותר מהצפוי ${AGE}. הפירוט בהמשך.`;
   } else if (anySkill) {
     mode = 'C';
-    brief = `על פי התשובות שלכם, ${CHILD} ${MANAGES} בשגרות היום-יום כצפוי ${AGE}, ועם זאת עלה קושי באחת המיומנויות. הפירוט בהמשך.`;
+    brief = `על פי התשובות שלכם, ${CHILD} ${MANAGES} בשגרות היום-יום כצפוי ${AGE}, ועם זאת עלה קושי ${skills.filter((x) => x.below).length === 1 ? 'באחת המיומנויות' : 'בחלק מהמיומנויות'}. הפירוט בהמשך.`;
   } else if (totalBelow) {
     mode = 'D';
     brief = `על פי התשובות שלכם, התמונה הכללית מעט נמוכה מהצפוי ${AGE}, גם אם אף שגרה לבדה אינה בולטת. נשוחח על כך יחד.`;
@@ -1602,8 +1652,18 @@ function buildParentSheetHtml(p) {
 
   // What's going well: routines not below cutoff, then up to 3 strengths.
   const goodLines = routines.filter((r) => !r.below).map((r) => `${r.name}: כצפוי לגיל.`);
+  // Same rule as the clinical summary (S1): a strength is shown only if its
+  // function is clearly in norm; items 10/11 follow working memory; an item
+  // whose twin scored 1-2 is skipped.
+  const skillNorm = (key) => cutoffStatus(skillAvg(key), c[key], 'ef').key === 'norm';
+  const strengthOk = (i) => {
+    const ef = i.ef || (i.num === 10 || i.num === 11 ? 'wm' : null);
+    if (ef && !skillNorm(ef)) return false;
+    const tw = ITEM_TWIN[i.num];
+    return !(tw != null && scores[tw] <= 2);
+  };
   const strongItems = items
-    .filter((i) => scores[i.num] >= 4)
+    .filter((i) => scores[i.num] >= 4 && strengthOk(i))
     .sort((a, b) => scores[b.num] - scores[a.num] || a.num - b.num);
   const strengths = [];
   strongItems.forEach((i) => {
@@ -1629,7 +1689,7 @@ function buildParentSheetHtml(p) {
       `<p class="hard">${e(title)}: קשה יותר מהצפוי לגיל — כדאי לדבר על זה.</p>` +
       (ex.length
         ? `<p class="eg">למשל, לפי התשובות שלכם:</p><ul>${ex.map((x) => `<li>${e(x)}.</li>`).join('')}</ul>`
-        : '')
+        : '<p class="eg">התמונה עולה מכמה תשובות יחד, ולא מתשובה אחת בולטת.</p>')
     );
   };
   let harderHtml = '';
@@ -1672,7 +1732,9 @@ function buildParentSheetHtml(p) {
     : '';
 
   const sexWord = sexRaw === 'male' ? 'בן' : sexRaw === 'female' ? 'בת' : '';
-  const meta = [sexWord, ageText, `תאריך מילוי: ${fillDateText}`].filter(Boolean).join(' · ');
+  const meta = [[sexWord, ageText].filter(Boolean).join(' '), `תאריך מילוי: ${fillDateText}`]
+    .filter(Boolean)
+    .join(' · ');
 
   return `<!DOCTYPE html>
 <html lang="he" dir="rtl">
@@ -1681,7 +1743,8 @@ function buildParentSheetHtml(p) {
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;600;700&display=swap');
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: 'Heebo', sans-serif; direction: rtl; color: #1a202c; line-height: 1.55; padding: 18px; max-width: 760px; margin: 0 auto; font-size: 13px; }
+  @page { size: A4; margin: 10mm; }
+  body { font-family: 'Heebo', sans-serif; direction: rtl; color: #1a202c; line-height: 1.45; padding: 18px; max-width: 760px; margin: 0 auto; font-size: 13px; }
   .head { text-align: center; margin-bottom: 8px; }
   .logos { display: flex; align-items: flex-end; justify-content: center; gap: 14px; margin-bottom: 6px; }
   .logos img { height: 28px; width: auto; max-width: 100px; object-fit: contain; }
@@ -1705,7 +1768,7 @@ function buildParentSheetHtml(p) {
   .note { border: 1px solid #94a3b8; border-radius: 6px; padding: 6px 10px; }
   .footer { text-align: center; font-size: 10px; color: #64748b; margin-top: 14px; padding-top: 6px; border-top: 1px solid #cbd5e1; }
   section { break-inside: avoid; }
-  @media print { body { padding: 8px; } }
+  @media print { body { padding: 0; max-width: none; font-size: 12px; line-height: 1.4; } h1 { margin: 6px 0 2px; } h2 { margin: 8px 0 3px; } .skill { margin-bottom: 4px; } }
 </style>
 </head>
 <body>
@@ -1722,7 +1785,7 @@ function buildParentSheetHtml(p) {
   <div class="meta">${e(meta)}</div>
 
   <section><h2>מה זה הסיכום הזה</h2>
-  <p>הסיכום מבוסס על התשובות שלכם בשאלון. זהו שאלון סינון: הוא עוזר להבין איך ${CHILD} ${MANAGES} בשגרות היום-יום, אבל הוא אינו אבחנה ואינו ציון על ההורות שלכם. תקופה עמוסה, מחלה או שבוע קשה יכולים להשפיע על התשובות.</p></section>
+  <p>הסיכום מבוסס על התשובות שלכם בשאלון. זהו שאלון סינון: הוא עוזר להבין איך ${CHILD} ${MANAGES} בשגרות היום-יום, אבל הוא אינו אבחנה ואינו מעיד על ההורות שלכם. תקופה עמוסה, מחלה או שבוע קשה יכולים להשפיע על התשובות.</p></section>
 
   <section><h2>בקצרה</h2><p>${brief}</p></section>
 

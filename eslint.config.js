@@ -115,6 +115,7 @@ module.exports = [
         fmtScore: 'readonly',
         escapeHtml: 'readonly',
         getAnonId: 'readonly',
+        itemPhrases: 'readonly',
         // FX2 (strength noun-phrase slot, Gemini review item 4)
         strengthNoun: 'readonly',
         strengthNounSlot: 'readonly',
