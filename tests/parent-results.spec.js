@@ -186,10 +186,9 @@ test('OT results screen — buttons and note box', async ({ page }) => {
   });
   await expect(page.locator('.btn-pdf')).toHaveText('PDF למטפל/ת');
   await expect(page.locator('.btn-parent-pdf')).toHaveText('PDF להורים');
-  await expect(page.locator('.parent-box-title')).toHaveText('סיכום להורים');
-  await expect(page.locator('#parentNote')).toHaveAttribute(
-    'placeholder',
-    'הערה אישית להורים (לא חובה) — למשל דבר אחד לנסות בבית',
+  await expect(page.locator('.parent-box-title')).toHaveText('דף להורים');
+  await expect(page.locator('label[for="parentNote"]')).toHaveText(
+    'הערה אישית (לא חובה) — תופיע בדף להורים',
   );
   await expect(page.locator('.parent-box-hint')).toHaveText(
     'מומלץ למסור להורים בפגישה או מיד אחריה.',

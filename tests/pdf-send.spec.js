@@ -119,6 +119,7 @@ test('b: upload the parent PDF in the practitioner app -> preview -> apply fills
   await gotoApp(page);
   await page.setInputFiles('#importFile', pdf.path);
   await expect(page.locator('#importPreview')).toBeVisible();
+  await page.locator('#importAnon').fill('7');
   await page.locator('#importApply').click();
   await expect(page.locator('#importStatus')).toHaveClass(/ok/);
 
@@ -141,6 +142,7 @@ test('c: a PDF with compressed (Flate) streams imports through the inflate path'
     buffer: buf,
   });
   await expect(page.locator('#importPreview')).toBeVisible();
+  await page.locator('#importAnon').fill('7');
   await page.locator('#importApply').click();
   expect(await readAppModel(page)).toEqual(MODELS.G50);
 });

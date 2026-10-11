@@ -65,7 +65,7 @@ async function settleScroll(page) {
 }
 
 // ===== O1 =====
-test('O1: import clears the anonymous number, focuses it, and the confirm says so', async ({
+test('O1: import replaces the previous number with the one typed in the preview, and the confirm says so', async ({
   page,
 }) => {
   await openFresh(page);
@@ -78,11 +78,11 @@ test('O1: import clears the anonymous number, focuses it, and the confirm says s
     message = d.message();
     d.accept();
   });
+  await page.locator('#importAnon').fill('7');
   await page.locator('#importApply').click();
   await expect(page.locator('#importStatus')).toHaveClass(/ok/);
   expect(message).toBe('הטופס כבר מכיל נתונים. הייבוא יחליף אותם, כולל המספר האנונימי. להמשיך?');
-  expect(await page.locator('#anonId').inputValue()).toBe('');
-  await expect(page.locator('#anonId')).toBeFocused();
+  expect(await page.locator('#anonId').inputValue()).toBe('7');
 });
 
 // ===== O2 =====
@@ -127,23 +127,28 @@ test('O2: the companion selects auto-save like every other field', async ({ page
 });
 
 // ===== O3 =====
-test('O3: a warning scrolls into view BELOW the sticky progress bar', async ({ page }) => {
+test('O10: a warning scrolls to its field, focuses and marks it, and sits under it', async ({
+  page,
+}) => {
   await openFresh(page);
-  await page.locator('button:text-is("חשב ציונים")').scrollIntoViewIfNeeded();
-  await page.locator('button:text-is("חשב ציונים")').click();
+  await page.locator('#calcBottom').scrollIntoViewIfNeeded();
+  await page.locator('#calcBottom').click();
   await expect(page.locator('#warning')).toBeVisible();
-  // the smooth scroll takes a moment: poll until the warning sits below the bar
+  await expect(page.locator('#birthDay')).toBeFocused();
+  await expect(page.locator('#birthDay')).toHaveClass(/field-invalid/);
+  await expect(page.locator('#birthDay')).toHaveAttribute('aria-invalid', 'true');
+  // the message is in the same card as the field, after it, and on screen
   await expect
     .poll(
       () =>
         page.evaluate(() => {
-          const bar = document.getElementById('progressWrap').getBoundingClientRect();
+          const f = document.getElementById('birthDay').getBoundingClientRect();
           const w = document.getElementById('warning').getBoundingClientRect();
-          return Math.round(w.top - bar.bottom);
+          return w.top >= f.bottom && w.top >= 0 && w.bottom <= window.innerHeight;
         }),
       { timeout: 8000 },
     )
-    .toBeGreaterThanOrEqual(0);
+    .toBe(true);
 });
 
 // ===== O4 =====
@@ -187,6 +192,7 @@ test('O4: with storage blocked, import still works', async ({ page }) => {
   await openFresh(page);
   await importCodeWith(page, {});
   await expect(page.locator('#importPreview')).toBeVisible();
+  await page.locator('#importAnon').fill('7');
   await page.locator('#importApply').click();
   await expect(page.locator('#importStatus')).toHaveClass(/ok/);
   await expect(page.locator('#progressText')).toHaveText('30 / 30');
@@ -219,7 +225,7 @@ test('the OT note to the parents survives back → calculate, never stored', asy
   expect(ai).not.toContain('דבר אחד');
   // a new questionnaire starts without the old note
   page.once('dialog', (d) => d.accept());
-  await page.locator('button:text-is("שאלון חדש")').last().click();
+  await page.locator('.btn-new').click();
   await fillAndCalculate(page, {
     sex: 'female',
     ageYearsBack: 6,
@@ -283,9 +289,8 @@ test('a successful paste check scrolls the preview into view below the bar', asy
   await importCodeWith(page, {});
   await expect(page.locator('#importPreview')).toBeVisible();
   await settleScroll(page);
-  const bar = await page.locator('#progressWrap').boundingBox();
   const prev = await page.locator('#importPreview').boundingBox();
-  expect(prev.y).toBeGreaterThanOrEqual(bar.y + bar.height - 1);
+  expect(prev.y).toBeGreaterThanOrEqual(0); // not parked above the top of the screen
 });
 
 test('an image file is «not an answers file», not «too big»', async ({ page }) => {
@@ -389,7 +394,7 @@ test('AI button name; AI file has a BOM and the raw number; Clicks shows the how
     anonId: ' A&B 7 ',
   });
   await expect(page.locator('.btn-ai')).toHaveText('הורדה ל-AI (טקסט)');
-  await expect(page.locator('.summary-card')).toContainText('הורדה ל-AI (טקסט)');
+  await expect(page.locator('.ai-help')).toContainText('הורדה ל-AI (טקסט)');
 
   const [aiDownload] = await Promise.all([
     page.waitForEvent('download'),

@@ -235,6 +235,8 @@ test.describe('practitioner page — import box', () => {
     await expect(page.locator('#importPreview')).toBeVisible();
     const dropPreview = await page.locator('#importPreviewList').innerText();
 
+    await page.locator('#importAnon').fill('7');
+
     await page.locator('#importApply').click();
     await expect(page.locator('#importStatus')).toHaveClass(/ok/);
     expect(await page.locator('#childGender').inputValue()).toBe('male');
@@ -247,6 +249,7 @@ test.describe('practitioner page — import box', () => {
     await page.setInputFiles('#importFile', filePath);
     await expect(page.locator('#importPreview')).toBeVisible();
     expect(await page.locator('#importPreviewList').innerText()).toBe(dropPreview);
+    await page.locator('#importAnon').fill('7');
     await page.locator('#importApply').click();
     const inputModel = await page.evaluate(() =>
       [...document.querySelectorAll('#questionnaire input[type="radio"]:checked')].map((r) => r.id),

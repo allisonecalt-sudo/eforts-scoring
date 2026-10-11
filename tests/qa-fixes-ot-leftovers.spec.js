@@ -198,6 +198,6 @@ test('11: «גרור/י» only with a mouse; copy status clears on reset; period
   await page.evaluate(() => window.resetForm());
   await expect(page.locator('#sendStatus')).toHaveText('');
 
-  await page.locator('button:text-is("חשב ציונים")').click();
+  await page.locator('#calcBottom').click();
   await expect(page.locator('#warning')).toHaveText('יש להזין תאריך לידה לפני חישוב הציונים.');
 });

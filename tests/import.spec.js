@@ -84,8 +84,10 @@ async function runRoundTrip(
   await importByCode(page, code);
   await expect(page.locator('#importPreview')).toBeVisible();
 
+  await page.locator('#importAnon').fill(anonId);
   await page.locator('#importApply').click();
   await expect(page.locator('#importStatus')).toHaveClass(/ok/);
+  await expect(page.locator('#results')).toBeVisible(); // O1: fill + calculate in one press
 
   // lossless (§D.4): re-encoding the app's own state reproduces the exact
   // golden string the parent page generated.
@@ -96,8 +98,7 @@ async function runRoundTrip(
   expect(await page.locator('#ageGroup').inputValue()).toBe(ageGroup);
   expect(await page.locator('#calcAge').textContent()).toBe(ageText);
 
-  await page.locator('#anonId').fill(anonId);
-  await page.click('button:has-text("חשב ציונים")');
+  expect(await page.locator('#anonId').inputValue()).toBe(anonId);
 
   const fixture = loadFixture(fixtureFile);
   const scores = (await page.locator('.score-value').allTextContents()).map((s) => s.trim());
@@ -168,7 +169,7 @@ test('preview rows show the parent-reported details before apply', async ({ page
   await expect(page.locator('#importPreview')).toBeVisible();
 
   const previewText = await page.locator('#importPreviewList').innerText();
-  expect(previewText).toContain('זכר');
+  expect(previewText).toContain('בן');
   expect(previewText).toContain('5 שנים ו-7 חודשים');
   expect(previewText).toContain('28/09/2026');
   expect(previewText).toContain('30 מתוך 30');
@@ -186,6 +187,8 @@ test('file import path matches the code-paste path', async ({ page }) => {
   await openImportBox(page);
   await page.setInputFiles('#importFile', filePath);
   await expect(page.locator('#importPreview')).toBeVisible();
+
+  await page.locator('#importAnon').fill('7');
 
   await page.locator('#importApply').click();
   await expect(page.locator('#importStatus')).toHaveClass(/ok/);
@@ -276,6 +279,7 @@ test('overwrite confirm: dismiss keeps the existing form, accept replaces it', a
   await expect(page.locator('#importPreview')).toBeVisible();
 
   page.once('dialog', (dialog) => dialog.dismiss());
+  await page.locator('#importAnon').fill('7');
   await page.locator('#importApply').click();
   expect(await page.locator('#anonId').inputValue()).toBe('32');
   expect(await page.locator('#q1_2').isChecked()).toBe(true);
@@ -283,9 +287,10 @@ test('overwrite confirm: dismiss keeps the existing form, accept replaces it', a
   expect(await page.locator('#q3_2').isChecked()).toBe(true);
 
   page.once('dialog', (dialog) => dialog.accept());
+  await page.locator('#importAnon').fill('7');
   await page.locator('#importApply').click();
   await expect(page.locator('#importStatus')).toHaveClass(/ok/);
-  expect(await page.locator('#anonId').inputValue()).toBe(''); // O1 (QA 2026-10-11): import clears the previous child's number
+  expect(await page.locator('#anonId').inputValue()).toBe('7'); // UX O1: the number typed in the preview replaces the previous child's
   expect(await page.locator('#childGender').inputValue()).toBe('male');
   expect(await page.locator('#q1_1').isChecked()).toBe(true); // G50's item 1 answer is 1
 });
@@ -299,10 +304,11 @@ test('band edge (5;11) shows the warning and still lands in band 3-5', async ({ 
 
   await importByCode(page, edgeCode);
   await expect(page.locator('#importPreview')).toBeVisible();
+  await page.locator('#importAnon').fill('7');
   await page.locator('#importApply').click();
 
-  await expect(page.locator('#importEdge')).toBeVisible();
-  await expect(page.locator('#importEdge')).toContainText('קרוב לגבול');
+  await expect(page.locator('#results .results-edge')).toBeVisible();
+  await expect(page.locator('#results .results-edge')).toContainText('קרוב לגבול');
   expect(await page.locator('#ageGroup').inputValue()).toBe('3-5');
   expect(await page.locator('#calcAge').textContent()).toBe('5 שנים ו-11 חודשים');
 });

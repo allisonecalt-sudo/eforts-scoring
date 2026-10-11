@@ -44,8 +44,10 @@ test.describe('איפוס — both questionnaires', () => {
     await page.locator('#importCode').fill(code);
     await page.locator('#importCodeBtn').click();
     await expect(page.locator('#importPreview')).toBeVisible();
+    await page.locator('#importAnon').fill('7');
     await page.locator('#importApply').click();
     expect(await page.locator('#questionnaire input[type="radio"]:checked').count()).toBe(30);
+    await page.locator('button:text-is("חזרה לשאלון")').click(); // results -> form, where איפוס lives
 
     page.once('dialog', (d) => d.accept());
     await reset.click();
