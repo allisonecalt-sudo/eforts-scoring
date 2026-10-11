@@ -1,3 +1,4 @@
+/* global EFORTSPdf, getComputedStyle */
 // QA fix round 2026-10-11 (parent page only): share path on phones only,
 // date-of-birth validation, field marking, a never-stale missing message,
 // grammar, device hint, PDF-build retry, draft cleared by an emptying undo.
@@ -213,4 +214,56 @@ test('8. an undo that empties the form clears the saved draft', async ({ page })
   expect(await page.evaluate(() => localStorage.getItem('eforts_parent_draft_v1'))).not.toBeNull();
   await page.locator('#pDob').fill('');
   expect(await page.evaluate(() => localStorage.getItem('eforts_parent_draft_v1'))).toBeNull();
+});
+
+test.describe('round 2 follow-ups', () => {
+  test('N1. missing sex gets the orange side bar, not just a tint', async ({ page }) => {
+    await gotoParent(page);
+    await page.locator('#pFinish').click();
+    const w = await page.evaluate(
+      () => getComputedStyle(document.getElementById('pSexField')).borderInlineStartWidth,
+    );
+    expect(w).toBe('4px');
+    const wd = await page.evaluate(
+      () => getComputedStyle(document.getElementById('pDobField')).borderInlineStartWidth,
+    );
+    expect(wd).toBe('4px');
+  });
+
+  test('N2. no date error while typing; it appears after blur and stays live', async ({ page }) => {
+    await gotoParent(page);
+    await page.locator('#pDob').fill('0002-02-28');
+    await expect(page.locator('#pDobError')).toBeHidden();
+    await expect(page.locator('#pDobField')).not.toHaveClass(/p-field-missing/);
+    await page.locator('#pDob').blur();
+    await expect(page.locator('#pDobError')).toBeVisible();
+    await page.locator('#pDob').fill('0201-02-28');
+    await expect(page.locator('#pDobError')).toBeVisible();
+    await page.locator('#pDob').fill('2021-02-28');
+    await expect(page.locator('#pDobError')).toBeHidden();
+  });
+
+  test('N3. a filled but invalid date reads «תאריך לידה תקין» in the list', async ({ page }) => {
+    await gotoParent(page);
+    await page.locator('#pDob').fill('2027-01-01');
+    await page.locator('#pFinish').click();
+    await expect(page.locator('#pMissing')).toContainText('תאריך לידה תקין');
+    await page.locator('#pDob').fill('');
+    await expect(page.locator('#pMissing')).not.toContainText('תאריך לידה תקין');
+    await expect(page.locator('#pMissing')).toContainText('תאריך לידה');
+  });
+
+  test('N4. the PDF says הילדה for a girl and הילד for a boy', async ({ page }) => {
+    await gotoParent(page);
+    const texts = await page.evaluate(
+      ([g, b]) => [
+        EFORTSPdf.bodyLines(g).map((l) => l.text),
+        EFORTSPdf.bodyLines(b).map((l) => l.text),
+      ],
+      [MODELS.G50F, MODELS.G50],
+    );
+    expect(texts[0]).toContain('מי נמצא עם הילדה בדרך כלל:');
+    expect(texts[0]).not.toContain('מי נמצא עם הילד בדרך כלל:');
+    expect(texts[1]).toContain('מי נמצא עם הילד בדרך כלל:');
+  });
 });

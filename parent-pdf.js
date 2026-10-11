@@ -30,6 +30,7 @@ const EFORTSPdf = (() => {
   const P_FOOTER =
     'לשימוש המטפל/ת: יש להעלות קובץ זה לאפליקציית EFORTS, בתיבה "ייבוא תשובות מהורה".';
   const P_WITH = 'מי נמצא עם הילד בדרך כלל:';
+  const P_WITH_F = 'מי נמצא עם הילדה בדרך כלל:';
   const P_WITH_NONE = 'לא סומן';
   const P_CODE_LABEL = 'שורת הקוד (אם ההעלאה לא עובדת, אפשר להעתיק ולהדביק אותה):';
 
@@ -51,7 +52,7 @@ const EFORTSPdf = (() => {
       { kind: 'line', text: P_SEX + (model.sex === 'male' ? P_SEX_M : P_SEX_F) },
       { kind: 'line', text: P_DOB + fmtDate(model.dob) },
     ];
-    lines.push({ kind: 'line', text: P_WITH });
+    lines.push({ kind: 'line', text: model.sex === 'male' ? P_WITH : P_WITH_F });
     SECTIONS.forEach((s) => {
       lines.push({ kind: 'line', text: `${s.title}: ${companionLabel(model.with[s.key])}` });
     });
@@ -194,5 +195,5 @@ const EFORTSPdf = (() => {
     return { file, pngs };
   }
 
-  return { build };
+  return { build, bodyLines };
 })();

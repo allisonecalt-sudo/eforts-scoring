@@ -231,7 +231,8 @@ fieldset#pSexField {
   font-weight: 600;
 }
 
-.p-field-missing {
+.p-field-missing,
+fieldset#pSexField.p-field-missing {
   background: #fffbeb;
   border-inline-start: 4px solid #f59e0b;
   border-radius: 8px;
