@@ -34,6 +34,11 @@ async function finishParent(page, query = '') {
 function stubShare(page, outcome = 'ok') {
   return page.addInitScript((o) => {
     navigator.canShare = (d) => !!(d && d.files && d.files.length);
+    const mm = window.matchMedia.bind(window);
+    window.matchMedia = (q) =>
+      /pointer:\s*coarse/.test(q)
+        ? { matches: true, media: q, addEventListener() {}, removeEventListener() {} }
+        : mm(q);
     navigator.share = async (d) => {
       window.__shared = d;
       if (o === 'abort') throw new DOMException('cancelled', 'AbortError');

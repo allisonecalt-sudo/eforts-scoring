@@ -230,3 +230,14 @@ fieldset#pSexField {
   color: var(--red);
   font-weight: 600;
 }
+
+.p-field-missing {
+  background: #fffbeb;
+  border-inline-start: 4px solid #f59e0b;
+  border-radius: 8px;
+  padding-inline-start: 8px;
+}
+.p-field-error {
+  color: #92400e;
+  font-weight: 500;
+}

@@ -24,6 +24,9 @@ const H_M0 = 'כדי לסיים, צריך להשלים עוד: ';
 const H_S1 = 'מין הילד/ה';
 const H_S2 = 'תאריך לידה';
 const H_S3 = 'תשובות לשאלות {nums}';
+const H_S3_ONE = 'תשובה לשאלה {nums}';
+const H_DOB_BAD = 'תאריך הלידה לא נראה תקין. בדקו אותו שוב.';
+const H_DOB_AGE = 'השאלון מיועד לילדים בגילאי 3 עד 11. בדקו את תאריך הלידה.';
 const H_D3 = 'למחוק את כל התשובות ששמרתם במכשיר הזה?';
 // PDF send (2026-10-07): the answers travel as a PDF file the parent can send
 // to ANY therapist by ANY channel. One main button. No email address and no
@@ -33,6 +36,7 @@ const H_P_SHARE_HINT = 'בחרו מייל ושלחו את הקובץ למטפל/
 const H_P_DL = 'הורדת קובץ התשובות (PDF)';
 const H_P_DL_HINT = 'הקובץ יישמר במחשב. שלחו אותו במייל למטפל/ת.';
 const H_P_SHARE_TITLE = 'EFORTS';
+const H_P_DL_HINT_DEVICE = 'הקובץ יישמר במכשיר. שלחו אותו במייל למטפל/ת.';
 const H_P_ERROR = 'לא הצלחנו ליצור את הקובץ. רעננו את הדף ונסו שוב.';
 
 const state = {
@@ -44,7 +48,9 @@ const state = {
   pdfFailed: false,
   model: null,
   canShare: false,
+  attempted: false,
 };
+const JSPDF_SRC = 'assets/vendor/jspdf.umd.min.js';
 
 // Elements are looked up once DOMContentLoaded fires (buildQuestionnaire()
 // needs to run first for the pq{n} inputs to exist).
@@ -55,6 +61,10 @@ let pDraftBar,
   pProgressText,
   pDetails,
   pDob,
+  pDobError,
+  pDobField,
+  pSexField,
+  pActions,
   pMissing,
   pFinish,
   pDone,
@@ -196,7 +206,11 @@ function saveDraft() {
       !!with_.play ||
       !!with_.social ||
       Object.keys(answers).length > 0;
-    if (!hasValue) return;
+    if (!hasValue) {
+      // an undo that emptied the form: do not keep the older, fuller draft
+      localStorage.removeItem(DRAFT_KEY);
+      return;
+    }
     localStorage.setItem(DRAFT_KEY, JSON.stringify(data));
   } catch {
     // storage unavailable (private mode) — the page works without a draft
@@ -261,11 +275,88 @@ function clearDraftKey() {
 function sexChosen() {
   return !!document.querySelector('input[name="pSex"]:checked');
 }
-function dobFilled() {
-  return pDob.value !== '';
+
+// '' = fine, 'empty' = not filled, 'bad' = impossible date, 'age' = outside 3-11.
+function dobStatus() {
+  const v = pDob.value;
+  if (!v) return 'empty';
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(v);
+  const today = localToday();
+  if (!m || v >= today || v < '1900-01-01') return 'bad';
+  const [ty, tm, td] = today.split('-').map(Number);
+  let age = ty - Number(m[1]);
+  if (tm < Number(m[2]) || (tm === Number(m[2]) && td < Number(m[3]))) age--;
+  return age < 3 || age >= 12 ? 'age' : '';
 }
-function allResolved() {
-  return sexChosen() && dobFilled() && document.querySelectorAll('.p-item.p-missing').length === 0;
+
+function coarsePointer() {
+  try {
+    return !!(window.matchMedia && window.matchMedia('(pointer: coarse)').matches);
+  } catch {
+    return false;
+  }
+}
+
+// Paints the date field's own error + highlight (live, on every change).
+function paintDob() {
+  const st = dobStatus();
+  const msg = st === 'bad' ? H_DOB_BAD : st === 'age' ? H_DOB_AGE : '';
+  pDobError.textContent = msg;
+  pDobError.hidden = !msg;
+  pDobField.classList.toggle(
+    'p-field-missing',
+    st === 'bad' || st === 'age' || (state.attempted && st === 'empty'),
+  );
+}
+
+// Re-reads the whole form. After the first "סיום" tap the missing message is
+// kept in step with every change and hidden when nothing is missing.
+function checkForm(scroll) {
+  const sexOk = sexChosen();
+  const dobSt = dobStatus();
+  const missingItems = [];
+  items.forEach((it) => {
+    if (!document.querySelector(`input[name="pq${it.num}"]:checked`)) missingItems.push(it.num);
+  });
+  const problems = [];
+  if (!sexOk) problems.push(H_S1);
+  if (dobSt) problems.push(H_S2);
+  if (missingItems.length) {
+    problems.push(
+      (missingItems.length === 1 ? H_S3_ONE : H_S3).replace('{nums}', missingItems.join(', ')),
+    );
+  }
+  paintDob();
+  pSexField.classList.toggle('p-field-missing', state.attempted && !sexOk);
+  items.forEach((it) => {
+    const el = document.getElementById('pItem' + it.num);
+    if (el) el.classList.toggle('p-missing', state.attempted && missingItems.includes(it.num));
+  });
+  if (!problems.length || !state.attempted) {
+    pMissing.hidden = true;
+    return { problems, sexOk, dobSt };
+  }
+  pMissing.textContent = H_M0 + problems.join('; ');
+  // only sex/date missing: the message sits right under the details card
+  if (!missingItems.length) pDetails.insertAdjacentElement('afterend', pMissing);
+  else pActions.insertAdjacentElement('beforebegin', pMissing);
+  pMissing.hidden = false;
+  if (scroll) {
+    const target = !sexOk || dobSt ? pDetails : document.getElementById('pItem' + missingItems[0]);
+    target.scrollIntoView({ behavior: 'smooth', block: missingItems.length ? 'center' : 'start' });
+  }
+  return { problems, sexOk, dobSt };
+}
+
+function loadJsPdf() {
+  if (window.jspdf) return Promise.resolve();
+  return new Promise((resolve) => {
+    const s = document.createElement('script');
+    s.src = JSPDF_SRC;
+    s.onload = () => resolve();
+    s.onerror = () => resolve();
+    document.head.appendChild(s);
+  });
 }
 
 // ===== DONE SCREEN =====
@@ -285,6 +376,7 @@ function downloadAnswers() {
 // Web Share Level 2: only when this browser can share this very PDF.
 function canShareFile(file) {
   try {
+    if (!coarsePointer()) return false;
     if (typeof navigator.share !== 'function') return false;
     if (typeof navigator.canShare !== 'function') return false;
     return !!navigator.canShare({ files: [file] });
@@ -304,7 +396,7 @@ function preparePdf(code, model) {
   state.pdfPngs = [];
   state.canShare = false;
   pSend.textContent = H_P_DL;
-  pSendHint.textContent = H_P_DL_HINT;
+  pSendHint.textContent = coarsePointer() ? H_P_DL_HINT_DEVICE : H_P_DL_HINT;
   pDownloadOnly.hidden = true;
   const promise = Promise.resolve()
     .then(() => EFORTSPdf.build(code, model))
@@ -338,6 +430,8 @@ function showDone(code, model) {
 
   preparePdf(code, model);
 
+  state.attempted = false;
+  pMissing.hidden = true;
   pFormSection.hidden = true;
   pDraftBar.hidden = true;
   pDone.hidden = false;
@@ -360,12 +454,11 @@ function clearAll() {
     if (el) el.value = '';
   });
 
-  pMissing.hidden = true;
+  state.attempted = false;
   pDraftBar.hidden = true;
   pDone.hidden = true;
   pFormSection.hidden = false;
-
-  document.querySelectorAll('.p-item.p-missing').forEach((el) => el.classList.remove('p-missing'));
+  checkForm(false);
 
   updateProgress();
   window.scrollTo(0, 0);
@@ -380,6 +473,10 @@ document.addEventListener('DOMContentLoaded', () => {
   pProgressText = document.getElementById('pProgressText');
   pDetails = document.getElementById('pDetails');
   pDob = document.getElementById('pDob');
+  pDobError = document.getElementById('pDobError');
+  pDobField = document.getElementById('pDobField');
+  pSexField = document.getElementById('pSexField');
+  pActions = document.querySelector('#pFormSection .actions');
   pMissing = document.getElementById('pMissing');
   pFinish = document.getElementById('pFinish');
   pDone = document.getElementById('pDone');
@@ -408,49 +505,15 @@ document.addEventListener('DOMContentLoaded', () => {
   pFormSection.addEventListener('change', () => {
     updateProgress();
     saveDraft();
+    checkForm(false);
   });
-  pFormSection.addEventListener('change', (e) => {
-    const name = e.target && e.target.name;
-    const m = name && /^pq(\d+)$/.exec(name);
-    if (!m) return;
-    const el = document.getElementById('pItem' + m[1]);
-    if (el) el.classList.remove('p-missing');
-    if (allResolved()) {
-      pMissing.hidden = true;
-    }
-  });
+  checkForm(false);
 
   // ----- finish / validate (§B.4.6) -----
   pFinish.addEventListener('click', () => {
-    const problems = [];
-    const sexOk = sexChosen();
-    if (!sexOk) problems.push(H_S1);
-
-    const dobOk = dobFilled();
-    if (!dobOk) problems.push(H_S2);
-
-    const missingItems = [];
-    items.forEach((it) => {
-      if (!document.querySelector(`input[name="pq${it.num}"]:checked`)) missingItems.push(it.num);
-    });
-    if (missingItems.length) {
-      problems.push(H_S3.replace('{nums}', missingItems.join(', ')));
-    }
-
-    if (problems.length) {
-      pMissing.textContent = H_M0 + problems.join('; ');
-      pMissing.hidden = false;
-      missingItems.forEach((n) => {
-        const el = document.getElementById('pItem' + n);
-        if (el) el.classList.add('p-missing');
-      });
-
-      const target =
-        !sexOk || !dobOk ? pDetails : document.getElementById('pItem' + missingItems[0]);
-      target.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      if (typeof target.focus === 'function') target.focus();
-      return;
-    }
+    state.attempted = true;
+    const { problems } = checkForm(true);
+    if (problems.length) return;
 
     const model = {
       sex: document.querySelector('input[name="pSex"]:checked').value,
@@ -487,7 +550,9 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     // the build failed earlier: try again, then download
     if (state.pdfFailed && state.model) {
-      preparePdf(state.code, state.model).then(downloadAnswers);
+      loadJsPdf()
+        .then(() => preparePdf(state.code, state.model))
+        .then(downloadAnswers);
       return;
     }
     // not ready yet (rare): wait for the build, then download
@@ -498,6 +563,8 @@ document.addEventListener('DOMContentLoaded', () => {
   // ----- back (§B.4.11) -----
   pBack.addEventListener('click', () => {
     pDone.hidden = true;
+    state.attempted = false;
+    pMissing.hidden = true;
     pFormSection.hidden = false;
     pFinish.scrollIntoView({ behavior: 'smooth', block: 'center' });
   });
