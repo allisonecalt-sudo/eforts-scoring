@@ -114,7 +114,7 @@ async function fillParent(page, model) {
   await setDob(page, model.dob);
   for (const key of ['morning', 'play', 'social']) {
     if (model.with[key]) {
-      await page.locator(`#pWith_${key}`).selectOption(model.with[key]);
+      await page.locator(`#pWith_${key} .p-choice[data-value="${model.with[key]}"]`).click();
     }
   }
   for (let i = 0; i < model.answers.length; i++) {

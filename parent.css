@@ -307,3 +307,173 @@ fieldset#pSexField.p-field-missing {
 .p-hint:not(.p-field-error):not(.p-error) {
   color: #475569;
 }
+
+/* ===== UX round 2026-10-11 ===== */
+/* P7 answer labels: readable, main colour; no awkward wrap on wide screens */
+.p-scale label {
+  font-size: 0.95rem;
+  color: var(--text);
+}
+@media (min-width: 640px) {
+  .p-scale label {
+    white-space: normal;
+    overflow-wrap: normal;
+  }
+}
+/* P12 selected teal at >= 4.5:1 with white text */
+.section.play .p-scale input:checked + label {
+  background: #00796b;
+  border-color: #00796b;
+}
+/* P11 instruction line */
+.section-instruction {
+  font-size: 0.95rem;
+  color: var(--text);
+}
+
+/* P8 companion: four buttons, בן/בת style */
+.section-header .companion-row {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+}
+.companion-label {
+  font-size: 0.9rem;
+  color: var(--text);
+}
+.p-choice-row {
+  display: flex;
+  gap: 6px;
+}
+.p-choice {
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 48px;
+  padding: 4px 6px;
+  border: 1.5px solid var(--border);
+  border-radius: 8px;
+  background: #fafbfc;
+  color: var(--text);
+  font: inherit;
+  font-size: 0.95rem;
+  cursor: pointer;
+}
+.p-choice[aria-pressed='true'] {
+  background: var(--blue);
+  border-color: var(--blue);
+  color: #fff;
+  font-weight: 600;
+}
+.section.play .p-choice[aria-pressed='true'] {
+  background: #00796b;
+  border-color: #00796b;
+}
+.section.social .p-choice[aria-pressed='true'] {
+  background: var(--purple);
+  border-color: var(--purple);
+}
+.p-choice:focus-visible {
+  outline: 3px solid rgba(0, 119, 182, 0.35);
+  outline-offset: 1px;
+}
+
+/* P5/P6 sticky bar message row */
+.progress-wrap {
+  flex-wrap: wrap;
+}
+.p-bar-gap,
+.p-bar-note {
+  flex: 1 0 100%;
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 600;
+  text-align: center;
+  margin: 0;
+}
+.p-bar-gap {
+  min-height: 44px;
+  border: 0;
+  border-radius: 8px;
+  background: #fffbeb;
+  color: #92400e;
+  cursor: pointer;
+  text-decoration: underline;
+}
+.p-bar-note {
+  color: var(--blue);
+}
+
+/* P3/P10 quiet text links */
+.p-textlink {
+  display: block;
+  width: 100%;
+  min-height: 44px;
+  padding: 8px;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: var(--blue);
+  text-decoration: underline;
+  text-align: center;
+  cursor: pointer;
+}
+.p-textlink-danger {
+  color: var(--red);
+}
+.p-done-links {
+  border-top: 1px solid var(--border);
+  margin-top: 18px;
+  padding-top: 8px;
+}
+.p-done-links .p-hint {
+  text-align: center;
+  margin: 8px 0 0;
+}
+.p-small {
+  text-align: center;
+  font-size: 0.78rem;
+  margin-top: 16px;
+}
+.actions {
+  flex-direction: column;
+  align-items: stretch;
+}
+#pFinish {
+  width: 100%;
+  min-height: 48px;
+}
+.p-btn-small {
+  min-height: 44px;
+}
+
+/* P9 compact header on phones (credit line stays) */
+@media (max-width: 640px) {
+  .header {
+    padding: 12px 0 8px;
+  }
+  .header-logos {
+    gap: 12px;
+    margin-bottom: 8px;
+  }
+  .header-logo,
+  .header-logo-haifa {
+    height: 26px;
+  }
+  .header p.header-credit {
+    margin-top: 4px;
+  }
+}
+
+/* saved message: file name on its own line, never broken */
+.p-filename {
+  display: block;
+  white-space: nowrap;
+  font-size: 0.82rem;
+  margin: 2px 0;
+  overflow-wrap: normal;
+}
+#pSendHint:has(.p-filename) {
+  text-align: center;
+}

@@ -173,7 +173,8 @@ test('no clinical output ever appears on the parent page', async ({ page }) => {
   expect(await page.locator('.score-value').count()).toBe(0);
   expect(await page.locator('.summary-card').count()).toBe(0);
   expect(await page.locator('.ef-note').count()).toBe(0);
-  expect(await page.locator('.sub-divider').count()).toBe(0);
+  // P4: exactly the two routine dividers, no clinical sub-dividers
+  expect(await page.locator('.sub-divider').allTextContents()).toEqual(['שגרת בוקר', 'שגרת ערב']);
 });
 
 test('single source: item legends match items[] verbatim, no hardcoded instrument text', async ({
