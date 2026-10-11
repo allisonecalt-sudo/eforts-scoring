@@ -635,6 +635,7 @@ function calculate() {
     <div class="result-actions">
       <button class="btn btn-pdf" onclick="printResults()">PDF למטפל/ת</button>
       <button class="btn btn-parent-pdf" onclick="printParentResults()">PDF להורים</button>
+      <button class="btn btn-clicks" onclick="downloadForClicks()">הורדה לקליקס (טקסט)</button>
       <button class="btn btn-ai" onclick="downloadForAI()">הורד ל-AI</button>
       <button class="btn btn-back" onclick="goBack()">חזרה לשאלון</button>
       <button class="btn btn-danger" onclick="resetForm()">שאלון חדש</button>
@@ -1453,6 +1454,62 @@ function buildExportText() {
   text += '\n' + aiPrompt(gender);
 
   return text;
+}
+
+// Clicks text (Sara Orit's Oct 7 email: copying the summary from the PDF into
+// Clicks put the brackets in the wrong place — a PDF stores Hebrew in visual
+// order). Her fix, Sun 2026-10-11: a download that opens in Notepad, "the
+// best for copying and pasting". Plain text, logical order, the summary only.
+function buildClicksText() {
+  const genderRaw = document.getElementById('childGender').value;
+  const ageGroup = document.getElementById('ageGroup').value;
+  const scores = {};
+  items.forEach((item) => {
+    const checked = document.querySelector(`input[name="q${item.num}"]:checked`);
+    if (checked) scores[item.num] = parseInt(checked.value);
+  });
+  const routineAvg = (r) => avg(items.filter((i) => i.routine === r).map((i) => scores[i.num]));
+  const efAvg = (ef) => avg(items.filter((i) => i.ef === ef).map((i) => scores[i.num]));
+  const morningAvg = routineAvg('morning');
+  const playAvg = routineAvg('play');
+  const socialAvg = routineAvg('social');
+  const summaryHtml = buildSummary({
+    anonId: escapeHtml(getAnonId()) || '—',
+    gender: genderText(genderRaw),
+    isMale: genderRaw === 'male',
+    sexUnset: !genderRaw,
+    ageText: document.getElementById('calcAge').textContent,
+    ageLabel: document.getElementById('ageGroupDisplay').textContent,
+    morningAvg,
+    playAvg,
+    socialAvg,
+    totalAvg: avg([morningAvg, playAvg, socialAvg]),
+    inhAvg: efAvg('inh'),
+    wmAvg: efAvg('wm'),
+    flexAvg: efAvg('flex'),
+    c: cutoffs[ageGroup],
+    scores,
+  });
+  return summaryHtmlToText(summaryHtml)
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&amp;/g, '&');
+}
+
+function downloadForClicks() {
+  // BOM so Notepad opens the Hebrew as UTF-8; CRLF for Windows Notepad.
+  const text = '\uFEFF' + buildClicksText().replace(/\r?\n/g, '\r\n') + '\r\n';
+  const anonId = (getAnonId() || 'eforts').replace(/[^0-9A-Za-zא-ת-]/g, '_');
+  const date = getFillDateValue() || new Date().toISOString().slice(0, 10);
+  const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `EFORTS_${anonId}_${date}_clicks.txt`;
+  a.click();
+  URL.revokeObjectURL(url);
 }
 
 function downloadForAI() {

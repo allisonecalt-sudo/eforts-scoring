@@ -46,7 +46,7 @@ module.exports = [
         {
           argsIgnorePattern: '^_',
           varsIgnorePattern:
-            '^(toggleDrill|goBack|resetForm|printResults|printParentResults|downloadForAI)$',
+            '^(toggleDrill|goBack|resetForm|printResults|printParentResults|downloadForAI|downloadForClicks)$',
         },
       ],
       'no-undef': 'error',
@@ -106,6 +106,7 @@ module.exports = [
         avg: 'readonly',
         cutoffStatus: 'readonly',
         buildSummary: 'readonly',
+        buildClicksText: 'readonly',
         calculate: 'readonly',
         updateAge: 'readonly',
         getBirthDateValue: 'readonly',
