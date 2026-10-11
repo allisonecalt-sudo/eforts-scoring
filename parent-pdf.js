@@ -56,14 +56,10 @@ const EFORTSPdf = (() => {
     SECTIONS.forEach((s) => {
       lines.push({ kind: 'line', text: `${s.title}: ${companionLabel(model.with[s.key])}` });
     });
-    SECTIONS.forEach((s) => {
-      lines.push({ kind: 'heading', text: s.title });
-      items
-        .filter((it) => it.num >= s.range[0] && it.num <= s.range[1])
-        .forEach((it) => {
-          const label = SCALE_LABELS[model.answers[it.num - 1] - 1].replace(/\s+/g, ' ');
-          lines.push({ kind: 'item', text: `${P_ITEM}${it.num}: ${label}` });
-        });
+    items.forEach((it) => {
+      const v = model.answers[it.num - 1];
+      const label = SCALE_LABELS[v - 1].replace(/\s+/g, ' ');
+      lines.push({ kind: 'item', text: `${P_ITEM}${it.num}: ${label} (${v})` });
     });
     return lines;
   }
@@ -118,7 +114,10 @@ const EFORTSPdf = (() => {
     let y = MARGIN;
     const right = PAGE_W - MARGIN;
     const maxW = PAGE_W - 2 * MARGIN;
-    lines.forEach((ln) => {
+    // the items go in two columns after the head lines: right 1-15, left 16-30
+    const head = lines.filter((ln) => ln.kind !== 'item');
+    const cells = lines.filter((ln) => ln.kind === 'item');
+    head.forEach((ln) => {
       const st = STYLE[ln.kind];
       let cur = pages[pages.length - 1];
       setFont(cur.ctx, family, st.size, st.bold);
@@ -138,6 +137,25 @@ const EFORTSPdf = (() => {
       });
       y += st.gap;
     });
+
+    const colW = Math.floor(maxW / 2);
+    const rows = Math.ceil(cells.length / 2);
+    const ist = STYLE.item;
+    const rowH = Math.round(ist.size * 1.15) + 6;
+    y += 14;
+    for (let r = 0; r < rows; r++) {
+      let cur = pages[pages.length - 1];
+      if (y + rowH > CONTENT_BOTTOM && y > MARGIN) {
+        pages.push(newCanvas());
+        cur = pages[pages.length - 1];
+        y = MARGIN;
+      }
+      setFont(cur.ctx, family, ist.size, false);
+      [cells[r], cells[r + rows]].forEach((c, col) => {
+        if (c) cur.ctx.fillText(c.text, right - col * colW, y);
+      });
+      y += rowH;
+    }
 
     // footer + code label sit in the reserved zone of the last page
     const last = pages[pages.length - 1];

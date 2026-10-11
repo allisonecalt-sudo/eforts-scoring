@@ -49,10 +49,9 @@ test('P1/P2 download path: hint before, saved message with the file name after',
   await expect(page.locator('#pSendHint')).toHaveText(BEFORE_DL);
   const { name } = await downloadPdf(page);
   const hint = page.locator('#pSendHint');
-  await expect(hint).toContainText('הקובץ נשמר בתיקיית ההורדות:');
+  await expect(hint).toContainText('הקובץ ירד למכשיר (בדרך כלל לתיקיית ההורדות):');
   await expect(hint.locator('bdi.p-filename')).toHaveText(name);
   await expect(hint.locator('bdi.p-filename')).toHaveAttribute('dir', 'ltr');
-  expect(await hint.textContent()).not.toContain('(');
   await expect(hint).toContainText(name);
   await expect(hint).toContainText('עכשיו פתחו את המייל, צרפו את הקובץ ושלחו למטפל/ת.');
 });
@@ -66,7 +65,9 @@ test('P1/P2 share path: hint before, «נשלח? מצוין» after a share, kep
     'בחרו מייל ושלחו את הקובץ לכתובת שקיבלתם מהמטפל/ת.',
   );
   await page.locator('#pSend').click();
-  await expect(page.locator('#pSendHint')).toHaveText('נשלח? מצוין. אפשר לסגור את הדף.');
+  await expect(page.locator('#pSendHint')).toHaveText(
+    '✓ נשלח? מצוין. כדאי למחוק את התשובות מהמכשיר (למטה).',
+  );
 });
 
 test('P1 share cancelled: the original hint stays', async ({ page }) => {
