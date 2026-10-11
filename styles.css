@@ -958,6 +958,11 @@ body {
   .container {
     padding: 12px 12px 100px;
   }
+  /* the bar bleeds to the container edge: its negative margin must match the
+     12px phone padding (16px here caused a 4px sideways scroll) */
+  .progress-wrap {
+    margin: 0 -12px;
+  }
   .header-logos {
     gap: 14px;
   }
@@ -1203,4 +1208,23 @@ body {
 .import-paste-label {
   display: block;
   margin-top: 14px;
+}
+
+/* O2: the "loaded the last saved questionnaire" bar */
+.restore-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  background: #eef6ff;
+  border: 1px solid #c5ddf5;
+  border-radius: 8px;
+  padding: 10px 14px;
+  margin-bottom: 14px;
+  font-size: 0.88rem;
+  color: #334155;
+}
+.restore-bar[hidden] {
+  display: none;
 }

@@ -64,11 +64,24 @@ function getAnonId() {
 // still print "נמוך מציון החתך" — reads like a software bug. Reveal a
 // 3rd decimal only in that exact collision; the comparison used for
 // status (cutoffStatus) always stays on the raw, unrounded numbers.
+// S2: round half-up on the exact value. A mean like 3.375 can sit a hair
+// under in floating point and toFixed() would then print 3.37.
+function round2(x) {
+  return (Math.round((x + 1e-9) * 100) / 100).toFixed(2);
+}
+// S3: when score < cutoff and both show the same at 2 decimals, show the
+// score FLOORED to 3 decimals (so it can never read as the cutoff); if
+// that still equals the cutoff at 3 decimals, floor to 4.
 function fmtScore(score, cutoff) {
-  if (score < cutoff && score.toFixed(2) === cutoff.toFixed(2)) {
-    return score.toFixed(3);
+  if (score < cutoff && round2(score) === cutoff.toFixed(2)) {
+    const floorTo = (digits) => {
+      const f = 10 ** digits;
+      return (Math.floor(score * f + 1e-9) / f).toFixed(digits);
+    };
+    const three = floorTo(3);
+    return three === cutoff.toFixed(3) ? floorTo(4) : three;
   }
-  return score.toFixed(2);
+  return round2(score);
 }
 
 // Item 17: shared by the drilldown badges (scoreRow) and the print item
@@ -241,10 +254,21 @@ function clearAgeDisplay() {
   document.getElementById('ageGroup').value = '';
 }
 
+// 31 Feb / 30 Feb / 31 Apr … exist in the dropdowns but not in the calendar.
+function isoDateExists(iso) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso || '');
+  if (!m) return false;
+  const y = Number(m[1]);
+  const mo = Number(m[2]);
+  const d = Number(m[3]);
+  const dt = new Date(Date.UTC(y, mo - 1, d));
+  return dt.getUTCFullYear() === y && dt.getUTCMonth() === mo - 1 && dt.getUTCDate() === d;
+}
+
 function updateAge() {
   const birthInput = getBirthDateValue();
   const fillInput = getFillDateValue();
-  if (!birthInput || !fillInput) {
+  if (!birthInput || !fillInput || !isoDateExists(birthInput) || !isoDateExists(fillInput)) {
     clearAgeDisplay();
     return;
   }
@@ -302,6 +326,40 @@ function updateAge() {
 }
 
 // ===== SAVE / LOAD =====
+// O4: a Clalit PC may block site storage; every access goes through these
+// three so a blocked, full or disabled store can never stop the page.
+function storeGet(key) {
+  try {
+    return localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+function storeSet(key, value) {
+  try {
+    localStorage.setItem(key, value);
+    return true;
+  } catch {
+    return false;
+  }
+}
+function storeRemove(key) {
+  try {
+    localStorage.removeItem(key);
+  } catch {
+    // nothing to remove from
+  }
+}
+
+// O2: a saved form older than this is dropped on load, so a stale child
+// never greets the next clinician.
+const SAVE_MAX_AGE_MS = 14 * 24 * 60 * 60 * 1000;
+
+// The OT's personal note to the parents lives in memory for this page
+// session only (never storage, never the AI file) so it survives
+// «חזרה לשאלון» → «חשב ציונים».
+let parentNoteDraft = '';
+
 function saveForm() {
   const data = {
     anonId: getAnonId(),
@@ -314,21 +372,36 @@ function saveForm() {
       social: document.getElementById('companion_social')?.value || '',
     },
     answers: {},
+    savedAt: Date.now(),
   };
   items.forEach((item) => {
     const checked = document.querySelector(`input[name="q${item.num}"]:checked`);
     if (checked) data.answers[item.num] = parseInt(checked.value);
   });
-  localStorage.setItem('eforts_save', JSON.stringify(data));
+  const saved = storeSet('eforts_save', JSON.stringify(data));
   const ind = document.getElementById('saveIndicator');
+  ind.textContent = saved ? 'נשמר בדפדפן זה' : 'הדפדפן חוסם שמירה — הנתונים לא נשמרו';
   ind.style.display = 'block';
   setTimeout(() => (ind.style.display = 'none'), 2000);
 }
 
+// Restores the saved form and returns the saved data (or null when there is
+// nothing usable: no storage, broken JSON, or older than 14 days).
 function loadForm() {
-  const raw = localStorage.getItem('eforts_save');
-  if (!raw) return;
-  const data = JSON.parse(raw);
+  const raw = storeGet('eforts_save');
+  if (!raw) return null;
+  let data;
+  try {
+    data = JSON.parse(raw);
+  } catch {
+    storeRemove('eforts_save');
+    return null;
+  }
+  if (!data || typeof data !== 'object') return null;
+  if (typeof data.savedAt === 'number' && Date.now() - data.savedAt > SAVE_MAX_AGE_MS) {
+    storeRemove('eforts_save');
+    return null;
+  }
   if (data.anonId) document.getElementById('anonId').value = data.anonId;
   if (data.gender) document.getElementById('childGender').value = data.gender;
   if (data.birthDate) setBirthDateValue(data.birthDate);
@@ -347,6 +420,33 @@ function loadForm() {
   }
   updateAge();
   updateProgress();
+  return data;
+}
+
+// O2: reopening the page lands on the FORM (never on the last child's
+// results). This bar says what was loaded and offers a fresh questionnaire.
+function showRestoreBar(data) {
+  const bar = document.getElementById('restoreBar');
+  if (!bar) return;
+  const hasContent =
+    data &&
+    (data.anonId ||
+      data.birthDate ||
+      data.gender ||
+      (data.answers && Object.keys(data.answers).length > 0));
+  if (!hasContent) {
+    bar.hidden = true;
+    return;
+  }
+  const id = String(data.anonId || '').trim();
+  document.getElementById('restoreText').textContent =
+    'נטען השאלון האחרון שנשמר בדפדפן זה' + (id ? ` (מס' ${id}).` : '.');
+  bar.hidden = false;
+}
+
+function hideRestoreBar() {
+  const bar = document.getElementById('restoreBar');
+  if (bar) bar.hidden = true;
 }
 
 function populateBirthDropdowns() {
@@ -435,7 +535,8 @@ document.addEventListener('DOMContentLoaded', () => {
   populateFillDropdowns();
   buildForm();
   setFillDateToToday();
-  loadForm();
+  showRestoreBar(loadForm());
+  updateProgress();
   document.getElementById('birthDay').addEventListener('change', updateAge);
   document.getElementById('birthMonth').addEventListener('change', updateAge);
   document.getElementById('birthYear').addEventListener('change', updateAge);
@@ -452,21 +553,16 @@ document.addEventListener('DOMContentLoaded', () => {
   });
   document
     .querySelectorAll(
-      '#anonId, #childGender, #birthDay, #birthMonth, #birthYear, #fillDay, #fillMonth, #fillYear',
+      '#anonId, #childGender, #birthDay, #birthMonth, #birthYear, #fillDay, #fillMonth, #fillYear, #companion_morning, #companion_play, #companion_social',
     )
     .forEach((el) => {
       el.addEventListener('change', saveForm);
     });
 
-  // Auto-calculate on load if form has saved answers
-  const saved = localStorage.getItem('eforts_save');
-  if (saved) {
-    const data = JSON.parse(saved);
-    if (data.answers && Object.keys(data.answers).length === items.length && data.birthDate) {
-      updateAge();
-      setTimeout(calculate, 100);
-    }
-  }
+  // The OT's note to the parents: kept in memory only (see parentNoteDraft).
+  document.addEventListener('input', (e) => {
+    if (e.target && e.target.id === 'parentNote') parentNoteDraft = e.target.value;
+  });
 });
 
 // ===== CALCULATE =====
@@ -485,6 +581,10 @@ function calculate() {
     showWarning('יש להזין תאריך מילוי לפני חישוב הציונים');
     return;
   }
+  if (!isoDateExists(birthDate) || !isoDateExists(getFillDateValue())) {
+    showWarning('התאריך אינו קיים בלוח השנה.');
+    return;
+  }
   const ageGroup = document.getElementById('ageGroup').value;
   if (!ageGroup) {
     showWarning('הגיל מחוץ לטווח הגילים של השאלון (3.0–11.11) — לא ניתן לחשב ציונים');
@@ -498,7 +598,7 @@ function calculate() {
     return;
   }
   if (!getAnonId()) {
-    showWarning('יש להזין מספר אנונימי — הסיכום משתמש בו במקום שם.');
+    showWarning('יש להזין מספר אנונימי — הוא מופיע בכותרת ובשמות הקבצים במקום שם.');
     return;
   }
 
@@ -618,7 +718,7 @@ function calculate() {
         scores,
       })}</div>
       <div style="background:#eef6ff; border:1px solid #c5ddf5; border-radius:8px; padding:10px 14px; margin-top:14px;">
-        <span style="font-size:0.82rem; color:#334155;">לשילוב ממצאי השאלון עם התמונה הקלינית מהמפגש: לחצ/י על "הורד ל-AI", העל/י את הקובץ לכלי AI (Claude, ChatGPT, Copilot) ותאר/י לו מה נצפה. הכלי יכתוב רק את פסקת המטפל/ת, בלי לשנות ציונים או את הסיכום. אין להוסיף שם או ת״ז.</span>
+        <span style="font-size:0.82rem; color:#334155;">לשילוב ממצאי השאלון עם התמונה הקלינית מהמפגש: לחצ/י על "הורדה ל-AI (טקסט)", העל/י את הקובץ לכלי AI (Claude, ChatGPT, Copilot) ותאר/י לו מה נצפה. הכלי יכתוב רק את פסקת המטפל/ת, בלי לשנות ציונים או את הסיכום. אין להוסיף שם או ת״ז.</span>
       </div>
       <div class="summary-note">
         ציון החתך נקבע 1.5 סטיות תקן מתחת לממוצע של קבוצת הגיל (Frisch & Rosenblum, 2024). ציון נמוך מציון החתך מורה על חשד לקושי בתחום שנמדד בלבד: בשגרה או בתפקוד הניהולי.
@@ -636,11 +736,13 @@ function calculate() {
       <button class="btn btn-pdf" onclick="printResults()">PDF למטפל/ת</button>
       <button class="btn btn-parent-pdf" onclick="printParentResults()">PDF להורים</button>
       <button class="btn btn-clicks" onclick="downloadForClicks()">הורדה לקליקס (טקסט)</button>
-      <button class="btn btn-ai" onclick="downloadForAI()">הורד ל-AI</button>
+      <button class="btn btn-ai" onclick="downloadForAI()">הורדה ל-AI (טקסט)</button>
       <button class="btn btn-back" onclick="goBack()">חזרה לשאלון</button>
       <button class="btn btn-danger" onclick="resetForm()">שאלון חדש</button>
     </div>
+    <p class="import-status" id="downloadStatus" role="status" aria-live="polite"></p>
   `;
+  document.getElementById('parentNote').value = parentNoteDraft;
 
   resultsDiv.style.display = 'block';
   window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -811,6 +913,9 @@ function itemPhrases(isMale) {
   return { diffPhrase, strengthPhrase };
 }
 
+// canon B3: morning/evening twin pairs (items 1-16 only).
+const ITEM_TWIN = { 1: 9, 9: 1, 4: 12, 12: 4, 5: 13, 13: 5, 6: 14, 14: 6, 8: 16, 16: 8 };
+
 function buildSummary(d) {
   const belowCutoff = (s, c) => s < c;
   const m = d.isMale;
@@ -837,11 +942,11 @@ function buildSummary(d) {
   // rule 7, "a 3 may ride along"). 2↔10, 3↔11 are excluded because 10/11
   // carry no EF; 7↔15 is excluded because the two items sit under different
   // EFs. Only items 1-16 (morning/evening) have twins at all.
-  const twinOf = { 1: 9, 9: 1, 4: 12, 12: 4, 5: 13, 13: 5, 6: 14, 14: 6, 8: 16, 16: 8 };
+  const twinOf = ITEM_TWIN;
   const pairKey = (a, b) => [a, b].sort((x, y) => x - y).join('-');
   const twinMergePhrase = {
     '1-9': 'מתקשה ביוזמה של תחילת פעילות',
-    '4-12': 'קושי להתארגן על פי כללי הבית, כמו הנחת בגדים במקום ופינוי כלים',
+    '4-12': 'מתקשה להתארגן על פי כללי הבית, כמו הנחת בגדים במקום ופינוי כלים',
     '5-13': diffPhrase[5],
     '6-14': diffPhrase[6],
     '8-16': diffPhrase[8],
@@ -880,6 +985,15 @@ function buildSummary(d) {
   });
 
   const strongItemsAll = items.filter((i) => d.scores[i.num] >= 4);
+  // S1 (QA 2026-10-11): a function is named as a strength ONLY when its own
+  // status is clearly in norm (not below, not close, not at the cutoff).
+  // Items 10/11 carry no function but are working-memory-like, so they
+  // follow working memory.
+  const strengthFunctionOk = (num) => {
+    const it = items.find((x) => x.num === num);
+    const ef = it.ef || (num === 10 || num === 11 ? 'wm' : null);
+    return !ef || efStatusMap[ef] === 'above';
+  };
 
   const fmt = (n) => n.toFixed(2);
   const header = (t) =>
@@ -893,6 +1007,10 @@ function buildSummary(d) {
   let intro = `על פי דיווח ההורים בשאלון ה-EFORTS, `;
   if (totalBelow && weakRoutines.length === 3) {
     intro += `עולה קושי בניהול עצמאי של שגרות היום-יום ביחס לבני ${hisAge} (${got} ציון כולל ${fmtScore(d.totalAvg, d.c.total)} כאשר ציון החתך הוא ${fmt(d.c.total)}). התפקוד בשלוש השגרות (בוקר וערב, פנאי ומשחק ושגרה חברתית) נמוך מהמצופה ${g('לגילו', 'לגילה')}.`;
+  } else if (totalBelow && weakRoutines.length === 0) {
+    // S6 (QA 2026-10-11): total below cutoff but no routine below — say so
+    // plainly; never a dangling "בעיקר" with nothing after it.
+    intro += `הציון הכולל נמוך מציון החתך (${got} ציון כולל ${fmtScore(d.totalAvg, d.c.total)} כאשר ציון החתך הוא ${fmt(d.c.total)}), אף שהציון בכל שגרה בנפרד אינו נמוך מציון החתך.`;
   } else if (totalBelow) {
     intro += `עולה קושי בניהול עצמאי של שגרות היום-יום ביחס לבני ${hisAge} (${got} ציון כולל ${fmtScore(d.totalAvg, d.c.total)} כאשר ציון החתך הוא ${fmt(d.c.total)}), בעיקר ${weakRoutines.map((r) => r.inName).join(' ו')}.`;
   } else if (weakRoutines.length > 0 || weakEFs.length > 0) {
@@ -927,7 +1045,7 @@ function buildSummary(d) {
   s += para(intro);
 
   // ===== משמעות קלינית — routine by routine, EF attribution inside =====
-  if (weakRoutines.length > 0 || weakEFs.length > 0) {
+  if (weakRoutines.length > 0 || weakEFs.length > 0 || totalBelow) {
     s += header('משמעות קלינית');
 
     // canon F-7 / table row "Total in norm, profile weak" (MUST, Carmit
@@ -938,7 +1056,10 @@ function buildSummary(d) {
     if (okRoutines.length > 0 && weakRoutines.length > 0) {
       if (!totalBelow) {
         const first = weakRoutines[0];
-        mergedFirstWeakPrefix = `ממצאי השאלון מורים על ציונים בטווח הנורמה (גבוהים מציון החתך) ${okRoutines.map((r) => r.inName).join(' ו')}, והציון ${first.inName} `;
+        mergedFirstWeakPrefix =
+          okRoutines.length === 1
+            ? `ממצאי השאלון מורים על ציון בטווח הנורמה (גבוה מציון החתך) ${okRoutines[0].inName}, והציון ${first.inName} `
+            : `ממצאי השאלון מורים על ציונים בטווח הנורמה (גבוהים מציון החתך) ${okRoutines.map((r) => r.inName).join(' ו')}, והציון ${first.inName} `;
       } else {
         // canon table row "Total below, only 1-2 routines low" (SHOULD,
         // deduced — no model verifies this exact mix). Credit the in-norm
@@ -946,7 +1067,7 @@ function buildSummary(d) {
         // routine(s)' status — each gets its own paragraph below, so
         // nothing is announced twice either way.
         s += para(
-          `ממצאי השאלון מורים על ציונים בטווח הנורמה ${okRoutines.map((r) => r.inName).join(' ו')}.`,
+          `ממצאי השאלון מורים על ${okRoutines.length === 1 ? 'ציון' : 'ציונים'} בטווח הנורמה ${okRoutines.map((r) => r.inName).join(' ו')}.`,
         );
       }
     }
@@ -993,7 +1114,11 @@ function buildSummary(d) {
         if (!i.ef) return; // rule 21: items 10/11 are never EF evidence
         (byEf[i.ef] = byEf[i.ef] || []).push(i);
       });
-      const eligibleEfKeys = Object.keys(byEf).filter((ef) => efStatusMap[ef] !== 'above');
+      // S4 (QA 2026-10-11): with NO function below its cutoff, a "close" one
+      // is never the main explanation — the paragraph stays routine-only.
+      const eligibleEfKeys = Object.keys(byEf).filter(
+        (ef) => efStatusMap[ef] === 'below' || (efStatusMap[ef] === 'close' && weakEFs.length > 0),
+      );
       const statusRank = { below: 0, close: 1 };
       const efOrder = eligibleEfKeys.sort(
         (a, b) =>
@@ -1068,6 +1193,10 @@ function buildSummary(d) {
           // path (model 32 had none) — one form everywhere now: "– " (en
           // dash, spaced).
           attribution = `נראה כי הקושי התפקודי נובע לרוב מקושי ב${efNames[ef1]}, כמו למשל – ${ex1}, ולעיתים על רקע קושי ב${efNames[ef2]}, כפי שמתבטא בכך ש${g('הוא', 'היא')} ${ex2}.`;
+        } else if (usedEFs.has(ef1) && usedEFs.has(ef2)) {
+          // S7 / canon F22: both functions were already named in an earlier
+          // paragraph — a transition, not the same opener again.
+          attribution = `גם כאן נראה כי הקושי התפקודי קשור לקושי ב${efNames[ef1]}, כמו למשל – ${ex1}, וכן לקושי ב${efNames[ef2]}, שמתבטא בין השאר בכך ש${g('הוא', 'היא')} ${ex2}.`;
         } else {
           // canon rule 16: two EFs both below their own cutoffs share equal
           // weight — no "בעיקר" on the first.
@@ -1087,6 +1216,7 @@ function buildSummary(d) {
       const blamedEFs = new Set(chosen);
       const eligibleStrong = rStrong.filter((i) => {
         if (i.ef && blamedEFs.has(i.ef)) return false;
+        if (!strengthFunctionOk(i.num)) return false;
         const twinNum = twinOf[i.num];
         const twinScore = twinNum != null ? d.scores[twinNum] : undefined;
         if (twinScore != null && twinScore <= 2) return false;
@@ -1247,7 +1377,12 @@ function buildSummary(d) {
 
       efPara += `${statusSentence} (${bracket}).`;
     }
-    s += para(efPara);
+    // S6: total below with nothing else below — the cross-function paragraph
+    // only when some function is close to its cutoff.
+    const onlyTotalBelow = weakRoutines.length === 0 && weakEFs.length === 0;
+    if (!(onlyTotalBelow && efData.every((e) => efStatusMap[e.key] === 'above'))) {
+      s += para(efPara);
+    }
 
     // ===== המלצה =====
     let rec =
@@ -1275,7 +1410,7 @@ function buildSummary(d) {
       // target ("...אל המשימות שקשות לו יותר" implied a harder routine that
       // doesn't exist here).
       if (weakRoutines.length === 0) {
-        rec += `, תוך שימת דגש על ${hisMotivation}, איסוף חוויות של הצלחה גם אם קטנות.`;
+        rec += `, תוך שימת דגש על ${hisMotivation} ועל איסוף חוויות של הצלחה, גם אם קטנות.`;
       } else {
         // Gemini review R7-5a (7.10): joinHe ("A, B וC"), never the flat
         // "A וB וC" a plain join(' ו') produces for three routines. Guarded
@@ -1354,6 +1489,9 @@ function buildExportText() {
   const ageLabel = document.getElementById('ageGroupDisplay').textContent;
   const ageGroup = document.getElementById('ageGroup').value;
   // Item 8: escape here too — this text also feeds buildSummary() below.
+  // The details line is plain text: the raw trimmed number, no HTML entities.
+  // buildSummary() below returns HTML, so it gets the escaped form.
+  const anonIdRaw = getAnonId() || '—';
   const anonIdText = escapeHtml(getAnonId()) || '—';
   const efLabels = { inh: 'עכבה', wm: 'זיכרון עבודה', flex: 'גמישות מחשבתית' };
 
@@ -1393,7 +1531,7 @@ function buildExportText() {
   text += `EFORTS (Executive Functions & Occupational Routine Scale) — "שאלון למדידת יכולת הניהול העצמי של ילדים בשגרות היום יום" (Frisch & Rosenblum, 2014; נורמות וציוני חתך: Frisch & Rosenblum, 2024). שאלון להורים, לגילאי 3.0–11.11: 30 פריטים בשלוש שגרות — שגרות בוקר וערב (פריטים 1–16), שגרות משחק ופנאי (17–23) ושגרה חברתית (24–30). כל פריט מדורג מ-1 (אף פעם) עד 5 (תמיד); ציון גבוה = תפקוד טוב יותר. ציון שגרה = ממוצע פריטי השגרה; ציון כולל = ממוצע שלושת ציוני השגרות. כל פריט משויך גם לאחד משלושה תפקודים ניהוליים — עכבה, זיכרון עבודה או גמישות מחשבתית; פריטים 10 ו-11 אינם נכללים בחישוב התפקודים הניהוליים. ציון החתך נקבע 1.5 סטיות תקן מתחת לממוצע של קבוצת הגיל. ציון נמוך מציון החתך מורה על חשד לקושי בתחום שנמדד בלבד (בשגרה או בתפקוד הניהולי), ואינו קביעה של עיכוב כללי.\n\n`;
 
   text += `פרטי המטופל/ת:\n`;
-  text += `  מספר אנונימי: ${anonIdText} | מין: ${gender} | גיל: ${ageText} | קבוצת גיל נורמטיבית: ${ageLabel}\n\n`;
+  text += `  מספר אנונימי: ${anonIdRaw} | מין: ${gender} | גיל: ${ageText} | קבוצת גיל נורמטיבית: ${ageLabel}\n\n`;
 
   const line = (label, sc, ct, kind) =>
     `    ${label}: ${fmtScore(sc, ct)} | ציון החתך: ${ct.toFixed(2)} | ${cutoffStatus(sc, ct, kind).text}\n`;
@@ -1510,10 +1648,16 @@ function downloadForClicks() {
   a.download = `EFORTS_${anonId}_${date}_clicks.txt`;
   a.click();
   URL.revokeObjectURL(url);
+  const status = document.getElementById('downloadStatus');
+  if (status) {
+    status.className = 'import-status ok';
+    status.textContent = 'הקובץ ירד. פתח/י אותו (ייפתח בפנקס הרשימות), סמנ/י הכול והעתק/י לקליקס.';
+  }
 }
 
 function downloadForAI() {
-  const text = buildExportText();
+  // BOM like the Clicks file, so Notepad opens the Hebrew as UTF-8.
+  const text = '\uFEFF' + buildExportText();
   // Item 8: sanitize (not HTML-escape) for a filename — strip anything
   // outside letters/digits/hyphen so a pasted "<script>" etc. can't reach
   // the downloaded file's name.
@@ -1536,15 +1680,15 @@ function downloadForAI() {
 // wording comes from itemPhrases(). Never shows scores, cutoffs, item
 // numbers, the anonymous number or the clinical summary.
 const PARENT_ROUTINES = [
-  { key: 'morning', name: 'שגרת הבוקר והערב' },
-  { key: 'play', name: 'משחק ופנאי' },
-  { key: 'social', name: 'מצבים חברתיים' },
+  { key: 'morning', name: 'שגרת בוקר וערב', inBrief: 'שגרת הבוקר והערב' },
+  { key: 'play', name: 'שגרת פנאי ומשחק', inBrief: 'שגרת הפנאי והמשחק' },
+  { key: 'social', name: 'שגרה חברתית', inBrief: 'השגרה החברתית' },
 ];
 const PARENT_SKILLS = [
   {
     key: 'inh',
     name: 'עצירה לפני תגובה (עכבה)',
-    desc: 'להתעלם מהסחות, לסיים דבר אחד לפני שעוברים לבא, ולעצור לחשוב לפני שמגיבים.',
+    desc: 'להתעלם מהסחות, לסיים דבר אחד לפני שעוברים לבא ולעצור לחשוב לפני שמגיבים.',
   },
   {
     key: 'wm',
@@ -1554,7 +1698,7 @@ const PARENT_SKILLS = [
   {
     key: 'flex',
     name: 'יוזמה וגמישות (גמישות מחשבתית)',
-    desc: 'ליזום, לתכנן, ולמצוא פתרון כשמשהו לא מסתדר.',
+    desc: 'ליזום, לתכנן ולמצוא פתרון כשמשהו לא מסתדר.',
   },
 ];
 
@@ -1588,10 +1732,14 @@ function buildParentSheetHtml(p) {
   let mode;
   if (anyRoutine) {
     mode = 'B';
-    brief = `על פי התשובות שלכם, יש שגרות שקשות ${TO_CHILD} יותר מהצפוי ${AGE}. הפירוט בהמשך.`;
+    const lowRoutines = routines.filter((r) => r.below);
+    brief =
+      lowRoutines.length === 1
+        ? `על פי התשובות שלכם, ${lowRoutines[0].inBrief} קשה ${TO_CHILD} יותר מהצפוי ${AGE}. הפירוט בהמשך.`
+        : `על פי התשובות שלכם, יש שגרות שקשות ${TO_CHILD} יותר מהצפוי ${AGE}. הפירוט בהמשך.`;
   } else if (anySkill) {
     mode = 'C';
-    brief = `על פי התשובות שלכם, ${CHILD} ${MANAGES} בשגרות היום-יום כצפוי ${AGE}, ועם זאת עלה קושי באחת המיומנויות. הפירוט בהמשך.`;
+    brief = `על פי התשובות שלכם, ${CHILD} ${MANAGES} בשגרות היום-יום כצפוי ${AGE}, ועם זאת עלה קושי ${skills.filter((x) => x.below).length === 1 ? 'באחת המיומנויות' : 'בחלק מהמיומנויות'}. הפירוט בהמשך.`;
   } else if (totalBelow) {
     mode = 'D';
     brief = `על פי התשובות שלכם, התמונה הכללית מעט נמוכה מהצפוי ${AGE}, גם אם אף שגרה לבדה אינה בולטת. נשוחח על כך יחד.`;
@@ -1602,8 +1750,18 @@ function buildParentSheetHtml(p) {
 
   // What's going well: routines not below cutoff, then up to 3 strengths.
   const goodLines = routines.filter((r) => !r.below).map((r) => `${r.name}: כצפוי לגיל.`);
+  // Same rule as the clinical summary (S1): a strength is shown only if its
+  // function is clearly in norm; items 10/11 follow working memory; an item
+  // whose twin scored 1-2 is skipped.
+  const skillNorm = (key) => cutoffStatus(skillAvg(key), c[key], 'ef').key === 'norm';
+  const strengthOk = (i) => {
+    const ef = i.ef || (i.num === 10 || i.num === 11 ? 'wm' : null);
+    if (ef && !skillNorm(ef)) return false;
+    const tw = ITEM_TWIN[i.num];
+    return !(tw != null && scores[tw] <= 2);
+  };
   const strongItems = items
-    .filter((i) => scores[i.num] >= 4)
+    .filter((i) => scores[i.num] >= 4 && strengthOk(i))
     .sort((a, b) => scores[b.num] - scores[a.num] || a.num - b.num);
   const strengths = [];
   strongItems.forEach((i) => {
@@ -1629,7 +1787,7 @@ function buildParentSheetHtml(p) {
       `<p class="hard">${e(title)}: קשה יותר מהצפוי לגיל — כדאי לדבר על זה.</p>` +
       (ex.length
         ? `<p class="eg">למשל, לפי התשובות שלכם:</p><ul>${ex.map((x) => `<li>${e(x)}.</li>`).join('')}</ul>`
-        : '')
+        : '<p class="eg">התמונה עולה מכמה תשובות יחד, ולא מתשובה אחת בולטת.</p>')
     );
   };
   let harderHtml = '';
@@ -1672,7 +1830,9 @@ function buildParentSheetHtml(p) {
     : '';
 
   const sexWord = sexRaw === 'male' ? 'בן' : sexRaw === 'female' ? 'בת' : '';
-  const meta = [sexWord, ageText, `תאריך מילוי: ${fillDateText}`].filter(Boolean).join(' · ');
+  const meta = [[sexWord, ageText].filter(Boolean).join(' '), `תאריך מילוי: ${fillDateText}`]
+    .filter(Boolean)
+    .join(' · ');
 
   return `<!DOCTYPE html>
 <html lang="he" dir="rtl">
@@ -1681,7 +1841,8 @@ function buildParentSheetHtml(p) {
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;600;700&display=swap');
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: 'Heebo', sans-serif; direction: rtl; color: #1a202c; line-height: 1.55; padding: 18px; max-width: 760px; margin: 0 auto; font-size: 13px; }
+  @page { size: A4; margin: 10mm; }
+  body { font-family: 'Heebo', sans-serif; direction: rtl; color: #1a202c; line-height: 1.45; padding: 18px; max-width: 760px; margin: 0 auto; font-size: 13px; }
   .head { text-align: center; margin-bottom: 8px; }
   .logos { display: flex; align-items: flex-end; justify-content: center; gap: 14px; margin-bottom: 6px; }
   .logos img { height: 28px; width: auto; max-width: 100px; object-fit: contain; }
@@ -1705,7 +1866,7 @@ function buildParentSheetHtml(p) {
   .note { border: 1px solid #94a3b8; border-radius: 6px; padding: 6px 10px; }
   .footer { text-align: center; font-size: 10px; color: #64748b; margin-top: 14px; padding-top: 6px; border-top: 1px solid #cbd5e1; }
   section { break-inside: avoid; }
-  @media print { body { padding: 8px; } }
+  @media print { body { padding: 0; max-width: none; font-size: 12px; line-height: 1.4; } h1 { margin: 6px 0 2px; } h2 { margin: 8px 0 3px; } .skill { margin-bottom: 4px; } }
 </style>
 </head>
 <body>
@@ -1722,7 +1883,7 @@ function buildParentSheetHtml(p) {
   <div class="meta">${e(meta)}</div>
 
   <section><h2>מה זה הסיכום הזה</h2>
-  <p>הסיכום מבוסס על התשובות שלכם בשאלון. זהו שאלון סינון: הוא עוזר להבין איך ${CHILD} ${MANAGES} בשגרות היום-יום, אבל הוא אינו אבחנה ואינו ציון על ההורות שלכם. תקופה עמוסה, מחלה או שבוע קשה יכולים להשפיע על התשובות.</p></section>
+  <p>הסיכום מבוסס על התשובות שלכם בשאלון. זהו שאלון סינון: הוא עוזר להבין איך ${CHILD} ${MANAGES} בשגרות היום-יום, אבל הוא אינו אבחנה ואינו מעיד על ההורות שלכם. תקופה עמוסה, מחלה או שבוע קשה יכולים להשפיע על התשובות.</p></section>
 
   <section><h2>בקצרה</h2><p>${brief}</p></section>
 
@@ -2031,11 +2192,20 @@ function patientNoun(raw) {
   return raw === 'male' ? 'מטופל' : raw === 'female' ? 'מטופלת' : 'מטופל/ת';
 }
 
+// O3: the progress bar is sticky, so scrollIntoView() parks the target under
+// it. Scroll so the element lands just BELOW the bar.
+function scrollBelowProgress(el) {
+  const bar = document.getElementById('progressWrap');
+  const barH = bar && bar.offsetHeight ? bar.offsetHeight : 0;
+  const top = el.getBoundingClientRect().top + window.scrollY - barH - 12;
+  window.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
+}
+
 function showWarning(msg) {
   const w = document.getElementById('warning');
   w.textContent = msg;
   w.style.display = 'block';
-  w.scrollIntoView({ behavior: 'smooth' });
+  scrollBelowProgress(w);
 }
 function hideWarning() {
   document.getElementById('warning').style.display = 'none';
@@ -2050,7 +2220,9 @@ function goBack() {
 
 function resetForm() {
   if (!confirm('לאפס את כל התשובות ולהתחיל שאלון חדש? הנתונים השמורים בדפדפן זה יימחקו.')) return;
-  localStorage.removeItem('eforts_save');
+  storeRemove('eforts_save');
+  parentNoteDraft = '';
+  hideRestoreBar();
   document.querySelectorAll('input[type="radio"]').forEach((r) => (r.checked = false));
   document.getElementById('anonId').value = '';
   document.getElementById('childGender').value = '';
@@ -2115,8 +2287,12 @@ function importErrorText(code, params) {
       return `ערך לא תקין בשדה "מי נמצא עם הילד": "${p.v}".`;
     case 'E13':
       return 'נמצאו כמה קודים שונים. הדביק/י קוד אחד בכל פעם.';
+    case 'E14':
+      return 'תאריך הלידה מאוחר מתאריך המילוי.';
     case 'F1':
       return 'הקובץ גדול מדי — זה לא קובץ תשובות של טופס ההורים.';
+    case 'F4':
+      return 'זה לא קובץ תשובות. יש לבחור את קובץ ה-PDF שההורים שלחו.';
     case 'F2':
       return 'לא הצלחנו לקרוא את הקובץ.';
     case 'F3':
@@ -2149,6 +2325,28 @@ const AGE_BAND_EDGE_MONTHS = [36, 72, 96, 144];
 function isNearAgeBandEdge(years, months) {
   const total = years * 12 + months;
   return AGE_BAND_EDGE_MONTHS.some((edge) => Math.abs(total - edge) <= 1);
+}
+
+const AGE_OUT_OF_RANGE_TEXT = 'הגיל מחוץ לטווח הגילים של השאלון (3 עד 11 שנים ו-11 חודשים).';
+const AGE_RANGE_EDGE_TEXT = 'קרוב לגבול טווח הגילים של השאלון — כדאי לוודא את תאריך הלידה.';
+const AGE_BAND_EDGE_TEXT =
+  'שים/י לב: הגיל קרוב לגבול בין קבוצות גיל, ולכן תאריך הלידה המדויק קובע את ציוני החתך.';
+
+// One note for the import preview and the post-apply status: outside 3.0 to
+// 11.11, at the outer edges (3y0m, 11y11m), or near a boundary between bands.
+function ageEdgeNote(years, months) {
+  const total = years * 12 + months;
+  if (total < 36 || total >= 144) return AGE_OUT_OF_RANGE_TEXT;
+  if (total === 36 || total === 143) return AGE_RANGE_EDGE_TEXT;
+  if (isNearAgeBandEdge(years, months)) return AGE_BAND_EDGE_TEXT;
+  return '';
+}
+
+function showImportEdge(years, months) {
+  const edge = document.getElementById('importEdge');
+  const note = ageEdgeNote(years, months);
+  edge.textContent = note;
+  edge.hidden = !note;
 }
 
 function importFillDateOutOfRange(dateStr) {
@@ -2216,9 +2414,17 @@ function importParentAnswers(text) {
     showImportError('E10', { v: result.data.date });
     return;
   }
+  if (result.data.dob > result.data.date) {
+    showImportError('E14', {});
+    return;
+  }
   importPreviewData = result.data;
   buildImportPreview(result.data);
-  document.getElementById('importPreview').hidden = false;
+  const age = computeAgeYM(result.data.dob, result.data.date);
+  showImportEdge(age.years, age.months);
+  const preview = document.getElementById('importPreview');
+  preview.hidden = false;
+  scrollBelowProgress(preview);
 }
 
 function isClinicianFormDirty() {
@@ -2232,9 +2438,15 @@ function isClinicianFormDirty() {
 function applyImportedAnswers() {
   if (!importPreviewData) return;
   if (isClinicianFormDirty()) {
-    if (!confirm('הטופס כבר מכיל נתונים. הייבוא יחליף אותם. להמשיך?')) return;
+    if (!confirm('הטופס כבר מכיל נתונים. הייבוא יחליף אותם, כולל המספר האנונימי.')) return;
   }
   const data = importPreviewData;
+
+  // O1: a new child is a new number. Never carry the last child's number (or
+  // OT note) over; the clinician types the new one.
+  document.getElementById('anonId').value = '';
+  parentNoteDraft = '';
+  hideRestoreBar();
 
   document.querySelectorAll('#questionnaire input[type="radio"]').forEach((r) => {
     r.checked = false;
@@ -2261,14 +2473,7 @@ function applyImportedAnswers() {
   status.className = 'import-status ok';
   status.textContent = 'התשובות הוזנו. הקלד/י מספר אנונימי ולחצ/י על "חשב ציונים".';
 
-  const edge = document.getElementById('importEdge');
-  if (isNearAgeBandEdge(years, months)) {
-    edge.hidden = false;
-    edge.textContent =
-      'שים/י לב: הגיל קרוב לגבול בין קבוצות גיל, ולכן תאריך הלידה המדויק קובע את ציוני החתך.';
-  } else {
-    edge.hidden = true;
-  }
+  showImportEdge(years, months);
 
   document.getElementById('importPreview').hidden = true;
   document.getElementById('importCode').value = '';
@@ -2371,6 +2576,12 @@ async function importFromFile(file) {
     showImportError('F2', {});
     return;
   }
+  // an image or any other file type is not an answers file
+  const isTextFile = /\.txt$/i.test(file.name || '') || file.type === 'text/plain';
+  if (!isTextFile && (file.type || /\.[A-Za-z0-9]+$/.test(file.name || ''))) {
+    showImportError('F4', {});
+    return;
+  }
   if (file.size > 20000) {
     showImportError('F1', {});
     return;
@@ -2445,6 +2656,13 @@ document.addEventListener('DOMContentLoaded', () => {
   const importCode = document.getElementById('importCode');
   importCode.addEventListener('paste', () => {
     setTimeout(() => importParentAnswers(importCode.value), 0);
+  });
+  // Typing over the box makes an earlier preview stale: hide it.
+  importCode.addEventListener('input', () => {
+    if (importPreviewData || !document.getElementById('importPreview').hidden) {
+      clearImportPanel();
+      importPreviewData = null;
+    }
   });
 
   importFile.addEventListener('change', () => {

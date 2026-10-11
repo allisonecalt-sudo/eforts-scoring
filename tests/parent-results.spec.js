@@ -23,8 +23,8 @@ const FIXTURES = [
 
 const BRIEF = {
   A: 'כצפוי',
-  B: 'יש שגרות שקשות',
-  C: 'עלה קושי באחת המיומנויות',
+  B: 'יותר מהצפוי',
+  C: 'עלה קושי',
   D: 'התמונה הכללית מעט נמוכה',
 };
 
@@ -75,7 +75,7 @@ async function liveStatuses(page, fx) {
   );
 }
 
-const ROUTINE_NAMES = ['שגרת הבוקר והערב', 'משחק ופנאי', 'מצבים חברתיים'];
+const ROUTINE_NAMES = ['שגרת בוקר וערב', 'שגרת פנאי ומשחק', 'שגרה חברתית'];
 const SKILL_NAMES = [
   'עצירה לפני תגובה (עכבה)',
   'החזקת מידע בראש (זיכרון עבודה)',
@@ -94,8 +94,16 @@ for (const { name, branch } of FIXTURES) {
     }
     const briefText = await popup.locator('section:has(h2:text-is("בקצרה")) p').innerText();
     if (branch === 'A') expect(briefText).not.toContain('הפירוט בהמשך');
-    if (branch === 'B') expect(briefText).toContain('יש שגרות שקשות');
-    if (branch === 'C') expect(briefText).toContain('עלה קושי באחת המיומנויות');
+    const live0 = await liveStatuses(page, fx);
+    const nLowR = live0.routines.filter(Boolean).length;
+    const nLowS = live0.skills.filter(Boolean).length;
+    if (branch === 'B') {
+      expect(briefText).toContain(nLowR === 1 ? ' קשה ' : 'יש שגרות שקשות');
+      if (nLowR === 1) expect(briefText).not.toContain('יש שגרות');
+    }
+    if (branch === 'C') {
+      expect(briefText).toContain(nLowS === 1 ? 'עלה קושי באחת המיומנויות' : 'בחלק מהמיומנויות');
+    }
 
     // "what is harder" section only in B and C
     const hasHarder = await popup.locator('h2:text-is("מה קשה יותר מהצפוי")').count();
@@ -135,10 +143,8 @@ for (const { name, branch } of FIXTURES) {
 
     // never shown to parents
     expect(html).not.toContain('9876');
-    // The fixed disclaimer says "ואינו ציון על ההורות שלכם" (not a score of the
-    // child) — the only allowed use of the word.
-    const noDisclaimer = text.replace('ואינו ציון על ההורות שלכם', '');
-    for (const bad of ['ציון', 'פריט', 'חתך', 'AI']) expect(noDisclaimer).not.toContain(bad);
+    for (const bad of ['ציון', 'פריט', 'חתך', 'AI']) expect(text).not.toContain(bad);
+    expect(text).toContain('ואינו מעיד על ההורות שלכם');
     expect(text).not.toMatch(/\d\.\d\d/);
     expect(text).toContain('סיכום התוצאות להורים');
     expect(text).toContain('הסיכום נכתב להורים ואינו מחליף את דוח האבחון');
