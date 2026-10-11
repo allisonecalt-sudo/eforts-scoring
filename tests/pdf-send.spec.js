@@ -205,6 +205,11 @@ test('g: phone path — share label, share gets one PDF File, the link downloads
 }) => {
   await page.addInitScript(() => {
     navigator.canShare = (d) => !!(d && d.files && d.files.length);
+    const mm = window.matchMedia.bind(window);
+    window.matchMedia = (q) =>
+      /pointer:\s*coarse/.test(q)
+        ? { matches: true, media: q, addEventListener() {}, removeEventListener() {} }
+        : mm(q);
     navigator.share = async (d) => {
       window.__shared = d;
     };
@@ -248,6 +253,11 @@ test('g: phone path — share label, share gets one PDF File, the link downloads
 test('g2: share is called in the same tick as the tap (no await before it)', async ({ page }) => {
   await page.addInitScript(() => {
     navigator.canShare = () => true;
+    const mm = window.matchMedia.bind(window);
+    window.matchMedia = (q) =>
+      /pointer:\s*coarse/.test(q)
+        ? { matches: true, media: q, addEventListener() {}, removeEventListener() {} }
+        : mm(q);
     navigator.share = async () => {
       window.__sharedSync = navigator.userActivation ? navigator.userActivation.isActive : true;
     };
@@ -261,6 +271,11 @@ test('g2: share is called in the same tick as the tap (no await before it)', asy
 test('share failure (not a cancel) falls back to the download', async ({ page }) => {
   await page.addInitScript(() => {
     navigator.canShare = () => true;
+    const mm = window.matchMedia.bind(window);
+    window.matchMedia = (q) =>
+      /pointer:\s*coarse/.test(q)
+        ? { matches: true, media: q, addEventListener() {}, removeEventListener() {} }
+        : mm(q);
     navigator.share = async () => {
       throw new DOMException('nope', 'NotAllowedError');
     };
