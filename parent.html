@@ -74,9 +74,10 @@
                 <label for="pSex_f">בת</label>
               </div>
             </fieldset>
-            <div class="info-field">
+            <div class="info-field" id="pDobField">
               <label id="pDobLabel" for="pDob">תאריך לידה</label>
-              <input type="date" id="pDob">
+              <input type="date" id="pDob" min="1900-01-01">
+              <p id="pDobError" class="p-hint p-field-error" role="alert" hidden></p>
               <p id="pDobHint" class="p-hint">אין צורך לכתוב שם. נזהה את השאלון לפי תאריך הלידה.</p>
             </div>
           </div>
