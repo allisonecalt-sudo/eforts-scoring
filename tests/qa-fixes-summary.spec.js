@@ -416,3 +416,93 @@ test('AI file: routine order matches rule 6, and rule 9 has no contradiction', a
     'בלי משפט פתיחה כמו "להלן הפסקה"; רק שורה אחת שאומרת איפה הפסקה נכנסת, ואחריה הפסקה.',
   );
 });
+
+// ===== close-stated (Allison 2026-10-11): a routine paragraph with no
+// below-cutoff function states the close functions, score only, no cause. =====
+const CAUSE_WORDS = ['נובע', 'מושפע', 'קשור'];
+
+test('close-stated: ef-close fixture states the close function after the routine score sentence', async ({
+  page,
+}) => {
+  const fs = require('fs');
+  const golden = fs.readFileSync(
+    require('path').join(__dirname, 'golden', 'model-ef-close.summary.txt'),
+    'utf8',
+  );
+  expect(golden).toContain(
+    'נמוך מציון החתך (קיבל ציון 3.00 כאשר ציון החתך הוא 3.14). הציון בזיכרון עבודה קרוב לציון החתך (קיבל ציון 3.00 כאשר ציון החתך הוא 3.00).',
+  );
+  await gotoApp(page);
+});
+
+for (const c of CLOSE_PRIMARY) {
+  test(`close-stated: ${c.id} states the close function (flexibility), never as a cause`, async ({
+    page,
+  }) => {
+    await gotoApp(page);
+    const text = await page.evaluate(
+      ({ answers, male }) => {
+        const scores = {};
+        items.forEach((it, i) => (scores[it.num] = answers[i]));
+        const cut = cutoffs['8-11'];
+        const rAvg = (k) => avg(items.filter((i) => i.routine === k).map((i) => scores[i.num]));
+        const eAvg = (k) => avg(items.filter((i) => i.ef === k).map((i) => scores[i.num]));
+        const m = rAvg('morning');
+        const p = rAvg('play');
+        const s = rAvg('social');
+        return buildSummary({
+          anonId: '1',
+          gender: male ? 'זכר' : 'נקבה',
+          isMale: male,
+          ageText: '',
+          ageLabel: '',
+          morningAvg: m,
+          playAvg: p,
+          socialAvg: s,
+          totalAvg: avg([m, p, s]),
+          inhAvg: eAvg('inh'),
+          wmAvg: eAvg('wm'),
+          flexAvg: eAvg('flex'),
+          c: cut,
+          scores,
+        })
+          .replace(/<[^>]+>/g, ' ')
+          .replace(/\s+/g, ' ');
+      },
+      { answers: c.answers, male: c.male },
+    );
+    const got = c.male ? 'קיבל' : 'קיבלה';
+    expect(text).toContain(
+      `הציון בגמישות מחשבתית קרוב לציון החתך (${got} ציון 3.13 כאשר ציון החתך הוא 3.07), ${c.male ? 'כמו למשל – מתקשה לעצור ולתכנן לפני המשחק (פריט 22)' : 'כמו למשל – מתקשה להישאר ממוקדת במשחק אחד (פריט 21)'}.`,
+    );
+    expect(text).not.toMatch(/(מושפע|קשור|נובע)( לרוב)? (מ|ל)?קושי בגמישות מחשבתית/);
+  });
+}
+
+test('close-stated: sweep - routine-only paragraphs state every close function, with no cause words', async ({
+  page,
+}) => {
+  await gotoApp(page);
+  const runs = await sweep(page, 1500);
+  let one = 0;
+  let many = 0;
+  for (const r of runs) {
+    const belows = Object.values(r.ef).filter((v) => v === 'below').length;
+    const closes = Object.values(r.ef).filter((v) => v === 'close').length;
+    const routineBelow = Object.values(r.routines).includes('below');
+    if (belows > 0 || closes === 0 || !routineBelow) continue;
+    if (closes === 1) {
+      one++;
+      expect(r.text).toMatch(
+        /\. הציון ב[^.]* קרוב לציון החתך \(קיבלה? ציון \d\.\d\d כאשר ציון החתך הוא/,
+      );
+    } else {
+      many++;
+      expect(r.text).toMatch(/\. הציונים ב[^.]* קרובים לציון החתך \(ב[^)]*קיבלה? ציון/);
+    }
+    const sentence = (r.text.match(/\. הציונ?י?ם? ב[^.]*קרובי?ם? ?ל?ציון החתך[^.]*\./) || [''])[0];
+    for (const w of CAUSE_WORDS) expect(sentence).not.toContain(w);
+  }
+  expect(one).toBeGreaterThan(0);
+  expect(many).toBeGreaterThan(0);
+});

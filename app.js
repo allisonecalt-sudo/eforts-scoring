@@ -1153,11 +1153,11 @@ function buildSummary(d) {
       // canon B3: 1-2 examples per EF, lowest score first, merging a
       // morning/evening twin into one clause when it's also weak (or rides
       // along at exactly 3 — rule 7).
-      const buildExamples = (weakItemsForEf) => {
+      const buildExamples = (weakItemsForEf, maxExamples = 2) => {
         const used = new Set();
         const examples = [];
         for (const it of weakItemsForEf) {
-          if (examples.length >= 2) break;
+          if (examples.length >= maxExamples) break;
           if (used.has(it.num)) continue;
           const twinNum = twinOf[it.num];
           const twinScore = twinNum != null ? d.scores[twinNum] : undefined;
@@ -1230,6 +1230,34 @@ function buildSummary(d) {
       chosen.forEach((ef) => usedEFs.add(ef));
 
       if (attribution) p += attribution + ' ';
+
+      // Routine-only paragraph (no below-cutoff function named): state the
+      // functions that are CLOSE to their cutoff, score only, no cause
+      // (Allison 2026-10-11: "state that it was close to cut off if there is
+      // no other problem").
+      if (chosen.length === 0) {
+        const closeEfs = efData.filter((e) => efStatusMap[e.key] === 'close');
+        if (closeEfs.length > 0) {
+          const scoreText = (e) =>
+            `${got} ציון ${fmtScore(e.score, e.cutoff)} כאשר ציון החתך הוא ${fmt(e.cutoff)}`;
+          const examples = closeEfs
+            .filter((e) => byEf[e.key])
+            .map((e) => buildExamples(byEf[e.key], 1))
+            .filter(Boolean);
+          const exText = examples.length ? `, כמו למשל – ${examples.join(' או ')}` : '';
+          if (closeEfs.length === 1) {
+            const e = closeEfs[0];
+            p += `הציון ב${efNames[e.key]} קרוב לציון החתך (${scoreText(e)})${exText}. `;
+          } else {
+            const names = closeEfs.map((e) => `ב${efNames[e.key]}`);
+            const joined = `${names.slice(0, -1).join(', ')} ו${names[names.length - 1]}`;
+            const inner = closeEfs
+              .map((e, i) => `${i === 0 ? '' : 'ו'}ב${efNames[e.key]} ${scoreText(e)}`)
+              .join(', ');
+            p += `הציונים ${joined} קרובים לציון החתך (${inner})${exText}. `;
+          }
+        }
+      }
 
       // canon B4: a woven-in strength must come from an EF NOT blamed in
       // this paragraph, and must not contradict a cited item OR that
