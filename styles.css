@@ -510,6 +510,15 @@ body {
   opacity: 0.6;
   cursor: wait;
 }
+.btn-clicks {
+  background: #fff;
+  color: var(--text);
+  border: 1.5px solid var(--border);
+}
+.btn-clicks:hover {
+  background: #f8fafc;
+  border-color: #cbd5e1;
+}
 .btn-ai {
   background: #fff;
   color: var(--text);
