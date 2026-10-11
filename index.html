@@ -45,11 +45,18 @@
       <!-- Progress -->
       <div class="progress-wrap" id="progressWrap">
         <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
-        <div class="progress-text" id="progressText">0 / 30</div>
+        <div class="progress-text" id="progressText"><bdi dir="ltr">0 / 30</bdi></div>
       </div>
 
       <!-- Child Info -->
       <div id="formSection">
+        <!-- O2: what was restored from this browser, with a way out -->
+        <div class="restore-bar" id="restoreBar" hidden>
+          <span id="restoreText"></span>
+          <button type="button" class="btn btn-secondary" id="restoreNew" onclick="resetForm()">
+            שאלון חדש
+          </button>
+        </div>
         <!-- Send the questionnaire to parents (easy-send) -->
         <section class="send-box" id="sendBox">
           <div class="send-title" id="sendTitle">שליחת השאלון להורים</div>
@@ -98,8 +105,8 @@
           <div class="info-card-title">פרטי המטופל/ת</div>
           <div class="info-grid">
             <div class="info-field">
-              <label for="anonId">מספר אנונימי (יופיע בסיכום במקום שם)</label>
-              <input type="text" id="anonId" placeholder="למשל 50 · לא שם, לא ת״ז, לא מספר תיק" />
+              <label for="anonId">מספר אנונימי (מופיע בכותרות ובשמות הקבצים, לא בסיכום)</label>
+              <input type="text" id="anonId" placeholder="למשל 50 · לא שם ולא ת״ז" />
             </div>
             <div class="info-field">
               <label for="childGender">מין</label>

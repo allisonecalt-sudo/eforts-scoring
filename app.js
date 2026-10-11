@@ -254,10 +254,21 @@ function clearAgeDisplay() {
   document.getElementById('ageGroup').value = '';
 }
 
+// 31 Feb / 30 Feb / 31 Apr … exist in the dropdowns but not in the calendar.
+function isoDateExists(iso) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso || '');
+  if (!m) return false;
+  const y = Number(m[1]);
+  const mo = Number(m[2]);
+  const d = Number(m[3]);
+  const dt = new Date(Date.UTC(y, mo - 1, d));
+  return dt.getUTCFullYear() === y && dt.getUTCMonth() === mo - 1 && dt.getUTCDate() === d;
+}
+
 function updateAge() {
   const birthInput = getBirthDateValue();
   const fillInput = getFillDateValue();
-  if (!birthInput || !fillInput) {
+  if (!birthInput || !fillInput || !isoDateExists(birthInput) || !isoDateExists(fillInput)) {
     clearAgeDisplay();
     return;
   }
@@ -315,6 +326,40 @@ function updateAge() {
 }
 
 // ===== SAVE / LOAD =====
+// O4: a Clalit PC may block site storage; every access goes through these
+// three so a blocked, full or disabled store can never stop the page.
+function storeGet(key) {
+  try {
+    return localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+function storeSet(key, value) {
+  try {
+    localStorage.setItem(key, value);
+    return true;
+  } catch {
+    return false;
+  }
+}
+function storeRemove(key) {
+  try {
+    localStorage.removeItem(key);
+  } catch {
+    // nothing to remove from
+  }
+}
+
+// O2: a saved form older than this is dropped on load, so a stale child
+// never greets the next clinician.
+const SAVE_MAX_AGE_MS = 14 * 24 * 60 * 60 * 1000;
+
+// The OT's personal note to the parents lives in memory for this page
+// session only (never storage, never the AI file) so it survives
+// «חזרה לשאלון» → «חשב ציונים».
+let parentNoteDraft = '';
+
 function saveForm() {
   const data = {
     anonId: getAnonId(),
@@ -327,21 +372,36 @@ function saveForm() {
       social: document.getElementById('companion_social')?.value || '',
     },
     answers: {},
+    savedAt: Date.now(),
   };
   items.forEach((item) => {
     const checked = document.querySelector(`input[name="q${item.num}"]:checked`);
     if (checked) data.answers[item.num] = parseInt(checked.value);
   });
-  localStorage.setItem('eforts_save', JSON.stringify(data));
+  const saved = storeSet('eforts_save', JSON.stringify(data));
   const ind = document.getElementById('saveIndicator');
+  ind.textContent = saved ? 'נשמר בדפדפן זה' : 'הדפדפן חוסם שמירה — הנתונים לא נשמרו';
   ind.style.display = 'block';
   setTimeout(() => (ind.style.display = 'none'), 2000);
 }
 
+// Restores the saved form and returns the saved data (or null when there is
+// nothing usable: no storage, broken JSON, or older than 14 days).
 function loadForm() {
-  const raw = localStorage.getItem('eforts_save');
-  if (!raw) return;
-  const data = JSON.parse(raw);
+  const raw = storeGet('eforts_save');
+  if (!raw) return null;
+  let data;
+  try {
+    data = JSON.parse(raw);
+  } catch {
+    storeRemove('eforts_save');
+    return null;
+  }
+  if (!data || typeof data !== 'object') return null;
+  if (typeof data.savedAt === 'number' && Date.now() - data.savedAt > SAVE_MAX_AGE_MS) {
+    storeRemove('eforts_save');
+    return null;
+  }
   if (data.anonId) document.getElementById('anonId').value = data.anonId;
   if (data.gender) document.getElementById('childGender').value = data.gender;
   if (data.birthDate) setBirthDateValue(data.birthDate);
@@ -360,6 +420,33 @@ function loadForm() {
   }
   updateAge();
   updateProgress();
+  return data;
+}
+
+// O2: reopening the page lands on the FORM (never on the last child's
+// results). This bar says what was loaded and offers a fresh questionnaire.
+function showRestoreBar(data) {
+  const bar = document.getElementById('restoreBar');
+  if (!bar) return;
+  const hasContent =
+    data &&
+    (data.anonId ||
+      data.birthDate ||
+      data.gender ||
+      (data.answers && Object.keys(data.answers).length > 0));
+  if (!hasContent) {
+    bar.hidden = true;
+    return;
+  }
+  const id = String(data.anonId || '').trim();
+  document.getElementById('restoreText').textContent =
+    'נטען השאלון האחרון שנשמר בדפדפן זה' + (id ? ` (מס' ${id}).` : '.');
+  bar.hidden = false;
+}
+
+function hideRestoreBar() {
+  const bar = document.getElementById('restoreBar');
+  if (bar) bar.hidden = true;
 }
 
 function populateBirthDropdowns() {
@@ -448,7 +535,8 @@ document.addEventListener('DOMContentLoaded', () => {
   populateFillDropdowns();
   buildForm();
   setFillDateToToday();
-  loadForm();
+  showRestoreBar(loadForm());
+  updateProgress();
   document.getElementById('birthDay').addEventListener('change', updateAge);
   document.getElementById('birthMonth').addEventListener('change', updateAge);
   document.getElementById('birthYear').addEventListener('change', updateAge);
@@ -465,21 +553,16 @@ document.addEventListener('DOMContentLoaded', () => {
   });
   document
     .querySelectorAll(
-      '#anonId, #childGender, #birthDay, #birthMonth, #birthYear, #fillDay, #fillMonth, #fillYear',
+      '#anonId, #childGender, #birthDay, #birthMonth, #birthYear, #fillDay, #fillMonth, #fillYear, #companion_morning, #companion_play, #companion_social',
     )
     .forEach((el) => {
       el.addEventListener('change', saveForm);
     });
 
-  // Auto-calculate on load if form has saved answers
-  const saved = localStorage.getItem('eforts_save');
-  if (saved) {
-    const data = JSON.parse(saved);
-    if (data.answers && Object.keys(data.answers).length === items.length && data.birthDate) {
-      updateAge();
-      setTimeout(calculate, 100);
-    }
-  }
+  // The OT's note to the parents: kept in memory only (see parentNoteDraft).
+  document.addEventListener('input', (e) => {
+    if (e.target && e.target.id === 'parentNote') parentNoteDraft = e.target.value;
+  });
 });
 
 // ===== CALCULATE =====
@@ -498,6 +581,10 @@ function calculate() {
     showWarning('יש להזין תאריך מילוי לפני חישוב הציונים');
     return;
   }
+  if (!isoDateExists(birthDate) || !isoDateExists(getFillDateValue())) {
+    showWarning('התאריך אינו קיים בלוח השנה.');
+    return;
+  }
   const ageGroup = document.getElementById('ageGroup').value;
   if (!ageGroup) {
     showWarning('הגיל מחוץ לטווח הגילים של השאלון (3.0–11.11) — לא ניתן לחשב ציונים');
@@ -511,7 +598,7 @@ function calculate() {
     return;
   }
   if (!getAnonId()) {
-    showWarning('יש להזין מספר אנונימי — הסיכום משתמש בו במקום שם.');
+    showWarning('יש להזין מספר אנונימי — הוא מופיע בכותרת ובשמות הקבצים במקום שם.');
     return;
   }
 
@@ -631,7 +718,7 @@ function calculate() {
         scores,
       })}</div>
       <div style="background:#eef6ff; border:1px solid #c5ddf5; border-radius:8px; padding:10px 14px; margin-top:14px;">
-        <span style="font-size:0.82rem; color:#334155;">לשילוב ממצאי השאלון עם התמונה הקלינית מהמפגש: לחצ/י על "הורד ל-AI", העל/י את הקובץ לכלי AI (Claude, ChatGPT, Copilot) ותאר/י לו מה נצפה. הכלי יכתוב רק את פסקת המטפל/ת, בלי לשנות ציונים או את הסיכום. אין להוסיף שם או ת״ז.</span>
+        <span style="font-size:0.82rem; color:#334155;">לשילוב ממצאי השאלון עם התמונה הקלינית מהמפגש: לחצ/י על "הורדה ל-AI (טקסט)", העל/י את הקובץ לכלי AI (Claude, ChatGPT, Copilot) ותאר/י לו מה נצפה. הכלי יכתוב רק את פסקת המטפל/ת, בלי לשנות ציונים או את הסיכום. אין להוסיף שם או ת״ז.</span>
       </div>
       <div class="summary-note">
         ציון החתך נקבע 1.5 סטיות תקן מתחת לממוצע של קבוצת הגיל (Frisch & Rosenblum, 2024). ציון נמוך מציון החתך מורה על חשד לקושי בתחום שנמדד בלבד: בשגרה או בתפקוד הניהולי.
@@ -649,11 +736,13 @@ function calculate() {
       <button class="btn btn-pdf" onclick="printResults()">PDF למטפל/ת</button>
       <button class="btn btn-parent-pdf" onclick="printParentResults()">PDF להורים</button>
       <button class="btn btn-clicks" onclick="downloadForClicks()">הורדה לקליקס (טקסט)</button>
-      <button class="btn btn-ai" onclick="downloadForAI()">הורד ל-AI</button>
+      <button class="btn btn-ai" onclick="downloadForAI()">הורדה ל-AI (טקסט)</button>
       <button class="btn btn-back" onclick="goBack()">חזרה לשאלון</button>
       <button class="btn btn-danger" onclick="resetForm()">שאלון חדש</button>
     </div>
+    <p class="import-status" id="downloadStatus" role="status" aria-live="polite"></p>
   `;
+  document.getElementById('parentNote').value = parentNoteDraft;
 
   resultsDiv.style.display = 'block';
   window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -1400,6 +1489,9 @@ function buildExportText() {
   const ageLabel = document.getElementById('ageGroupDisplay').textContent;
   const ageGroup = document.getElementById('ageGroup').value;
   // Item 8: escape here too — this text also feeds buildSummary() below.
+  // The details line is plain text: the raw trimmed number, no HTML entities.
+  // buildSummary() below returns HTML, so it gets the escaped form.
+  const anonIdRaw = getAnonId() || '—';
   const anonIdText = escapeHtml(getAnonId()) || '—';
   const efLabels = { inh: 'עכבה', wm: 'זיכרון עבודה', flex: 'גמישות מחשבתית' };
 
@@ -1439,7 +1531,7 @@ function buildExportText() {
   text += `EFORTS (Executive Functions & Occupational Routine Scale) — "שאלון למדידת יכולת הניהול העצמי של ילדים בשגרות היום יום" (Frisch & Rosenblum, 2014; נורמות וציוני חתך: Frisch & Rosenblum, 2024). שאלון להורים, לגילאי 3.0–11.11: 30 פריטים בשלוש שגרות — שגרות בוקר וערב (פריטים 1–16), שגרות משחק ופנאי (17–23) ושגרה חברתית (24–30). כל פריט מדורג מ-1 (אף פעם) עד 5 (תמיד); ציון גבוה = תפקוד טוב יותר. ציון שגרה = ממוצע פריטי השגרה; ציון כולל = ממוצע שלושת ציוני השגרות. כל פריט משויך גם לאחד משלושה תפקודים ניהוליים — עכבה, זיכרון עבודה או גמישות מחשבתית; פריטים 10 ו-11 אינם נכללים בחישוב התפקודים הניהוליים. ציון החתך נקבע 1.5 סטיות תקן מתחת לממוצע של קבוצת הגיל. ציון נמוך מציון החתך מורה על חשד לקושי בתחום שנמדד בלבד (בשגרה או בתפקוד הניהולי), ואינו קביעה של עיכוב כללי.\n\n`;
 
   text += `פרטי המטופל/ת:\n`;
-  text += `  מספר אנונימי: ${anonIdText} | מין: ${gender} | גיל: ${ageText} | קבוצת גיל נורמטיבית: ${ageLabel}\n\n`;
+  text += `  מספר אנונימי: ${anonIdRaw} | מין: ${gender} | גיל: ${ageText} | קבוצת גיל נורמטיבית: ${ageLabel}\n\n`;
 
   const line = (label, sc, ct, kind) =>
     `    ${label}: ${fmtScore(sc, ct)} | ציון החתך: ${ct.toFixed(2)} | ${cutoffStatus(sc, ct, kind).text}\n`;
@@ -1556,10 +1648,16 @@ function downloadForClicks() {
   a.download = `EFORTS_${anonId}_${date}_clicks.txt`;
   a.click();
   URL.revokeObjectURL(url);
+  const status = document.getElementById('downloadStatus');
+  if (status) {
+    status.className = 'import-status ok';
+    status.textContent = 'הקובץ ירד. פתח/י אותו (ייפתח בפנקס הרשימות), סמנ/י הכול והעתק/י לקליקס.';
+  }
 }
 
 function downloadForAI() {
-  const text = buildExportText();
+  // BOM like the Clicks file, so Notepad opens the Hebrew as UTF-8.
+  const text = '\uFEFF' + buildExportText();
   // Item 8: sanitize (not HTML-escape) for a filename — strip anything
   // outside letters/digits/hyphen so a pasted "<script>" etc. can't reach
   // the downloaded file's name.
@@ -2094,11 +2192,20 @@ function patientNoun(raw) {
   return raw === 'male' ? 'מטופל' : raw === 'female' ? 'מטופלת' : 'מטופל/ת';
 }
 
+// O3: the progress bar is sticky, so scrollIntoView() parks the target under
+// it. Scroll so the element lands just BELOW the bar.
+function scrollBelowProgress(el) {
+  const bar = document.getElementById('progressWrap');
+  const barH = bar && bar.offsetHeight ? bar.offsetHeight : 0;
+  const top = el.getBoundingClientRect().top + window.scrollY - barH - 12;
+  window.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
+}
+
 function showWarning(msg) {
   const w = document.getElementById('warning');
   w.textContent = msg;
   w.style.display = 'block';
-  w.scrollIntoView({ behavior: 'smooth' });
+  scrollBelowProgress(w);
 }
 function hideWarning() {
   document.getElementById('warning').style.display = 'none';
@@ -2113,7 +2220,9 @@ function goBack() {
 
 function resetForm() {
   if (!confirm('לאפס את כל התשובות ולהתחיל שאלון חדש? הנתונים השמורים בדפדפן זה יימחקו.')) return;
-  localStorage.removeItem('eforts_save');
+  storeRemove('eforts_save');
+  parentNoteDraft = '';
+  hideRestoreBar();
   document.querySelectorAll('input[type="radio"]').forEach((r) => (r.checked = false));
   document.getElementById('anonId').value = '';
   document.getElementById('childGender').value = '';
@@ -2178,8 +2287,12 @@ function importErrorText(code, params) {
       return `ערך לא תקין בשדה "מי נמצא עם הילד": "${p.v}".`;
     case 'E13':
       return 'נמצאו כמה קודים שונים. הדביק/י קוד אחד בכל פעם.';
+    case 'E14':
+      return 'תאריך הלידה מאוחר מתאריך המילוי.';
     case 'F1':
       return 'הקובץ גדול מדי — זה לא קובץ תשובות של טופס ההורים.';
+    case 'F4':
+      return 'זה לא קובץ תשובות. יש לבחור את קובץ ה-PDF שההורים שלחו.';
     case 'F2':
       return 'לא הצלחנו לקרוא את הקובץ.';
     case 'F3':
@@ -2212,6 +2325,28 @@ const AGE_BAND_EDGE_MONTHS = [36, 72, 96, 144];
 function isNearAgeBandEdge(years, months) {
   const total = years * 12 + months;
   return AGE_BAND_EDGE_MONTHS.some((edge) => Math.abs(total - edge) <= 1);
+}
+
+const AGE_OUT_OF_RANGE_TEXT = 'הגיל מחוץ לטווח הגילים של השאלון (3 עד 11 שנים ו-11 חודשים).';
+const AGE_RANGE_EDGE_TEXT = 'קרוב לגבול טווח הגילים של השאלון — כדאי לוודא את תאריך הלידה.';
+const AGE_BAND_EDGE_TEXT =
+  'שים/י לב: הגיל קרוב לגבול בין קבוצות גיל, ולכן תאריך הלידה המדויק קובע את ציוני החתך.';
+
+// One note for the import preview and the post-apply status: outside 3.0 to
+// 11.11, at the outer edges (3y0m, 11y11m), or near a boundary between bands.
+function ageEdgeNote(years, months) {
+  const total = years * 12 + months;
+  if (total < 36 || total >= 144) return AGE_OUT_OF_RANGE_TEXT;
+  if (total === 36 || total === 143) return AGE_RANGE_EDGE_TEXT;
+  if (isNearAgeBandEdge(years, months)) return AGE_BAND_EDGE_TEXT;
+  return '';
+}
+
+function showImportEdge(years, months) {
+  const edge = document.getElementById('importEdge');
+  const note = ageEdgeNote(years, months);
+  edge.textContent = note;
+  edge.hidden = !note;
 }
 
 function importFillDateOutOfRange(dateStr) {
@@ -2279,9 +2414,17 @@ function importParentAnswers(text) {
     showImportError('E10', { v: result.data.date });
     return;
   }
+  if (result.data.dob > result.data.date) {
+    showImportError('E14', {});
+    return;
+  }
   importPreviewData = result.data;
   buildImportPreview(result.data);
-  document.getElementById('importPreview').hidden = false;
+  const age = computeAgeYM(result.data.dob, result.data.date);
+  showImportEdge(age.years, age.months);
+  const preview = document.getElementById('importPreview');
+  preview.hidden = false;
+  scrollBelowProgress(preview);
 }
 
 function isClinicianFormDirty() {
@@ -2295,9 +2438,15 @@ function isClinicianFormDirty() {
 function applyImportedAnswers() {
   if (!importPreviewData) return;
   if (isClinicianFormDirty()) {
-    if (!confirm('הטופס כבר מכיל נתונים. הייבוא יחליף אותם. להמשיך?')) return;
+    if (!confirm('הטופס כבר מכיל נתונים. הייבוא יחליף אותם, כולל המספר האנונימי.')) return;
   }
   const data = importPreviewData;
+
+  // O1: a new child is a new number. Never carry the last child's number (or
+  // OT note) over; the clinician types the new one.
+  document.getElementById('anonId').value = '';
+  parentNoteDraft = '';
+  hideRestoreBar();
 
   document.querySelectorAll('#questionnaire input[type="radio"]').forEach((r) => {
     r.checked = false;
@@ -2324,14 +2473,7 @@ function applyImportedAnswers() {
   status.className = 'import-status ok';
   status.textContent = 'התשובות הוזנו. הקלד/י מספר אנונימי ולחצ/י על "חשב ציונים".';
 
-  const edge = document.getElementById('importEdge');
-  if (isNearAgeBandEdge(years, months)) {
-    edge.hidden = false;
-    edge.textContent =
-      'שים/י לב: הגיל קרוב לגבול בין קבוצות גיל, ולכן תאריך הלידה המדויק קובע את ציוני החתך.';
-  } else {
-    edge.hidden = true;
-  }
+  showImportEdge(years, months);
 
   document.getElementById('importPreview').hidden = true;
   document.getElementById('importCode').value = '';
@@ -2434,6 +2576,12 @@ async function importFromFile(file) {
     showImportError('F2', {});
     return;
   }
+  // an image or any other file type is not an answers file
+  const isTextFile = /\.txt$/i.test(file.name || '') || file.type === 'text/plain';
+  if (!isTextFile && (file.type || /\.[A-Za-z0-9]+$/.test(file.name || ''))) {
+    showImportError('F4', {});
+    return;
+  }
   if (file.size > 20000) {
     showImportError('F1', {});
     return;
@@ -2508,6 +2656,13 @@ document.addEventListener('DOMContentLoaded', () => {
   const importCode = document.getElementById('importCode');
   importCode.addEventListener('paste', () => {
     setTimeout(() => importParentAnswers(importCode.value), 0);
+  });
+  // Typing over the box makes an earlier preview stale: hide it.
+  importCode.addEventListener('input', () => {
+    if (importPreviewData || !document.getElementById('importPreview').hidden) {
+      clearImportPanel();
+      importPreviewData = null;
+    }
   });
 
   importFile.addEventListener('change', () => {

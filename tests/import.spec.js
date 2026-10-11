@@ -10,7 +10,7 @@
 //
 // AMENDED 2026-09-28 12:31 (Allison, mid-build): the codec carries sex +
 // dob (real date of birth, not an estimate) + date + with + 30 answers —
-// no anonymous id. Import never sets #anonId; the therapist types it
+// no anonymous id. Import clears #anonId (O1, 2026-10-11); the therapist types it
 // herself after import, then presses "חשב ציונים". See eforts-code.js and
 // app.js's "IMPORT PARENT ANSWERS (PF2)" section for the implementation.
 
@@ -285,7 +285,7 @@ test('overwrite confirm: dismiss keeps the existing form, accept replaces it', a
   page.once('dialog', (dialog) => dialog.accept());
   await page.locator('#importApply').click();
   await expect(page.locator('#importStatus')).toHaveClass(/ok/);
-  expect(await page.locator('#anonId').inputValue()).toBe('32'); // import never touches anonId
+  expect(await page.locator('#anonId').inputValue()).toBe(''); // O1 (QA 2026-10-11): import clears the previous child's number
   expect(await page.locator('#childGender').inputValue()).toBe('male');
   expect(await page.locator('#q1_1').isChecked()).toBe(true); // G50's item 1 answer is 1
 });
