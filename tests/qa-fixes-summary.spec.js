@@ -369,3 +369,50 @@ for (const c of CLOSE_PRIMARY) {
     expect(r.text).not.toMatch(/קשור לקושי בגמישות מחשבתית/);
   });
 }
+
+// ===== Outputs re-check nits =====
+test('OT print: fill date is dd/mm/yyyy and summary paragraphs never split across pages', async ({
+  page,
+}) => {
+  await page.clock.setFixedTime(new Date('2026-10-08T10:00:00+03:00'));
+  await gotoApp(page);
+  const scores = {};
+  for (let i = 1; i <= 30; i++) scores[i] = 3;
+  await fillAndCalculate(page, {
+    sex: 'male',
+    ageYearsBack: 6,
+    ageMonthsBack: 0,
+    itemScores: scores,
+    anonId: '55',
+  });
+  const [popup] = await Promise.all([page.waitForEvent('popup'), page.click('.btn-pdf')]);
+  await popup.waitForLoadState('domcontentloaded');
+  await popup.waitForSelector('.summary-box');
+  const body = await popup.locator('body').innerText();
+  expect(body).toMatch(/תאריך מילוי: \d{2}\/\d{2}\/\d{4}/);
+  expect(body).not.toMatch(/תאריך מילוי: \d{1,2}\.\d{1,2}\.\d{4}/);
+  const css = await popup.locator('style').first().innerText();
+  expect(css).toMatch(/\.summary-box p\s*\{[^}]*break-inside:\s*avoid/);
+  expect(css).toMatch(/\.summary-box p\s*\{[^}]*page-break-inside:\s*avoid/);
+});
+
+test('AI file: routine order matches rule 6, and rule 9 has no contradiction', async ({ page }) => {
+  await gotoApp(page);
+  const scores = {};
+  for (let i = 1; i <= 30; i++) scores[i] = 3;
+  await fillAndCalculate(page, {
+    sex: 'male',
+    ageYearsBack: 6,
+    ageMonthsBack: 0,
+    itemScores: scores,
+    anonId: '55',
+  });
+  const [dl] = await Promise.all([page.waitForEvent('download'), page.click('.btn-ai')]);
+  const text = require('fs').readFileSync(await dl.path(), 'utf8');
+  expect(text).toContain('שגרות פנאי ומשחק (17–23)');
+  expect(text).not.toContain('שגרות משחק ופנאי');
+  expect(text).not.toContain('ללא שום טקסט מקדים');
+  expect(text).toContain(
+    'בלי משפט פתיחה כמו "להלן הפסקה"; רק שורה אחת שאומרת איפה הפסקה נכנסת, ואחריה הפסקה.',
+  );
+});
