@@ -30,7 +30,9 @@ for (const c of CASES) {
     expect(result.ageGroupValue, `${c.label} -> ageGroup value`).toBe(c.expectedBand);
 
     if (c.expectedBand === '') {
-      expect(result.ageGroupDisplayText).toBe('מחוץ לטווח הגילים של השאלון (3.0–11.11)');
+      expect(result.ageGroupDisplayText).toBe(
+        'מחוץ לטווח הגילים של השאלון (3 עד 11 שנים ו-11 חודשים)',
+      );
       expect(result.ageGroupDisplayClass).toContain('invalid');
     } else {
       expect(result.ageGroupDisplayClass).toContain('valid');

@@ -48,7 +48,7 @@ test('item 7: clearing the fill date after entry blocks calculate() with a warni
 
   await page.click('button:has-text("חשב ציונים")');
   await expect(page.locator('#warning')).toBeVisible();
-  await expect(page.locator('#warning')).toHaveText('יש להזין תאריך מילוי לפני חישוב הציונים');
+  await expect(page.locator('#warning')).toHaveText('יש להזין תאריך מילוי לפני חישוב הציונים.');
   await expect(page.locator('#results')).toBeHidden();
 });
 

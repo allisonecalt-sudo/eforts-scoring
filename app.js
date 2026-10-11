@@ -265,6 +265,25 @@ function isoDateExists(iso) {
   return dt.getUTCFullYear() === y && dt.getUTCMonth() === mo - 1 && dt.getUTCDate() === d;
 }
 
+// One age wording for the form and the import preview: «3 שנים וחודש»,
+// «4 שנים», «5 שנים ו-7 חודשים».
+function ageWords(years, months) {
+  const monthsText =
+    months === 0
+      ? ''
+      : months === 1
+        ? ' וחודש'
+        : months === 2
+          ? ' וחודשיים'
+          : ` ו-${months} חודשים`;
+  return `${years} שנים${monthsText}`;
+}
+
+function formatDMY(iso) {
+  const [y, m, d] = iso.split('-');
+  return `${d}/${m}/${y}`;
+}
+
 function updateAge() {
   const birthInput = getBirthDateValue();
   const fillInput = getFillDateValue();
@@ -290,15 +309,7 @@ function updateAge() {
 
   const totalYears = years + months / 12;
   const ageEl = document.getElementById('calcAge');
-  const monthsText =
-    months === 0
-      ? ''
-      : months === 1
-        ? ' וחודש'
-        : months === 2
-          ? ' וחודשיים'
-          : ` ו-${months} חודשים`;
-  ageEl.textContent = `${years} שנים${monthsText}`;
+  ageEl.textContent = ageWords(years, months);
   ageEl.className = 'computed';
 
   const ageGroupEl = document.getElementById('ageGroup');
@@ -320,7 +331,7 @@ function updateAge() {
     ageGroupDisplay.className = 'computed valid';
   } else {
     ageGroupEl.value = '';
-    ageGroupDisplay.innerHTML = 'מחוץ לטווח הגילים של השאלון (<bdi dir="ltr">3.0–11.11</bdi>)';
+    ageGroupDisplay.innerHTML = 'מחוץ לטווח הגילים של השאלון (3 עד 11 שנים ו-11 חודשים)';
     ageGroupDisplay.className = 'computed invalid';
   }
 }
@@ -569,7 +580,7 @@ document.addEventListener('DOMContentLoaded', () => {
 function calculate() {
   const birthDate = getBirthDateValue();
   if (!birthDate) {
-    showWarning('יש להזין תאריך לידה לפני חישוב הציונים');
+    showWarning('יש להזין תאריך לידה לפני חישוב הציונים.');
     return;
   }
   // Item 7: the age band depends on the fill date as much as the birth
@@ -578,16 +589,22 @@ function calculate() {
   // band can no longer survive to here — this is the belt-and-braces
   // check for the fill date specifically, with its own message).
   if (!getFillDateValue()) {
-    showWarning('יש להזין תאריך מילוי לפני חישוב הציונים');
+    showWarning('יש להזין תאריך מילוי לפני חישוב הציונים.');
     return;
   }
   if (!isoDateExists(birthDate) || !isoDateExists(getFillDateValue())) {
     showWarning('התאריך אינו קיים בלוח השנה.');
     return;
   }
+  if (birthDate > getFillDateValue()) {
+    showWarning('תאריך הלידה מאוחר מתאריך המילוי.');
+    return;
+  }
   const ageGroup = document.getElementById('ageGroup').value;
   if (!ageGroup) {
-    showWarning('הגיל מחוץ לטווח הגילים של השאלון (3.0–11.11) — לא ניתן לחשב ציונים');
+    showWarning(
+      'הגיל מחוץ לטווח הגילים של השאלון (3 עד 11 שנים ו-11 חודשים) — לא ניתן לחשב ציונים',
+    );
     return;
   }
   // F-15 / F-16 (TM-spec §C-F, optional — her yes): an unset sex silently
@@ -1116,8 +1133,13 @@ function buildSummary(d) {
       });
       // S4 (QA 2026-10-11): with NO function below its cutoff, a "close" one
       // is never the main explanation — the paragraph stays routine-only.
+      // S4b (re-check): the rule is PER PARAGRAPH — a close function may be
+      // named only as the secondary one, and only when a below-cutoff
+      // function is ALSO named in this same paragraph. Otherwise the
+      // paragraph falls to the routine-only branch (score sentence only).
+      const paragraphHasBelowEf = Object.keys(byEf).some((ef) => efStatusMap[ef] === 'below');
       const eligibleEfKeys = Object.keys(byEf).filter(
-        (ef) => efStatusMap[ef] === 'below' || (efStatusMap[ef] === 'close' && weakEFs.length > 0),
+        (ef) => efStatusMap[ef] === 'below' || (efStatusMap[ef] === 'close' && paragraphHasBelowEf),
       );
       const statusRank = { below: 0, close: 1 };
       const efOrder = eligibleEfKeys.sort(
@@ -1462,7 +1484,7 @@ function aiPrompt(gender) {
 
 8. תפקודים ניהוליים. תפקוד ניהולי שציונו נמוך מציון החתך הוא ההסבר העיקרי לקושי. תפקוד שציונו "קרוב לציון החתך" (עד 0.15 מעליו) יכול להסביר קושי רק כגורם משני ("ולעיתים על רקע קושי ב…"). תפקוד שציונו גבוה מציון החתך ביותר מ-0.15 (במצב "בטווח הנורמה" ברשימת הציונים) אינו מסביר קושי; הוא יכול להופיע רק כחוזקה. פריטים 10 ו-11 אינם ראיה לאף תפקוד ניהולי.
 
-9. פורמט. טקסט רגיל בלבד: בלי כוכביות, בלי כותרות ובלי תבליטים, כי הטקסט מודבק למערכת שמוחקת עיצוב. החזר רק את הפסקה המבוקשת, ללא שום טקסט מקדים (כמו "להלן הפסקה"), ולפניה שורה אחת שאומרת איפה היא נכנסת.
+9. פורמט. טקסט רגיל בלבד: בלי כוכביות, בלי כותרות ובלי תבליטים, כי הטקסט מודבק למערכת שמוחקת עיצוב. החזר רק את הפסקה המבוקשת, בלי משפט פתיחה כמו "להלן הפסקה"; רק שורה אחת שאומרת איפה הפסקה נכנסת, ואחריה הפסקה.
 
 10. בקשות אחרות (נוסח לדוח, גרסה להורים, מטרות טיפול): למחברות עוד אין נוסח מוסכם לאלה. כתוב אותן רק אם המטפל/ת ביקש/ה במפורש, פתח ב"טיוטה — לבדיקת המטפל/ת", ושמור על כל הכללים שלמעלה.
 
@@ -1528,7 +1550,7 @@ function buildExportText() {
   text += `══════════════════════════════════\n\n`;
 
   text += `רקע על הכלי:\n`;
-  text += `EFORTS (Executive Functions & Occupational Routine Scale) — "שאלון למדידת יכולת הניהול העצמי של ילדים בשגרות היום יום" (Frisch & Rosenblum, 2014; נורמות וציוני חתך: Frisch & Rosenblum, 2024). שאלון להורים, לגילאי 3.0–11.11: 30 פריטים בשלוש שגרות — שגרות בוקר וערב (פריטים 1–16), שגרות משחק ופנאי (17–23) ושגרה חברתית (24–30). כל פריט מדורג מ-1 (אף פעם) עד 5 (תמיד); ציון גבוה = תפקוד טוב יותר. ציון שגרה = ממוצע פריטי השגרה; ציון כולל = ממוצע שלושת ציוני השגרות. כל פריט משויך גם לאחד משלושה תפקודים ניהוליים — עכבה, זיכרון עבודה או גמישות מחשבתית; פריטים 10 ו-11 אינם נכללים בחישוב התפקודים הניהוליים. ציון החתך נקבע 1.5 סטיות תקן מתחת לממוצע של קבוצת הגיל. ציון נמוך מציון החתך מורה על חשד לקושי בתחום שנמדד בלבד (בשגרה או בתפקוד הניהולי), ואינו קביעה של עיכוב כללי.\n\n`;
+  text += `EFORTS (Executive Functions & Occupational Routine Scale) — "שאלון למדידת יכולת הניהול העצמי של ילדים בשגרות היום יום" (Frisch & Rosenblum, 2014; נורמות וציוני חתך: Frisch & Rosenblum, 2024). שאלון להורים, לגילאי 3.0–11.11: 30 פריטים בשלוש שגרות — שגרות בוקר וערב (פריטים 1–16), שגרות פנאי ומשחק (17–23) ושגרה חברתית (24–30). כל פריט מדורג מ-1 (אף פעם) עד 5 (תמיד); ציון גבוה = תפקוד טוב יותר. ציון שגרה = ממוצע פריטי השגרה; ציון כולל = ממוצע שלושת ציוני השגרות. כל פריט משויך גם לאחד משלושה תפקודים ניהוליים — עכבה, זיכרון עבודה או גמישות מחשבתית; פריטים 10 ו-11 אינם נכללים בחישוב התפקודים הניהוליים. ציון החתך נקבע 1.5 סטיות תקן מתחת לממוצע של קבוצת הגיל. ציון נמוך מציון החתך מורה על חשד לקושי בתחום שנמדד בלבד (בשגרה או בתפקוד הניהולי), ואינו קביעה של עיכוב כללי.\n\n`;
 
   text += `פרטי המטופל/ת:\n`;
   text += `  מספר אנונימי: ${anonIdRaw} | מין: ${gender} | גיל: ${ageText} | קבוצת גיל נורמטיבית: ${ageLabel}\n\n`;
@@ -1838,6 +1860,7 @@ function buildParentSheetHtml(p) {
 <html lang="he" dir="rtl">
 <head>
 <meta charset="UTF-8">
+<title>סיכום התוצאות להורים</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;600;700&display=swap');
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -2059,7 +2082,11 @@ async function printResults() {
 
     // P-07: the fill date, not today's date — the age is computed from it.
     const fillIso = getFillDateValue();
-    const fillDateText = new Date(fillIso || Date.now()).toLocaleDateString('he-IL');
+    // one date format in both PDFs: dd/mm/yyyy (same as the parent sheet)
+    const fillParts = /^(\d{4})-(\d{2})-(\d{2})/.exec(fillIso || '');
+    const fillDateText = fillParts
+      ? `${fillParts[3]}/${fillParts[2]}/${fillParts[1]}`
+      : new Date().toLocaleDateString('en-GB');
 
     // Build a minimal, print-optimized HTML document
     const printHtml = `<!DOCTYPE html>
@@ -2085,7 +2112,7 @@ async function printResults() {
   th { background: #f0f4f8; padding: 6px 10px; font-size: 11px; font-weight: 600; color: #444; text-align: center; border-bottom: 2px solid #ddd; }
   td { border-bottom: 1px solid #eee; }
   .summary-box { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px; margin-bottom: 16px; font-size: 12px; line-height: 1.8; }
-  .summary-box p { margin: 0 0 10px; }
+  .summary-box p { margin: 0 0 10px; break-inside: avoid; page-break-inside: avoid; }
   .summary-box p:last-child { margin-bottom: 0; }
   .group-header { font-size: 12px; font-weight: 700; padding: 6px 10px; margin-top: 8px; }
   .group-weak { color: #c0392b; background: #fff5f5; }
@@ -2235,6 +2262,7 @@ function resetForm() {
     const el = document.getElementById('companion_' + k);
     if (el) el.value = '';
   });
+  clearSendStatus();
   document.getElementById('importCode').value = '';
   clearImportPanel();
   importPreviewData = null;
@@ -2282,11 +2310,12 @@ function importErrorText(code, params) {
     case 'E9':
       return `תאריך מילוי לא תקין: "${p.v}".`;
     case 'E10':
-      return `תאריך המילוי (${p.v}) ישן מדי — הטופס תומך עד 3 שנים אחורה.`;
+      if (p.future) return 'תאריך המילוי בעתיד. בדוק/י את התאריך בקובץ.';
+      return `תאריך המילוי (${formatDMY(p.v)}) ישן מדי — הטופס תומך עד 3 שנים אחורה.`;
     case 'E12':
       return `ערך לא תקין בשדה "מי נמצא עם הילד": "${p.v}".`;
     case 'E13':
-      return 'נמצאו כמה קודים שונים. הדביק/י קוד אחד בכל פעם.';
+      return 'נמצאו כמה קודים שונים. הדבק/י קוד אחד בכל פעם.';
     case 'E14':
       return 'תאריך הלידה מאוחר מתאריך המילוי.';
     case 'F1':
@@ -2295,6 +2324,8 @@ function importErrorText(code, params) {
       return 'זה לא קובץ תשובות. יש לבחור את קובץ ה-PDF שההורים שלחו.';
     case 'F2':
       return 'לא הצלחנו לקרוא את הקובץ.';
+    case 'F5':
+      return 'זה הסיכום להורים, לא קובץ התשובות. יש להעלות את קובץ התשובות שההורים שלחו.';
     case 'F3':
       return 'לא נמצא קוד בקובץ. פתח/י את ה-PDF, העתק/י את שורת הקוד שבתחתית העמוד והדבק/י אותה כאן.';
     default:
@@ -2337,7 +2368,7 @@ const AGE_BAND_EDGE_TEXT =
 function ageEdgeNote(years, months) {
   const total = years * 12 + months;
   if (total < 36 || total >= 144) return AGE_OUT_OF_RANGE_TEXT;
-  if (total === 36 || total === 143) return AGE_RANGE_EDGE_TEXT;
+  if (total <= 37 || total >= 142) return AGE_RANGE_EDGE_TEXT;
   if (isNearAgeBandEdge(years, months)) return AGE_BAND_EDGE_TEXT;
   return '';
 }
@@ -2349,16 +2380,27 @@ function showImportEdge(years, months) {
   edge.hidden = !note;
 }
 
-function importFillDateOutOfRange(dateStr) {
-  const y = Number(dateStr.slice(0, 4));
-  const currentYear = new Date().getFullYear();
-  return y < currentYear - 3 || y > currentYear;
+// 'future' | 'old' | '' for an imported fill date.
+function importFillDateProblem(dateStr) {
+  const now = new Date();
+  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  if (dateStr > today) return 'future';
+  if (Number(dateStr.slice(0, 4)) < now.getFullYear() - 3) return 'old';
+  return '';
 }
 
 function withLabel(code) {
   if (!code) return '—';
   const opt = COMPANION.options.find((o) => o.value === code);
   return opt ? opt.label : '—';
+}
+
+function clearSendStatus() {
+  const st = document.getElementById('sendStatus');
+  if (st) {
+    st.textContent = '';
+    st.className = 'import-status';
+  }
 }
 
 function clearImportPanel() {
@@ -2385,7 +2427,7 @@ function buildImportPreview(data) {
   const [fy, fm, fd] = data.date.split('-');
   const rows = [
     ['מין', data.sex === 'male' ? 'זכר' : 'נקבה'],
-    ['גיל לפי ההורה', `${years} שנים, ${months} חודשים`],
+    ['גיל לפי ההורה', ageWords(years, months)],
     ['תאריך מילוי', `${fd}/${fm}/${fy}`],
     [
       'מי נמצא עם הילד',
@@ -2403,15 +2445,22 @@ function buildImportPreview(data) {
   });
 }
 
+function openImportBox() {
+  document.getElementById('importBox').open = true;
+}
+
 function importParentAnswers(text) {
   clearImportPanel();
-  const result = EFORTSCode.decode(text);
+  openImportBox();
+  // a code pasted from a quoted reply: drop the leading «>» marks per line
+  const result = EFORTSCode.decode(String(text).replace(/^[ \t]*(?:>[ \t]*)+/gm, ''));
   if (!result.ok) {
     showImportError(result.error, result.params);
     return;
   }
-  if (importFillDateOutOfRange(result.data.date)) {
-    showImportError('E10', { v: result.data.date });
+  const dateProblem = importFillDateProblem(result.data.date);
+  if (dateProblem) {
+    showImportError('E10', { v: result.data.date, future: dateProblem === 'future' });
     return;
   }
   if (result.data.dob > result.data.date) {
@@ -2438,7 +2487,7 @@ function isClinicianFormDirty() {
 function applyImportedAnswers() {
   if (!importPreviewData) return;
   if (isClinicianFormDirty()) {
-    if (!confirm('הטופס כבר מכיל נתונים. הייבוא יחליף אותם, כולל המספר האנונימי.')) return;
+    if (!confirm('הטופס כבר מכיל נתונים. הייבוא יחליף אותם, כולל המספר האנונימי. להמשיך?')) return;
   }
   const data = importPreviewData;
 
@@ -2538,20 +2587,37 @@ function looksLikePdf(file, bytes) {
   return bytes.length >= 4 && latin1(bytes.subarray(0, 4)) === '%PDF';
 }
 
+// The app's own «סיכום התוצאות להורים» sheet carries that title in its PDF
+// info (the page text itself is glyph-encoded), as UTF-16 hex or UTF-16BE.
+function pdfIsParentSheet(raw) {
+  const title = 'סיכום התוצאות להורים';
+  let hex = '';
+  let be = '';
+  for (const ch of title) {
+    const c = ch.charCodeAt(0);
+    hex += c.toString(16).padStart(4, '0');
+    be += String.fromCharCode(c >> 8, c & 255);
+  }
+  return raw.toLowerCase().includes(hex) || raw.includes(be);
+}
+
 async function importFromPdf(file) {
   if (file.size > PDF_MAX_BYTES) {
     showImportError('F1', {});
     return;
   }
   let codes;
+  let raw = '';
   try {
-    codes = await codesFromPdf(new Uint8Array(await file.arrayBuffer()));
+    const bytes = new Uint8Array(await file.arrayBuffer());
+    codes = await codesFromPdf(bytes);
+    if (!codes.length) raw = latin1(bytes);
   } catch {
     showImportError('F2', {});
     return;
   }
   if (!codes.length) {
-    showImportError('F3', {});
+    showImportError(pdfIsParentSheet(raw) ? 'F5' : 'F3', {});
     return;
   }
   importParentAnswers(codes.join('\n'));
@@ -2561,6 +2627,7 @@ async function importFromPdf(file) {
 async function importFromFile(file) {
   if (!file) return;
   clearImportPanel();
+  openImportBox();
   if (/\.pdf$/i.test(file.name || '') || file.type === 'application/pdf') {
     await importFromPdf(file);
     return;
@@ -2639,6 +2706,11 @@ function copyParentLink() {
 
 document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('sendLink').value = parentLink();
+  // «גרור/י» only where there is a mouse to drag with
+  const hint = document.getElementById('importDropHint');
+  if (hint && window.matchMedia && !window.matchMedia('(pointer: fine)').matches) {
+    hint.textContent = 'העלה/י את קובץ ה-PDF שקיבלת מההורים.';
+  }
   document.getElementById('sendCopy').addEventListener('click', copyParentLink);
 });
 

@@ -80,7 +80,7 @@ test('O1: import clears the anonymous number, focuses it, and the confirm says s
   });
   await page.locator('#importApply').click();
   await expect(page.locator('#importStatus')).toHaveClass(/ok/);
-  expect(message).toBe('הטופס כבר מכיל נתונים. הייבוא יחליף אותם, כולל המספר האנונימי.');
+  expect(message).toBe('הטופס כבר מכיל נתונים. הייבוא יחליף אותם, כולל המספר האנונימי. להמשיך?');
   expect(await page.locator('#anonId').inputValue()).toBe('');
   await expect(page.locator('#anonId')).toBeFocused();
 });
@@ -317,7 +317,7 @@ test('anonymous number: label, placeholder and warning match the real use', asyn
   await expect(page.locator('label[for="anonId"]')).toHaveText(
     'מספר אנונימי (מופיע בכותרות ובשמות הקבצים, לא בסיכום)',
   );
-  await expect(page.locator('#anonId')).toHaveAttribute('placeholder', 'למשל 50 · לא שם ולא ת״ז');
+  await expect(page.locator('#anonId')).toHaveAttribute('placeholder', 'למשל 50 · בלי שם');
   await page.evaluate(() => {
     document.getElementById('childGender').value = 'male';
   });

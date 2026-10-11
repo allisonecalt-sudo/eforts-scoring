@@ -296,3 +296,123 @@ test('parent sheet: a low routine with no 1-2 answer gets the fallback line', as
   const txt = await popup.locator('body').innerText();
   expect(txt).toContain('התמונה עולה מכמה תשובות יחד, ולא מתשובה אחת בולטת.');
 });
+
+// ===== S4b (re-check): the close-function rule is per paragraph =====
+// r2-close-primary-a / -b: a function is below overall, but one routine
+// paragraph's weak items all belong to the CLOSE function (flexibility).
+const CLOSE_PRIMARY = [
+  {
+    id: 'r2-close-primary-a',
+    male: true,
+    answers: [
+      2, 2, 3, 2, 3, 2, 3, 2, 3, 2, 2, 2, 2, 3, 3, 1, 3, 3, 3, 3, 3, 2, 3, 4, 3, 3, 3, 5, 3, 3,
+    ],
+  },
+  {
+    id: 'r2-close-primary-b',
+    male: false,
+    answers: [
+      2, 3, 4, 3, 1, 3, 2, 4, 1, 1, 3, 4, 3, 2, 4, 4, 2, 5, 3, 3, 1, 4, 4, 5, 5, 5, 1, 5, 5, 5,
+    ],
+  },
+];
+
+for (const c of CLOSE_PRIMARY) {
+  test(`S4b: ${c.id} - a close function is only ever the secondary «ולעיתים», never alone`, async ({
+    page,
+  }) => {
+    await gotoApp(page);
+    const r = await page.evaluate(
+      ({ answers, male }) => {
+        const scores = {};
+        items.forEach((it, i) => (scores[it.num] = answers[i]));
+        const cut = cutoffs['8-11'];
+        const rAvg = (k) => avg(items.filter((i) => i.routine === k).map((i) => scores[i.num]));
+        const eAvg = (k) => avg(items.filter((i) => i.ef === k).map((i) => scores[i.num]));
+        const m = rAvg('morning');
+        const p = rAvg('play');
+        const s = rAvg('social');
+        const html = buildSummary({
+          anonId: '1',
+          gender: male ? 'זכר' : 'נקבה',
+          isMale: male,
+          ageText: '',
+          ageLabel: '',
+          morningAvg: m,
+          playAvg: p,
+          socialAvg: s,
+          totalAvg: avg([m, p, s]),
+          inhAvg: eAvg('inh'),
+          wmAvg: eAvg('wm'),
+          flexAvg: eAvg('flex'),
+          c: cut,
+          scores,
+        });
+        const text = html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
+        return {
+          text,
+          flex: cutoffStatus(eAvg('flex'), cut.flex, 'ef').key,
+          wm: cutoffStatus(eAvg('wm'), cut.wm, 'ef').key,
+        };
+      },
+      { answers: c.answers, male: c.male },
+    );
+    expect(r.flex).toBe('close');
+    expect(r.wm).toBe('below');
+    // every sentence naming flexibility as a cause must be the secondary one
+    const causes =
+      r.text.match(/[^.]*(?:מושפע|קשור|נובע)[^.]*קושי ב(?:גמישות מחשבתית)[^.]*\./g) || [];
+    for (const s of causes) {
+      expect(s, s).toContain('ולעיתים על רקע קושי בגמישות מחשבתית');
+    }
+    expect(r.text).not.toMatch(/מושפע מקושי בגמישות מחשבתית/);
+    expect(r.text).not.toMatch(/קשור לקושי בגמישות מחשבתית/);
+  });
+}
+
+// ===== Outputs re-check nits =====
+test('OT print: fill date is dd/mm/yyyy and summary paragraphs never split across pages', async ({
+  page,
+}) => {
+  await page.clock.setFixedTime(new Date('2026-10-08T10:00:00+03:00'));
+  await gotoApp(page);
+  const scores = {};
+  for (let i = 1; i <= 30; i++) scores[i] = 3;
+  await fillAndCalculate(page, {
+    sex: 'male',
+    ageYearsBack: 6,
+    ageMonthsBack: 0,
+    itemScores: scores,
+    anonId: '55',
+  });
+  const [popup] = await Promise.all([page.waitForEvent('popup'), page.click('.btn-pdf')]);
+  await popup.waitForLoadState('domcontentloaded');
+  await popup.waitForSelector('.summary-box');
+  const body = await popup.locator('body').innerText();
+  expect(body).toMatch(/תאריך מילוי: \d{2}\/\d{2}\/\d{4}/);
+  expect(body).not.toMatch(/תאריך מילוי: \d{1,2}\.\d{1,2}\.\d{4}/);
+  const css = await popup.locator('style').first().innerText();
+  expect(css).toMatch(/\.summary-box p\s*\{[^}]*break-inside:\s*avoid/);
+  expect(css).toMatch(/\.summary-box p\s*\{[^}]*page-break-inside:\s*avoid/);
+});
+
+test('AI file: routine order matches rule 6, and rule 9 has no contradiction', async ({ page }) => {
+  await gotoApp(page);
+  const scores = {};
+  for (let i = 1; i <= 30; i++) scores[i] = 3;
+  await fillAndCalculate(page, {
+    sex: 'male',
+    ageYearsBack: 6,
+    ageMonthsBack: 0,
+    itemScores: scores,
+    anonId: '55',
+  });
+  const [dl] = await Promise.all([page.waitForEvent('download'), page.click('.btn-ai')]);
+  const text = require('fs').readFileSync(await dl.path(), 'utf8');
+  expect(text).toContain('שגרות פנאי ומשחק (17–23)');
+  expect(text).not.toContain('שגרות משחק ופנאי');
+  expect(text).not.toContain('ללא שום טקסט מקדים');
+  expect(text).toContain(
+    'בלי משפט פתיחה כמו "להלן הפסקה"; רק שורה אחת שאומרת איפה הפסקה נכנסת, ואחריה הפסקה.',
+  );
+});

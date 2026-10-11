@@ -169,7 +169,7 @@ test('preview rows show the parent-reported details before apply', async ({ page
 
   const previewText = await page.locator('#importPreviewList').innerText();
   expect(previewText).toContain('זכר');
-  expect(previewText).toContain('5 שנים, 7 חודשים');
+  expect(previewText).toContain('5 שנים ו-7 חודשים');
   expect(previewText).toContain('28/09/2026');
   expect(previewText).toContain('30 מתוך 30');
 });
