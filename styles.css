@@ -42,9 +42,9 @@ body {
 /* ===== HEADER ===== */
 .header {
   text-align: center;
-  padding: 14px 0 10px;
+  padding: 28px 0 20px;
 }
-body.showing-results .header {
+body.ot.showing-results .header {
   display: none;
 }
 .header-logos {
@@ -53,7 +53,7 @@ body.showing-results .header {
   justify-content: center;
   flex-wrap: wrap;
   gap: 22px;
-  margin-bottom: 8px;
+  margin-bottom: 16px;
 }
 .header-logo {
   height: 44px;
@@ -90,7 +90,7 @@ body.showing-results .header {
   font-size: 0.98rem;
   font-weight: 700;
   color: var(--text);
-  margin-top: 6px;
+  margin-top: 14px;
 }
 .header p.header-lab {
   font-size: 0.78rem;
@@ -105,23 +105,48 @@ body.showing-results .header {
   margin-top: 4px;
 }
 .header p.header-subtitle {
-  display: none;
+  font-size: 0.72rem;
+  font-weight: 400;
+  color: #5a6a7e;
+  margin-top: 12px;
 }
 .header p.header-credit {
-  font-size: 0.68rem;
+  font-size: 0.7rem;
   font-weight: 300;
   color: #5a6a7e;
+  margin-top: 6px;
+  line-height: 1.5;
+}
+
+/* OT page only: compact header (body.ot) */
+body.ot .header {
+  padding: 14px 0 10px;
+}
+body.ot .header-logos {
+  margin-bottom: 8px;
+}
+body.ot .header p.header-authors {
+  margin-top: 6px;
+}
+body.ot .header p.header-subtitle {
+  display: none;
+}
+body.ot .header p.header-credit {
+  font-size: 0.68rem;
   margin-top: 4px;
   line-height: 1.4;
 }
 /* lab + citation read as one small line */
-.header p.header-lab,
-.header p.header-citation {
+body.ot .header p.header-lab,
+body.ot .header p.header-citation {
   display: inline;
   font-size: 0.7rem;
   margin: 0;
 }
-.header p.header-citation::before {
+body.ot .header p.header-citation {
+  white-space: nowrap;
+}
+body.ot .header p.header-citation::before {
   content: ' · ';
 }
 
@@ -861,7 +886,8 @@ body.showing-results .header {
   line-height: 1.75;
   color: var(--text);
   max-width: 70ch;
-  margin: 0 auto;
+  margin: 0;
+  text-align: right;
 }
 .summary-text p {
   margin-bottom: 8px;
@@ -894,7 +920,8 @@ body.showing-results .header {
   font-weight: 700;
   margin-bottom: 6px;
 }
-.parent-box textarea {
+.parent-box textarea,
+.parent-box input[type='text'] {
   width: 100%;
   font: inherit;
   font-size: 0.88rem;
@@ -1147,6 +1174,24 @@ body.showing-results .header {
   gap: 18px;
   flex-wrap: wrap;
   justify-content: center;
+  align-items: flex-start;
+}
+.link-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  max-width: 100%;
+}
+.link-col .import-status {
+  margin: 2px 0 0;
+  text-align: center;
+  max-width: 320px;
+}
+.link-col .import-status:empty {
+  display: none;
+}
+.summary-card #downloadStatus:empty {
+  display: none;
 }
 .result-actions .btn-pdf + .print-hint {
   margin: -4px 0 0;
@@ -1161,6 +1206,9 @@ body.showing-results .header {
   font-size: 0.85rem;
   margin-bottom: 6px;
   color: var(--text);
+}
+.parent-box textarea + .parent-box-label {
+  margin-top: 12px;
 }
 .parent-box .btn-parent-pdf {
   width: 100%;
@@ -1439,4 +1487,40 @@ body.showing-results .header {
 }
 .restore-bar #restoreText {
   flex: 1 1 200px;
+}
+
+/* ===== UX round 2 (OT) ===== */
+/* 1: the preview's own number field is the only one on screen */
+body.previewing .info-card,
+body.previewing .info-calc {
+  display: none;
+}
+/* 7: anything scrolled to lands below the sticky progress bar */
+#questionnaire,
+.item-row,
+.info-card,
+.info-field,
+#importPreview {
+  scroll-margin-top: var(--bar-offset, 16px);
+}
+/* 9: phone: chips stay on one line with shorter text */
+@media (max-width: 400px) {
+  .score-status {
+    font-size: 0;
+    white-space: nowrap;
+    padding: 3px 6px;
+  }
+  .score-status::after {
+    font-size: 0.66rem;
+    white-space: nowrap;
+  }
+  .score-status.warn::after {
+    content: 'נמוך מהחתך';
+  }
+  .score-status.mid::after {
+    content: 'קרוב לחתך';
+  }
+  .score-status.ok::after {
+    content: 'בנורמה';
+  }
 }

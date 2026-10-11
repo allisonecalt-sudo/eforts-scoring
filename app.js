@@ -582,7 +582,52 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // ===== CALCULATE =====
+// UX2-8: every empty required field, in page order.
+function collectGaps() {
+  const gaps = [];
+  const empty = (ids) => ids.filter((id) => !document.getElementById(id).value);
+  if (!getAnonId()) gaps.push({ label: 'מספר אנונימי', ids: ['anonId'] });
+  if (!document.getElementById('childGender').value) {
+    gaps.push({ label: 'מין', ids: ['childGender'] });
+  }
+  const b = empty(['birthDay', 'birthMonth', 'birthYear']);
+  if (b.length) gaps.push({ label: 'תאריך לידה', ids: b });
+  const f = empty(['fillDay', 'fillMonth', 'fillYear']);
+  if (f.length) gaps.push({ label: 'תאריך מילוי', ids: f });
+  const miss = items
+    .filter((i) => !document.querySelector(`input[name="q${i.num}"]:checked`))
+    .map((i) => i.num);
+  if (miss.length) {
+    gaps.push({
+      label: `תשובות לפריטים: ${miss.join(', ')}`,
+      ids: miss.map((n) => `q${n}_1`),
+      rows: true,
+    });
+  }
+  return gaps;
+}
+
+function showGaps(gaps) {
+  if (gaps.some((g) => g.rows) && document.getElementById('questionnaire').hidden) setFold(false);
+  const first = gaps[0];
+  showWarning(`יש להשלים לפני החישוב — ${gaps.map((g) => g.label).join(' · ')}`, first.ids[0]);
+  gaps.forEach((g) =>
+    g.ids.forEach((id) => {
+      const el = document.getElementById(id);
+      const target = g.rows ? el.closest('.item-row') : el;
+      if (!target) return;
+      target.classList.add('field-invalid');
+      if (!g.rows) el.setAttribute('aria-invalid', 'true');
+    }),
+  );
+}
+
 function calculate() {
+  const gaps = collectGaps();
+  if (gaps.length > 1) {
+    showGaps(gaps);
+    return;
+  }
   const birthDate = getBirthDateValue();
   if (!birthDate) {
     showWarning(
@@ -746,6 +791,7 @@ function calculate() {
       </div>
       <p class="import-status" id="clicksStatus" role="status" aria-live="polite"></p>
       <button type="button" class="link-btn btn-clicks" onclick="downloadForClicks()">או: הורדה כקובץ טקסט (Notepad)</button>
+      <p class="import-status" id="downloadStatus" role="status" aria-live="polite"></p>
       <div class="summary-text">${buildSummary({
         anonId,
         gender,
@@ -777,22 +823,28 @@ function calculate() {
         <div class="parent-box-title">דף להורים</div>
         <label class="parent-box-label" for="parentNote">הערה אישית (לא חובה) — תופיע בדף להורים</label>
         <textarea id="parentNote" rows="2" dir="auto" placeholder="למשל: דבר אחד לנסות בבית"></textarea>
+        <label class="parent-box-label" for="parentContact">פרטי קשר להורים (לא חובה) — למשל טלפון של המכון</label>
+        <input type="text" id="parentContact" dir="auto" autocomplete="off" />
         <button class="btn btn-parent-pdf" onclick="printParentResults()">PDF להורים</button>
         <div class="parent-box-hint">מומלץ למסור להורים בפגישה או מיד אחריה.</div>
       </div>
 
       <div class="link-row">
-        <button type="button" class="link-btn btn-ai" onclick="downloadForAI()">הורדה ל-AI (טקסט)</button>
-        <button type="button" class="link-btn btn-back" onclick="goBack()">חזרה לשאלון</button>
+        <div class="link-col">
+          <button type="button" class="link-btn btn-ai" onclick="downloadForAI()">הורדה ל-AI (טקסט)</button>
+          <p class="import-status" id="aiStatus" role="status" aria-live="polite"></p>
+        </div>
+        <div class="link-col">
+          <button type="button" class="link-btn btn-back" onclick="goBack()">חזרה לשאלון</button>
+        </div>
       </div>
       <details class="ai-help">
-        <summary>מה עושים עם הקובץ?</summary>
+        <summary>מה עושים עם קובץ ה-AI?</summary>
         <p>לשילוב ממצאי השאלון עם התמונה הקלינית מהמפגש: לחצ/י על "הורדה ל-AI (טקסט)", העל/י את הקובץ לכלי AI (Claude, ChatGPT, Copilot) ותאר/י לו מה נצפה. הכלי יכתוב רק את פסקת המטפל/ת, בלי לשנות ציונים או את הסיכום. אין להוסיף שם או ת״ז.</p>
       </details>
 
       <button class="btn btn-new" onclick="resetForm()">שאלון חדש — לילד/ה הבא/ה</button>
     </div>
-    <p class="import-status" id="downloadStatus" role="status" aria-live="polite"></p>
   `;
   document.getElementById('parentNote').value = parentNoteDraft;
 
@@ -1617,7 +1669,10 @@ function buildExportText() {
 
   const scoreNames = ['', 'אף פעם', 'לעיתים רחוקות', 'לפעמים', 'לעיתים קרובות', 'תמיד'];
 
-  let text = `שאלון EFORTS — נתוני קידוד לשימוש בכלי AI\n`;
+  let text = `למטפל/ת: קובץ זה מיועד לכלי AI (Claude, ChatGPT, Copilot). העל/י אותו לכלי, ספר/י לו מה נצפה במפגש, והוא יכתוב פסקה אחת לשילוב בסיכום.\n`;
+  text += `אין להדביק קובץ זה בקליקס — לקליקס משתמשים בכפתור "העתקה לקליקס".\n`;
+  text += `──────────────────────────────────\n\n`;
+  text += `שאלון EFORTS — נתוני קידוד לשימוש בכלי AI\n`;
   text += `══════════════════════════════════\n\n`;
 
   text += `רקע על הכלי:\n`;
@@ -1721,7 +1776,10 @@ function buildClicksText() {
     c: cutoffs[ageGroup],
     scores,
   });
-  return summaryHtmlToText(summaryHtml)
+  // UX2-6: a heading line is followed DIRECTLY by its first paragraph; one
+  // blank line between paragraphs and before the next heading.
+  const tight = summaryHtml.replace(/(<p style="font-weight:700;[^>]*>[^<]*)<\/p>/g, '$1<br>');
+  return summaryHtmlToText(tight)
     .replace(/&quot;/g, '"')
     .replace(/&#39;/g, "'")
     .replace(/&lt;/g, '<')
@@ -1791,6 +1849,8 @@ function downloadForClicks() {
     status.className = 'import-status ok';
     status.textContent = 'הקובץ ירד. פתח/י אותו (ייפתח בפנקס הרשימות), סמנ/י הכול והעתק/י לקליקס.';
   }
+  const ai = document.getElementById('aiStatus');
+  if (ai) ai.textContent = '';
 }
 
 function downloadForAI() {
@@ -1806,9 +1866,14 @@ function downloadForAI() {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `EFORTS_${anonId}_${date}.txt`;
+  a.download = `EFORTS_${anonId}_${date}_AI.txt`;
   a.click();
   URL.revokeObjectURL(url);
+  const status = document.getElementById('aiStatus');
+  if (status) {
+    status.className = 'import-status ok';
+    status.textContent = 'הקובץ ירד — העל/י אותו לכלי ה-AI וכתוב/י לו מה נצפה במפגש.';
+  }
 }
 
 // ===== PARENT RESULTS SHEET =====
@@ -1842,6 +1907,7 @@ const PARENT_SKILLS = [
 
 function buildParentSheetHtml(p) {
   const { sexRaw, ageText, fillDateText, scores, c, note } = p;
+  const contactText = (p.contact || '').trim();
   const G = (m, f, unset) => (sexRaw === 'male' ? m : sexRaw === 'female' ? f : unset);
   const CHILD = G('בנכם', 'בתכם', 'ילדכם');
   const TO_CHILD = G('לבנכם', 'לבתכם', 'לילדכם');
@@ -1996,7 +2062,8 @@ function buildParentSheetHtml(p) {
   .hard { font-weight: 600; margin-top: 6px; }
   .eg { color: #475569; }
   .skill { margin-bottom: 6px; }
-  .skill-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+  .skill-head { display: flex; justify-content: flex-start; align-items: center; gap: 10px; }
+  .child-name { margin: 6px 0 10px; font-size: 13px; text-align: right; }
   .skill-desc { color: #475569; }
   .chip { display: inline-block; white-space: nowrap; font-size: 11px; font-weight: 700; padding: 1px 9px; border-radius: 10px; border: 1.5px solid; }
   .chip-ok { color: #1b5e20; border-color: #2e7d32; }
@@ -2020,6 +2087,7 @@ function buildParentSheetHtml(p) {
   </div>
   <h1>סיכום התוצאות להורים</h1>
   <div class="meta">${e(meta)}</div>
+  <div class="child-name">שם הילד/ה: ________________</div>
 
   <section><h2>מה זה הסיכום הזה</h2>
   <p>הסיכום מבוסס על התשובות שלכם בשאלון. זהו שאלון סינון: הוא עוזר להבין איך ${CHILD} ${MANAGES} בשגרות היום-יום, אבל הוא אינו אבחנה ואינו מעיד על ההורות שלכם. תקופה עמוסה, מחלה או שבוע קשה יכולים להשפיע על התשובות.</p></section>
@@ -2035,7 +2103,7 @@ function buildParentSheetHtml(p) {
   <section><h2>מה הלאה</h2>
   <p>נשוחח יחד על התוצאות, על מה שראינו במפגש ועל ההמשך.</p>${noteHtml}</section>
 
-  <section><h2>לשאלות</h2><p>אפשר לפנות לצוות הריפוי בעיסוק.</p></section>
+  ${contactText ? `<section><p><b>לשאלות: ${e(contactText)}</b></p></section>` : '<section><h2>לשאלות</h2><p>אפשר לפנות לצוות הריפוי בעיסוק.</p></section>'}
 
   <div class="footer">EFORTS — Frisch &amp; Rosenblum, 2014 · הסיכום נכתב להורים ואינו מחליף את דוח האבחון.</div>
 </body>
@@ -2062,6 +2130,7 @@ function printParentResults() {
       scores,
       c: cutoffs[document.getElementById('ageGroup').value],
       note: document.getElementById('parentNote').value,
+      contact: document.getElementById('parentContact').value, // printed only, never stored
     });
     const printWindow = window.open('', '_blank', 'width=800,height=900');
     if (!printWindow) {
@@ -2091,6 +2160,8 @@ async function printResults() {
     // Gather all data from the current results. Item 8: escape here too —
     // this feeds both the print meta line and buildSummary() below.
     const anonId = escapeHtml(getAnonId()) || '—';
+    // CSS string for the @page footer: no quotes, backslashes or tags
+    const footerAnon = (getAnonId() || '—').replace(/[\s"'\\<>&]/g, '');
     const genderRaw = document.getElementById('childGender').value;
     const gender = genderText(genderRaw);
     const ageText = document.getElementById('calcAge').textContent;
@@ -2232,7 +2303,10 @@ async function printResults() {
   table { width: 100%; border-collapse: collapse; margin-bottom: 12px; }
   th { background: #f0f4f8; padding: 6px 10px; font-size: 11px; font-weight: 600; color: #444; text-align: center; border-bottom: 2px solid #ddd; }
   td { border-bottom: 1px solid #eee; }
-  .summary-box { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px; margin-bottom: 16px; font-size: 12px; line-height: 1.8; }
+  .summary-box { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px; margin-bottom: 16px; font-size: 12px; line-height: 1.8; break-inside: avoid; page-break-inside: avoid; }
+  thead { display: table-header-group; }
+  tr { break-inside: avoid; page-break-inside: avoid; }
+  .page-footer { display: none; }
   .summary-box p { margin: 0 0 10px; break-inside: avoid; page-break-inside: avoid; orphans: 3; widows: 3; }
   .summary-box p:last-child { margin-bottom: 0; }
   .group-header { font-size: 12px; font-weight: 700; padding: 6px 10px; margin-top: 8px; }
@@ -2240,10 +2314,12 @@ async function printResults() {
   .group-mid { color: #d35400; background: #fffbeb; }
   .group-strong { color: #27ae60; background: #f0fdf4; }
   .footer { text-align: center; font-size: 10px; color: #aaa; margin-top: 20px; padding-top: 10px; border-top: 1px solid #eee; }
-  @media print { body { padding: 10px; } }
+  @page { size: A4; margin: 10mm 10mm 18mm; @bottom-center { content: "EFORTS · מטופל מס' ${footerAnon} · תאריך מילוי ${fillDateText}"; font-size: 10px; color: #475569; } }
+  @media print { body { padding: 10px; } .page-footer { display: none; } }
 </style>
 </head>
 <body>
+  <div class="page-footer">EFORTS · מטופל מס' ${anonId} · תאריך מילוי ${fillDateText}</div>
   <div class="print-header">
     <div class="print-header-logos">
       <img src="assets/haifa.jpg" alt="אוניברסיטת חיפה">
@@ -2273,7 +2349,7 @@ async function printResults() {
 
   <div class="section-title">פירוט הפריטים לפי ציון</div>
   <table>
-    <tr><th style="width:30px;">#</th><th style="text-align:right;">פריט</th><th style="width:80px;">שגרה</th><th style="width:80px;">תפקוד ניהולי</th><th style="width:40px;">ציון</th><th style="width:70px;">תשובה</th></tr>
+    <thead><tr><th style="width:30px;">#</th><th style="text-align:right;">פריט</th><th style="width:80px;">שגרה</th><th style="width:80px;">תפקוד ניהולי</th><th style="width:40px;">ציון</th><th style="width:70px;">תשובה</th></tr></thead>
     ${weakItems.length > 0 ? `<tr><td colspan="6" class="group-header group-weak">ציון 1–2 (קושי) — ${nItems(weakItems.length)}</td></tr>` + buildItemRows(weakItems, '#fff5f5') : ''}
     ${midItems.length > 0 ? `<tr><td colspan="6" class="group-header group-mid">ציון 3 — ${nItems(midItems.length)}</td></tr>` + buildItemRows(midItems, '#fffbeb') : ''}
     ${strongItems.length > 0 ? `<tr><td colspan="6" class="group-header group-strong">ציון 4–5 (חוזקה) — ${nItems(strongItems.length)}</td></tr>` + buildItemRows(strongItems, '#f0fdf4') : ''}
@@ -2357,16 +2433,31 @@ function patientNoun(raw) {
   return raw === 'male' ? 'מטופל' : raw === 'female' ? 'מטופלת' : 'מטופל/ת';
 }
 
-// O3: the progress bar is sticky, so scrollIntoView() parks the target under
-// it. Scroll so the element lands just BELOW the bar.
+// UX2-7: the progress bar is sticky. A target that comes AFTER the bar in the
+// page must land fully below it (bar height + 16px); a target above the bar is
+// never covered by it. Mirrored in CSS as --bar-offset (scroll-margin-top).
+function barOffset() {
+  const bar = document.getElementById('progressWrap');
+  const h = bar && bar.offsetHeight ? bar.offsetHeight : 0;
+  return h + 16;
+}
+
 function scrollBelowProgress(el) {
   const bar = document.getElementById('progressWrap');
-  // only when the bar is actually stuck over the page (it sits in the form now)
-  const stuck = bar && bar.offsetHeight && bar.getBoundingClientRect().top <= 1;
-  const barH = stuck ? bar.offsetHeight : 0;
-  const top = el.getBoundingClientRect().top + window.scrollY - barH - 12;
+  const afterBar =
+    bar &&
+    bar.offsetHeight &&
+    bar.compareDocumentPosition(el) & window.Node.DOCUMENT_POSITION_FOLLOWING;
+  const off = afterBar ? barOffset() : 16;
+  const top = el.getBoundingClientRect().top + window.scrollY - off;
   window.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
 }
+
+function syncBarOffset() {
+  document.documentElement.style.setProperty('--bar-offset', barOffset() + 'px');
+}
+window.addEventListener('resize', syncBarOffset);
+window.addEventListener('load', syncBarOffset);
 
 function firstEmpty(ids) {
   return ids.find((id) => !document.getElementById(id).value) || ids[0];
@@ -2410,7 +2501,9 @@ function showMissingWarning(missing) {
   const row = document.getElementById(`q${first}_1`)?.closest('.item-row');
   if (row) {
     clearFieldMarks();
-    row.classList.add('field-invalid');
+    missing.forEach((n) =>
+      document.getElementById(`q${n}_1`)?.closest('.item-row')?.classList.add('field-invalid'),
+    );
     row.parentNode.insertBefore(w, row.nextSibling);
     w.style.display = 'block';
     scrollBelowProgress(row);
@@ -2429,7 +2522,8 @@ function goBack() {
   document.getElementById('progressWrap').style.display = '';
   document.body.classList.remove('showing-results');
   setFold(false);
-  document.getElementById('questionnaire').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  syncBarOffset();
+  scrollBelowProgress(document.getElementById('questionnaire'));
 }
 
 function resetForm() {
@@ -2607,8 +2701,15 @@ function clearImportPanel() {
   status.textContent = '';
   status.className = 'import-status';
   document.getElementById('importEdge').hidden = true;
-  document.getElementById('importPreview').hidden = true;
+  setPreviewOpen(false);
   clearImportAnonMsg();
+}
+
+// UX2-1: while the preview is open the «פרטי המטופל/ת» card is hidden, so the
+// only «מספר אנונימי» on screen is the preview's own.
+function setPreviewOpen(open) {
+  document.getElementById('importPreview').hidden = !open;
+  document.body.classList.toggle('previewing', open);
 }
 
 function clearImportAnonMsg() {
@@ -2629,7 +2730,7 @@ function showImportError(code, params) {
   status.className = 'import-status err';
   status.textContent = importErrorText(code, params);
   document.getElementById('importEdge').hidden = true;
-  document.getElementById('importPreview').hidden = true;
+  setPreviewOpen(false);
   importPreviewData = null;
 }
 
@@ -2689,8 +2790,9 @@ function importParentAnswers(text, source) {
   const age = computeAgeYM(result.data.dob, result.data.date);
   showImportEdge(age.years, age.months);
   const preview = document.getElementById('importPreview');
-  preview.hidden = false;
+  setPreviewOpen(true);
   scrollBelowProgress(preview);
+  document.getElementById('importAnon').focus({ preventScroll: true });
 }
 
 function isClinicianFormDirty() {
@@ -2714,7 +2816,7 @@ function applyImportedAnswers() {
     const msg = document.getElementById('importAnonMsg');
     msg.textContent = 'יש להזין מספר אנונימי — הוא מופיע בכותרת ובשמות הקבצים במקום שם.';
     msg.style.display = 'block';
-    anonField.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    scrollBelowProgress(anonField);
     anonField.focus({ preventScroll: true });
     return;
   }
@@ -2756,7 +2858,7 @@ function applyImportedAnswers() {
 
   showImportEdge(years, months);
 
-  document.getElementById('importPreview').hidden = true;
+  setPreviewOpen(false);
   document.getElementById('importCode').value = '';
   anonField.value = '';
   clearImportAnonMsg();
@@ -3028,6 +3130,12 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   importApply.addEventListener('click', applyImportedAnswers);
+  document.getElementById('importAnon').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      applyImportedAnswers();
+    }
+  });
 
   document.getElementById('foldToggle').addEventListener('click', () => {
     setFold(!document.getElementById('questionnaire').hidden);

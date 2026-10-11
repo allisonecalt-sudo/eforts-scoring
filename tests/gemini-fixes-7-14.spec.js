@@ -48,7 +48,8 @@ test('item 7: clearing the fill date after entry blocks calculate() with a warni
 
   await page.click('button:has-text("חשב ציונים")');
   await expect(page.locator('#warning')).toBeVisible();
-  await expect(page.locator('#warning')).toHaveText('יש להזין תאריך מילוי לפני חישוב הציונים.');
+  // UX2-8: every empty field is named at once (the items are empty here too)
+  await expect(page.locator('#warning')).toContainText('תאריך מילוי');
   await expect(page.locator('#results')).toBeHidden();
 });
 
@@ -124,7 +125,7 @@ test('item 8: an anonId with HTML renders literally in results + summary; the ex
   expect(download.suggestedFilename()).not.toContain('>');
   // named by the questionnaire's fill date, not today's
   const fillIso = await page.evaluate(() => getFillDateValue());
-  expect(download.suggestedFilename()).toBe(`EFORTS__b_x__b__${fillIso}.txt`);
+  expect(download.suggestedFilename()).toBe(`EFORTS__b_x__b__${fillIso}_AI.txt`);
 });
 
 // ===== Item 9: fmtScore =====

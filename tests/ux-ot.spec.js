@@ -258,7 +258,7 @@ test('O6: the AI instructions are a small collapsible box «מה עושים עם
   await open(page);
   await results(page);
   const help = page.locator('.ai-help');
-  await expect(help.locator('summary')).toHaveText('מה עושים עם הקובץ?');
+  await expect(help.locator('summary')).toHaveText('מה עושים עם קובץ ה-AI?');
   expect(await help.evaluate((el) => el.open)).toBe(false);
   await help.locator('summary').click();
   await expect(help).toContainText('הכלי יכתוב רק את פסקת המטפל/ת');
