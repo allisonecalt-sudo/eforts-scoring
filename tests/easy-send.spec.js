@@ -67,7 +67,7 @@ test.describe('parent page — no email address anywhere', () => {
     await expect(page.locator('a[href^="mailto:"]')).toHaveCount(0);
     expect(await page.locator('#pDone').innerText()).not.toContain('@');
     const pdf = await downloadPdf(page);
-    expect(pdf.name).toBe('EFORTS-answers-2026-09-28.pdf');
+    expect(pdf.name).toBe('EFORTS-answers-2026-09-28-1000.pdf');
     expect(fs.readFileSync(pdf.path).toString('latin1')).toContain(GOLDEN.G50);
   });
 });
@@ -113,7 +113,7 @@ test.describe('parent page — the main button', () => {
     await expect(page2.locator('#pSend')).toHaveText('שליחת קובץ התשובות (PDF)');
     const downloadPromise = page2.waitForEvent('download');
     await page2.locator('#pSend').click();
-    expect((await downloadPromise).suggestedFilename()).toBe('EFORTS-answers-2026-09-28.pdf');
+    expect((await downloadPromise).suggestedFilename()).toBe('EFORTS-answers-2026-09-28-1000.pdf');
   });
 
   test('the done screen has only the main button and no fold', async ({ page }) => {

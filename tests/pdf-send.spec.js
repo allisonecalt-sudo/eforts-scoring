@@ -72,7 +72,7 @@ test('a: parent finishes -> main button downloads the PDF; the code is in the fi
   await expect(page.locator('#pDownloadOnly')).toBeHidden();
 
   const pdf = await downloadPdf(page);
-  expect(pdf.name).toBe('EFORTS-answers-2026-09-28.pdf');
+  expect(pdf.name).toBe('EFORTS-answers-2026-09-28-1000.pdf');
   const buf = fs.readFileSync(pdf.path);
   expect(buf.subarray(0, 4).toString('latin1')).toBe('%PDF');
 
@@ -238,7 +238,7 @@ test('g: phone path — share label, share gets one PDF File, the link downloads
   expect(shared).toMatchObject({
     count: 1,
     isFile: true,
-    name: 'EFORTS-answers-2026-09-28.pdf',
+    name: 'EFORTS-answers-2026-09-28-1000.pdf',
     type: 'application/pdf',
     head: '%PDF',
     title: 'EFORTS',
@@ -247,7 +247,7 @@ test('g: phone path — share label, share gets one PDF File, the link downloads
 
   const downloadPromise = page.waitForEvent('download');
   await page.locator('#pDownloadOnly').click();
-  expect((await downloadPromise).suggestedFilename()).toBe('EFORTS-answers-2026-09-28.pdf');
+  expect((await downloadPromise).suggestedFilename()).toBe('EFORTS-answers-2026-09-28-1000.pdf');
 });
 
 test('g2: share is called in the same tick as the tap (no await before it)', async ({ page }) => {
@@ -284,5 +284,5 @@ test('share failure (not a cancel) falls back to the download', async ({ page })
   await expect(page.locator('#pSend')).toHaveText('שליחת קובץ התשובות (PDF)');
   const downloadPromise = page.waitForEvent('download');
   await page.locator('#pSend').click();
-  expect((await downloadPromise).suggestedFilename()).toBe('EFORTS-answers-2026-09-28.pdf');
+  expect((await downloadPromise).suggestedFilename()).toBe('EFORTS-answers-2026-09-28-1000.pdf');
 });

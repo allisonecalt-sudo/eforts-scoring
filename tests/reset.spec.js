@@ -1,6 +1,6 @@
 // איפוס on both questionnaires (her ask 2026-10-08 18:56: "make sure there is איפוס for both שאלון").
 const { test, expect } = require('@playwright/test');
-const { gotoParent, fillParent, MODELS } = require('./helpers/eforts-parent');
+const { gotoParent, fillParent, getDob, MODELS } = require('./helpers/eforts-parent');
 const { gotoApp } = require('./helpers/eforts-app');
 
 test.describe('איפוס — both questionnaires', () => {
@@ -17,7 +17,7 @@ test.describe('איפוס — both questionnaires', () => {
     page.once('dialog', (d) => d.accept());
     await reset.click();
 
-    await expect(page.locator('#pDob')).toHaveValue('');
+    expect(await getDob(page)).toBe('--');
     expect(await page.locator('#pQuestionnaire input[type="radio"]:checked').count()).toBe(0);
     expect(await page.locator('input[name="pSex"]:checked').count()).toBe(0);
   });
@@ -28,7 +28,7 @@ test.describe('איפוס — both questionnaires', () => {
     await fillParent(page, model);
     page.once('dialog', (d) => d.dismiss());
     await page.locator('#pReset').click();
-    await expect(page.locator('#pDob')).toHaveValue(model.dob);
+    expect(await getDob(page)).toBe(model.dob.replace(/-0/g, '-'));
   });
 
   test('OT page: the איפוס button is on the form and also clears the import box', async ({

@@ -79,12 +79,39 @@ async function gotoParent(page, query = '') {
   await page.waitForSelector('#pQuestionnaire .p-item');
 }
 
+// Date of birth is three selects (day / month / year). Years outside the
+// offered range are added as an option first, the way an old saved draft is
+// restored, so the age/future checks can still be driven.
+async function setDob(page, iso) {
+  const [y, m, d] = iso ? iso.split('-').map((x) => String(Number(x))) : ['', '', ''];
+  if (y) {
+    await page.evaluate((yr) => {
+      const s = document.getElementById('pDobYear');
+      if (![...s.options].some((o) => o.value === yr)) {
+        const o = document.createElement('option');
+        o.value = yr;
+        o.textContent = yr;
+        s.appendChild(o);
+      }
+    }, y);
+  }
+  await page.locator('#pDobYear').selectOption(y);
+  await page.locator('#pDobMonth').selectOption(m);
+  await page.locator('#pDobDay').selectOption(d);
+}
+
+async function getDob(page) {
+  return page.evaluate(() =>
+    ['pDobYear', 'pDobMonth', 'pDobDay'].map((id) => document.getElementById(id).value).join('-'),
+  );
+}
+
 // Fills the form via the real DOM — the true user path. sex/dob are set
 // directly (native controls); companions and answers are clicked via their
 // labels, same as a tap on a phone.
 async function fillParent(page, model) {
   await page.locator(`label[for="pSex_${model.sex === 'male' ? 'm' : 'f'}"]`).click();
-  await page.locator('#pDob').fill(model.dob);
+  await setDob(page, model.dob);
   for (const key of ['morning', 'play', 'social']) {
     if (model.with[key]) {
       await page.locator(`#pWith_${key}`).selectOption(model.with[key]);
@@ -107,6 +134,8 @@ async function downloadPdf(page) {
 }
 
 module.exports = {
+  setDob,
+  getDob,
   downloadPdf,
   PARENT_PATH,
   REPO_URL,
