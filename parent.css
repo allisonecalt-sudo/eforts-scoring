@@ -269,7 +269,7 @@ fieldset#pSexField.p-field-missing {
 /* coming back to a draft: land below the sticky progress bar */
 .p-item,
 #pDetails {
-  scroll-margin-top: 76px;
+  scroll-margin-top: 112px; /* below the sticky bar even with the gap row showing */
 }
 
 /* the missing band covers the whole question, legend included */
@@ -476,4 +476,20 @@ fieldset#pSexField.p-field-missing {
 }
 #pSendHint:has(.p-filename) {
   text-align: center;
+}
+
+/* UX round 2 */
+#pSendHint.p-ok {
+  color: #166534;
+  font-weight: 600;
+}
+.p-textlink-inline {
+  width: auto;
+  flex: 0 0 auto;
+}
+.p-done .btn-link {
+  min-height: 44px;
+}
+.header p.header-citation {
+  white-space: nowrap;
 }

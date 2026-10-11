@@ -30,6 +30,8 @@ const H_M0_MANY = 'כדי לסיים, צריך להשלים: ';
 const H_GAP_ONE = 'חסרה תשובה אחת';
 const H_GAP_MANY = 'חסרות {n} תשובות';
 const H_GAP_DETAILS = 'חסרים פרטי הילד/ה';
+const H_GAP_DETAILS_ONE = 'חסרים פרטי הילד/ה ועוד תשובה אחת';
+const H_GAP_DETAILS_MANY = 'חסרים פרטי הילד/ה ועוד {n} תשובות';
 const H_EVENING = 'שגרת ערב';
 const H_MORNING = 'שגרת בוקר';
 const H_S3_ONE = 'תשובה לשאלה {nums}';
@@ -42,8 +44,8 @@ const H_D3 = 'למחוק את כל התשובות ששמרתם במכשיר הז
 // copy-code backup on this page.
 const H_P_SHARE = 'שליחת קובץ התשובות (PDF)';
 const H_P_SHARE_HINT = 'בחרו מייל ושלחו את הקובץ לכתובת שקיבלתם מהמטפל/ת.';
-const H_P_SHARED = 'נשלח? מצוין. אפשר לסגור את הדף.';
-const H_P_SAVED_A = 'הקובץ נשמר בתיקיית ההורדות:';
+const H_P_SHARED = '✓ נשלח? מצוין. כדאי למחוק את התשובות מהמכשיר (למטה).';
+const H_P_SAVED_A = 'הקובץ ירד למכשיר (בדרך כלל לתיקיית ההורדות):';
 const H_P_SAVED_B = 'עכשיו פתחו את המייל, צרפו את הקובץ ושלחו למטפל/ת.';
 const H_P_DL = 'הורדת קובץ התשובות (PDF)';
 const H_P_DL_HINT = 'צרפו את הקובץ למייל ושלחו לכתובת שקיבלתם מהמטפל/ת.';
@@ -472,20 +474,20 @@ function paintBarGap(nItems, detailsMissing) {
   const on = state.attempted && (nItems > 0 || detailsMissing);
   pBarGap.hidden = !on;
   if (!on) return;
+  const one = detailsMissing ? H_GAP_DETAILS_ONE : H_GAP_ONE;
+  const many = detailsMissing ? H_GAP_DETAILS_MANY : H_GAP_MANY;
   pBarGap.textContent =
-    nItems === 0
-      ? H_GAP_DETAILS
-      : nItems === 1
-        ? H_GAP_ONE
-        : H_GAP_MANY.replace('{n}', String(nItems));
+    nItems === 0 ? H_GAP_DETAILS : nItems === 1 ? one : many.replace('{n}', String(nItems));
 }
 
-function jumpToGap(afterNum) {
+function jumpToGap(afterNum, detailsFirst) {
   const missing = items
     .map((it) => it.num)
     .filter((n) => !document.querySelector(`input[name="pq${n}"]:checked`));
   let target = null;
-  if (missing.length) {
+  if (detailsFirst && (!sexChosen() || dobStatus())) {
+    target = pDetails;
+  } else if (missing.length) {
     const next = missing.find((n) => n > (afterNum || 0)) || missing[0];
     target = document.getElementById('pItem' + next);
   } else if (!sexChosen() || dobStatus()) {
@@ -519,6 +521,7 @@ function downloadAnswers() {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
   // say what happened and what to do next (the tap used to change nothing visible)
   pSendHint.textContent = '';
+  pSendHint.classList.remove('p-ok');
   pSendHint.appendChild(document.createTextNode(H_P_SAVED_A));
   const name = document.createElement('bdi');
   name.dir = 'ltr';
@@ -676,7 +679,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!on) b.setAttribute('aria-pressed', 'true');
     b.dispatchEvent(new Event('change', { bubbles: true }));
   });
-  pBarGap.addEventListener('click', () => jumpToGap(0));
+  pBarGap.addEventListener('click', () => jumpToGap(0, true));
   checkForm(false);
   if (restored) {
     requestAnimationFrame(scrollToFirstGap);
@@ -718,6 +721,7 @@ document.addEventListener('DOMContentLoaded', () => {
       navigator.share({ files: [file], title: H_P_SHARE_TITLE }).then(
         () => {
           pSendHint.textContent = H_P_SHARED;
+          pSendHint.classList.add('p-ok');
         },
         (err) => {
           // User cancelled: keep the hint. Anything else: fall back to the file.
