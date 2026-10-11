@@ -11,7 +11,7 @@
   --bg: #f0f4f8;
   --card: #ffffff;
   --text: #1a202c;
-  --text-secondary: #64748b;
+  --text-secondary: #546479;
   --border: #e2e8f0;
   --radius: 12px;
   --shadow: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
@@ -104,13 +104,13 @@ body {
 .header p.header-subtitle {
   font-size: 0.72rem;
   font-weight: 400;
-  color: #94a3b8;
+  color: #5a6a7e;
   margin-top: 12px;
 }
 .header p.header-credit {
   font-size: 0.7rem;
   font-weight: 300;
-  color: #94a3b8;
+  color: #5a6a7e;
   margin-top: 6px;
   line-height: 1.5;
 }
@@ -328,7 +328,7 @@ body {
 .ef-note {
   font-size: 0.62rem;
   color: #fff;
-  background: #94a3b8;
+  background: #5a6a7e;
   padding: 1px 6px;
   border-radius: 4px;
   margin-right: 6px;
@@ -357,7 +357,7 @@ body {
 
 .item-num {
   font-weight: 600;
-  color: #94a3b8;
+  color: #5a6a7e;
   font-size: 0.78rem;
   min-width: 24px;
   text-align: center;
@@ -375,8 +375,34 @@ body {
   direction: rtl;
   flex-shrink: 0;
 }
+/* visually hidden, not display:none, so the radios stay keyboard-reachable */
 .item-scores input[type='radio'] {
-  display: none;
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  border: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+  opacity: 0;
+}
+.item-scores input[type='radio']:focus-visible + label {
+  outline: 3px solid var(--blue);
+  outline-offset: 1px;
+  position: relative;
+  z-index: 1;
+}
+.score-row[role='button']:focus-visible {
+  outline: 3px solid var(--blue);
+  outline-offset: 2px;
+}
+.print-hint {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  margin-top: 6px;
 }
 .item-scores label {
   width: 54px;
@@ -389,7 +415,7 @@ body {
   font-weight: 500;
   cursor: pointer;
   transition: all 0.15s;
-  color: #94a3b8;
+  color: #5a6a7e;
   background: #fafbfc;
   text-align: center;
   line-height: 1.2;
@@ -571,7 +597,7 @@ body {
 }
 .results-hint {
   font-size: 0.75rem;
-  color: #94a3b8;
+  color: #5a6a7e;
   margin-top: 8px;
 }
 
@@ -629,7 +655,7 @@ body {
 }
 .score-label .arrow {
   font-size: 0.6rem;
-  color: #94a3b8;
+  color: #5a6a7e;
   transition: transform 0.2s;
 }
 .score-value {
@@ -684,7 +710,7 @@ body {
   left: 50%;
   transform: translateX(-50%);
   font-size: 0.62rem;
-  color: #94a3b8;
+  color: #5a6a7e;
   white-space: nowrap;
 }
 
@@ -767,7 +793,7 @@ body {
 }
 .drill-item-num {
   font-weight: 600;
-  color: #94a3b8;
+  color: #5a6a7e;
   min-width: 22px;
   text-align: center;
   font-size: 0.75rem;
@@ -782,7 +808,7 @@ body {
   padding: 2px 8px;
   border-radius: 4px;
   background: #f1f5f9;
-  color: #64748b;
+  color: #546479;
   white-space: nowrap;
   font-weight: 500;
 }
@@ -846,7 +872,7 @@ body {
 }
 .summary-note {
   font-size: 0.72rem;
-  color: #94a3b8;
+  color: #5a6a7e;
   text-align: center;
   margin-top: 12px;
   line-height: 1.5;
@@ -938,7 +964,7 @@ body {
   align-items: center;
   gap: 4px;
   font-size: 0.7rem;
-  color: #94a3b8;
+  color: #5a6a7e;
   justify-content: center;
   margin-bottom: 8px;
 }

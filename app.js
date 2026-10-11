@@ -181,7 +181,7 @@ function buildForm() {
       <h2><span class="dot"></span>${r.title}</h2>
       <div class="companion-row">
         <span>מי נמצא עם הילד בדרך כלל בשגרות אלו:</span>
-        <select id="companion_${r.key}">
+        <select id="companion_${r.key}" aria-label="מי נמצא עם הילד – ${r.title}">
           <option value="">—</option>
           <option value="mom">אמא</option>
           <option value="dad">אבא</option>
@@ -745,7 +745,7 @@ function calculate() {
 
     <div class="parent-box">
       <div class="parent-box-title">סיכום להורים</div>
-      <textarea id="parentNote" rows="2" dir="auto" placeholder="הערה אישית להורים (לא חובה) — למשל דבר אחד לנסות בבית"></textarea>
+      <textarea id="parentNote" aria-label="הערה אישית להורים" rows="2" dir="auto" placeholder="הערה אישית להורים (לא חובה) — למשל דבר אחד לנסות בבית"></textarea>
       <div class="parent-box-hint">מומלץ למסור להורים בפגישה או מיד אחריה.</div>
     </div>
 
@@ -757,6 +757,7 @@ function calculate() {
       <button class="btn btn-back" onclick="goBack()">חזרה לשאלון</button>
       <button class="btn btn-danger" onclick="resetForm()">שאלון חדש</button>
     </div>
+    <p class="print-hint" id="printHint">ייפתח חלון הדפסה — בחר/י "שמירה כ-PDF".</p>
     <p class="import-status" id="downloadStatus" role="status" aria-live="polite"></p>
   `;
   document.getElementById('parentNote').value = parentNoteDraft;
@@ -830,7 +831,7 @@ function scoreRow(id, label, score, cutoff, cardItems, scores, type) {
     `נמוך מציון החתך: ${tipBelow}.` +
     (type === 'ef' ? `\nקרוב לציון החתך: עד 0.15 מעליו.` : '');
 
-  return `<div class="score-row ${hasDetails ? '' : 'no-drill'}" ${hasDetails ? `onclick="toggleDrill('${id}')"` : ''}>
+  return `<div class="score-row ${hasDetails ? '' : 'no-drill'}" ${hasDetails ? `role="button" tabindex="0" aria-expanded="false" aria-controls="drill_${id}" aria-label="${label}: ${fmtScore(score, cutoff)} — פירוט הפריטים" data-drill="${id}" onclick="toggleDrill('${id}')" onkeydown="drillKey(event, '${id}')"` : ''}>
     <div class="score-row-top">
       <div class="score-label">${label} ${hasDetails ? `<span class="arrow" id="arrow_${id}">&#9660;</span>` : ''}
         <span class="info-tip" tabindex="0" onclick="event.stopPropagation()">?<span class="tip-content">${scoreTip}</span></span>
@@ -2134,7 +2135,7 @@ async function printResults() {
   .print-header-authors { font-size: 12px; font-weight: 700; color: #1a202c; margin-top: 6px; }
   .print-header-lab { font-size: 10px; font-weight: 500; color: #64748b; margin-top: 1px; }
   .print-header-citation { font-size: 9px; font-weight: 300; color: #64748b; margin-top: 3px; }
-  .print-header-credit { font-size: 9px; font-weight: 300; color: #94a3b8; margin-top: 4px; line-height: 1.4; }
+  .print-header-credit { font-size: 9px; font-weight: 300; color: #5a6a7e; margin-top: 4px; line-height: 1.4; }
   .section-title { font-size: 14px; font-weight: 700; color: #0077b6; margin: 16px 0 8px; padding-bottom: 4px; border-bottom: 2px solid #0077b6; }
   table { width: 100%; border-collapse: collapse; margin-bottom: 12px; }
   th { background: #f0f4f8; padding: 6px 10px; font-size: 11px; font-weight: 600; color: #444; text-align: center; border-bottom: 2px solid #ddd; }
@@ -2223,13 +2224,25 @@ async function printResults() {
 function toggleDrill(id) {
   const el = document.getElementById('drill_' + id);
   const arrow = document.getElementById('arrow_' + id);
+  const row = document.querySelector(`.score-row[data-drill="${id}"]`);
   if (!el) return;
   if (el.style.display === 'block') {
     el.style.display = 'none';
     if (arrow) arrow.innerHTML = '&#9660;';
+    if (row) row.setAttribute('aria-expanded', 'false');
   } else {
     el.style.display = 'block';
     if (arrow) arrow.innerHTML = '&#9650;';
+    if (row) row.setAttribute('aria-expanded', 'true');
+  }
+}
+
+// Enter / Space on a focused score row opens it (the row is role="button").
+function drillKey(e, id) {
+  if (e.target !== e.currentTarget) return; // the «?» tip inside keeps its own keys
+  if (e.key === 'Enter' || e.key === ' ') {
+    e.preventDefault();
+    toggleDrill(id);
   }
 }
 
@@ -2311,6 +2324,14 @@ function resetForm() {
 
 let importPreviewData = null;
 
+const FIELD_NAMES_HE = {
+  sex: 'מין',
+  dob: 'תאריך לידה',
+  date: 'תאריך מילוי',
+  with: 'מי נמצא עם הילד',
+  a: 'תשובות',
+};
+
 function importErrorText(code, params) {
   const p = params || {};
   switch (code) {
@@ -2321,9 +2342,10 @@ function importErrorText(code, params) {
     case 'E2':
       return `הקוד נוצר בגרסה אחרת של טופס ההורים (${p.found}) ולא ניתן לייבא אותו כאן.`;
     case 'E3':
+      if (p.fromFile) return 'הקובץ נפגם או נערך. בקש/י מההורים לשלוח אותו שוב.';
       return 'הקוד השתנה או נקטע בדרך. נסה/י להעתיק שוב, או בקש/י מההורים לשלוח שוב את הקובץ.';
     case 'E4':
-      return `חסר שדה בקוד, או ששדה לא במקומו: ${p.key}.`;
+      return `חסר שדה בקוד, או ששדה לא במקומו: ${FIELD_NAMES_HE[p.key] || p.key}.`;
     case 'E5':
       return `ערך לא תקין בשדה מין: "${p.v}".`;
     case 'E6':
@@ -2341,7 +2363,7 @@ function importErrorText(code, params) {
       if (p.future) return 'תאריך המילוי בעתיד. בדוק/י את התאריך בקובץ.';
       return `תאריך המילוי (${formatDMY(p.v)}) ישן מדי — הטופס תומך עד 3 שנים אחורה.`;
     case 'E12':
-      return `ערך לא תקין בשדה "מי נמצא עם הילד": "${p.v}".`;
+      return 'ערך לא תקין בשדה "מי נמצא עם הילד".';
     case 'E13':
       return 'נמצאו כמה קודים שונים. הדבק/י קוד אחד בכל פעם.';
     case 'E14':
@@ -2477,13 +2499,13 @@ function openImportBox() {
   document.getElementById('importBox').open = true;
 }
 
-function importParentAnswers(text) {
+function importParentAnswers(text, source) {
   clearImportPanel();
   openImportBox();
   // a code pasted from a quoted reply: drop the leading «>» marks per line
   const result = EFORTSCode.decode(String(text).replace(/^[ \t]*(?:>[ \t]*)+/gm, ''));
   if (!result.ok) {
-    showImportError(result.error, result.params);
+    showImportError(result.error, { ...result.params, fromFile: source === 'file' });
     return;
   }
   const dateProblem = importFillDateProblem(result.data.date);
@@ -2648,7 +2670,7 @@ async function importFromPdf(file) {
     showImportError(pdfIsParentSheet(raw) ? 'F5' : 'F3', {});
     return;
   }
-  importParentAnswers(codes.join('\n'));
+  importParentAnswers(codes.join('\n'), 'file');
 }
 
 // One path for a chosen OR dropped answers file (PDF or .txt).
@@ -2688,7 +2710,7 @@ async function importFromFile(file) {
     showImportError('F2', {});
     return;
   }
-  importParentAnswers(text);
+  importParentAnswers(text, 'file');
 }
 
 // ===== SEND THE QUESTIONNAIRE TO PARENTS =====
@@ -2697,6 +2719,7 @@ async function importFromFile(file) {
 // The link is built from wherever this page is served (same folder +
 // parent.html). Nothing is stored or sent from here.
 const S_COPIED = 'הקישור הועתק ✓';
+let copiedTimer = null;
 const S_COPY_FAIL = 'לא הצלחנו להעתיק אוטומטית. סמנ/י את הקישור שבשדה והעתיק/י אותו.';
 
 function parentLink() {
@@ -2709,6 +2732,10 @@ function copyParentLink() {
   const ok = () => {
     status.className = 'import-status ok';
     status.textContent = S_COPIED;
+    clearTimeout(copiedTimer);
+    copiedTimer = setTimeout(() => {
+      if (status.textContent === S_COPIED) clearSendStatus();
+    }, 5000);
   };
   const fallback = () => {
     const field = document.getElementById('sendLink');
@@ -2765,6 +2792,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
+  document.getElementById('importFileLabel').addEventListener('click', () => importFile.click());
   importFile.addEventListener('change', () => {
     const file = importFile.files && importFile.files[0];
     importFile.value = '';

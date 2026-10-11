@@ -60,10 +60,15 @@
         <!-- Send the questionnaire to parents (easy-send) -->
         <section class="send-box" id="sendBox">
           <div class="send-title" id="sendTitle">שליחת השאלון להורים</div>
-          <p class="send-hint" id="sendHint">
-            שלח/י את הקישור הזה להורים, בכל דרך שנוחה לך.
-          </p>
-          <input type="text" id="sendLink" class="send-link" dir="ltr" readonly aria-label="הקישור להורים" />
+          <p class="send-hint" id="sendHint">שלח/י את הקישור הזה להורים, בכל דרך שנוחה לך.</p>
+          <input
+            type="text"
+            id="sendLink"
+            class="send-link"
+            dir="ltr"
+            readonly
+            aria-label="הקישור להורים"
+          />
           <div class="import-actions">
             <button type="button" class="btn btn-primary" id="sendCopy">העתקת קישור להורים</button>
           </div>
@@ -74,17 +79,30 @@
         <details class="import-box" id="importBox" open>
           <summary id="importSummary">ייבוא תשובות מהורה</summary>
           <div class="import-body">
-            <p class="import-drop-hint" id="importDropHint">העלה/י את קובץ ה-PDF שקיבלת מההורים, או גרור/י אותו לכאן.</p>
+            <p class="import-drop-hint" id="importDropHint">
+              העלה/י את קובץ ה-PDF שקיבלת מההורים, או גרור/י אותו לכאן.
+            </p>
             <div class="import-actions">
-              <label class="btn btn-primary" for="importFile" id="importFileLabel"
-                >בחירת קובץ התשובות (PDF)</label
-              >
-              <input type="file" id="importFile" accept=".pdf,.txt,application/pdf,text/plain" hidden />
+              <button type="button" class="btn btn-primary" id="importFileLabel">
+                בחירת קובץ התשובות (PDF)
+              </button>
+              <input
+                type="file"
+                id="importFile"
+                accept=".pdf,.txt,application/pdf,text/plain"
+                hidden
+              />
             </div>
             <label for="importCode" id="importCodeLabel" class="import-paste-label"
               >או הדבק/י את שורת הקוד שבתחתית ה-PDF:</label
             >
-            <textarea id="importCode" rows="3" dir="ltr" spellcheck="false" autocomplete="off"></textarea>
+            <textarea
+              id="importCode"
+              rows="3"
+              dir="ltr"
+              spellcheck="false"
+              autocomplete="off"
+            ></textarea>
             <div class="import-actions">
               <button type="button" class="btn btn-secondary" id="importCodeBtn">בדיקת הקוד</button>
             </div>
@@ -121,6 +139,7 @@
               <div style="display: flex; gap: 10px; direction: ltr">
                 <select
                   id="birthDay"
+                  aria-label="יום לידה"
                   style="
                     flex: 1;
                     padding: 10px 12px;
@@ -135,6 +154,7 @@
                 </select>
                 <select
                   id="birthMonth"
+                  aria-label="חודש לידה"
                   style="
                     flex: 1.5;
                     padding: 10px 12px;
@@ -161,6 +181,7 @@
                 </select>
                 <select
                   id="birthYear"
+                  aria-label="שנת לידה"
                   style="
                     flex: 1;
                     padding: 10px 12px;
@@ -189,6 +210,7 @@
               <div style="display: flex; gap: 10px; direction: ltr">
                 <select
                   id="fillDay"
+                  aria-label="יום מילוי"
                   style="
                     flex: 1;
                     padding: 10px 12px;
@@ -203,6 +225,7 @@
                 </select>
                 <select
                   id="fillMonth"
+                  aria-label="חודש מילוי"
                   style="
                     flex: 1.5;
                     padding: 10px 12px;
@@ -229,6 +252,7 @@
                 </select>
                 <select
                   id="fillYear"
+                  aria-label="שנת מילוי"
                   style="
                     flex: 1;
                     padding: 10px 12px;
