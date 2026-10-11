@@ -265,6 +265,25 @@ function isoDateExists(iso) {
   return dt.getUTCFullYear() === y && dt.getUTCMonth() === mo - 1 && dt.getUTCDate() === d;
 }
 
+// One age wording for the form and the import preview: «3 שנים וחודש»,
+// «4 שנים», «5 שנים ו-7 חודשים».
+function ageWords(years, months) {
+  const monthsText =
+    months === 0
+      ? ''
+      : months === 1
+        ? ' וחודש'
+        : months === 2
+          ? ' וחודשיים'
+          : ` ו-${months} חודשים`;
+  return `${years} שנים${monthsText}`;
+}
+
+function formatDMY(iso) {
+  const [y, m, d] = iso.split('-');
+  return `${d}/${m}/${y}`;
+}
+
 function updateAge() {
   const birthInput = getBirthDateValue();
   const fillInput = getFillDateValue();
@@ -290,15 +309,7 @@ function updateAge() {
 
   const totalYears = years + months / 12;
   const ageEl = document.getElementById('calcAge');
-  const monthsText =
-    months === 0
-      ? ''
-      : months === 1
-        ? ' וחודש'
-        : months === 2
-          ? ' וחודשיים'
-          : ` ו-${months} חודשים`;
-  ageEl.textContent = `${years} שנים${monthsText}`;
+  ageEl.textContent = ageWords(years, months);
   ageEl.className = 'computed';
 
   const ageGroupEl = document.getElementById('ageGroup');
@@ -320,7 +331,7 @@ function updateAge() {
     ageGroupDisplay.className = 'computed valid';
   } else {
     ageGroupEl.value = '';
-    ageGroupDisplay.innerHTML = 'מחוץ לטווח הגילים של השאלון (<bdi dir="ltr">3.0–11.11</bdi>)';
+    ageGroupDisplay.innerHTML = 'מחוץ לטווח הגילים של השאלון (3 עד 11 שנים ו-11 חודשים)';
     ageGroupDisplay.className = 'computed invalid';
   }
 }
@@ -569,7 +580,7 @@ document.addEventListener('DOMContentLoaded', () => {
 function calculate() {
   const birthDate = getBirthDateValue();
   if (!birthDate) {
-    showWarning('יש להזין תאריך לידה לפני חישוב הציונים');
+    showWarning('יש להזין תאריך לידה לפני חישוב הציונים.');
     return;
   }
   // Item 7: the age band depends on the fill date as much as the birth
@@ -578,16 +589,22 @@ function calculate() {
   // band can no longer survive to here — this is the belt-and-braces
   // check for the fill date specifically, with its own message).
   if (!getFillDateValue()) {
-    showWarning('יש להזין תאריך מילוי לפני חישוב הציונים');
+    showWarning('יש להזין תאריך מילוי לפני חישוב הציונים.');
     return;
   }
   if (!isoDateExists(birthDate) || !isoDateExists(getFillDateValue())) {
     showWarning('התאריך אינו קיים בלוח השנה.');
     return;
   }
+  if (birthDate > getFillDateValue()) {
+    showWarning('תאריך הלידה מאוחר מתאריך המילוי.');
+    return;
+  }
   const ageGroup = document.getElementById('ageGroup').value;
   if (!ageGroup) {
-    showWarning('הגיל מחוץ לטווח הגילים של השאלון (3.0–11.11) — לא ניתן לחשב ציונים');
+    showWarning(
+      'הגיל מחוץ לטווח הגילים של השאלון (3 עד 11 שנים ו-11 חודשים) — לא ניתן לחשב ציונים',
+    );
     return;
   }
   // F-15 / F-16 (TM-spec §C-F, optional — her yes): an unset sex silently
@@ -1843,6 +1860,7 @@ function buildParentSheetHtml(p) {
 <html lang="he" dir="rtl">
 <head>
 <meta charset="UTF-8">
+<title>סיכום התוצאות להורים</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;600;700&display=swap');
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -2244,6 +2262,7 @@ function resetForm() {
     const el = document.getElementById('companion_' + k);
     if (el) el.value = '';
   });
+  clearSendStatus();
   document.getElementById('importCode').value = '';
   clearImportPanel();
   importPreviewData = null;
@@ -2291,11 +2310,12 @@ function importErrorText(code, params) {
     case 'E9':
       return `תאריך מילוי לא תקין: "${p.v}".`;
     case 'E10':
-      return `תאריך המילוי (${p.v}) ישן מדי — הטופס תומך עד 3 שנים אחורה.`;
+      if (p.future) return 'תאריך המילוי בעתיד. בדוק/י את התאריך בקובץ.';
+      return `תאריך המילוי (${formatDMY(p.v)}) ישן מדי — הטופס תומך עד 3 שנים אחורה.`;
     case 'E12':
       return `ערך לא תקין בשדה "מי נמצא עם הילד": "${p.v}".`;
     case 'E13':
-      return 'נמצאו כמה קודים שונים. הדביק/י קוד אחד בכל פעם.';
+      return 'נמצאו כמה קודים שונים. הדבק/י קוד אחד בכל פעם.';
     case 'E14':
       return 'תאריך הלידה מאוחר מתאריך המילוי.';
     case 'F1':
@@ -2304,6 +2324,8 @@ function importErrorText(code, params) {
       return 'זה לא קובץ תשובות. יש לבחור את קובץ ה-PDF שההורים שלחו.';
     case 'F2':
       return 'לא הצלחנו לקרוא את הקובץ.';
+    case 'F5':
+      return 'זה הסיכום להורים, לא קובץ התשובות. יש להעלות את קובץ התשובות שההורים שלחו.';
     case 'F3':
       return 'לא נמצא קוד בקובץ. פתח/י את ה-PDF, העתק/י את שורת הקוד שבתחתית העמוד והדבק/י אותה כאן.';
     default:
@@ -2346,7 +2368,7 @@ const AGE_BAND_EDGE_TEXT =
 function ageEdgeNote(years, months) {
   const total = years * 12 + months;
   if (total < 36 || total >= 144) return AGE_OUT_OF_RANGE_TEXT;
-  if (total === 36 || total === 143) return AGE_RANGE_EDGE_TEXT;
+  if (total <= 37 || total >= 142) return AGE_RANGE_EDGE_TEXT;
   if (isNearAgeBandEdge(years, months)) return AGE_BAND_EDGE_TEXT;
   return '';
 }
@@ -2358,16 +2380,27 @@ function showImportEdge(years, months) {
   edge.hidden = !note;
 }
 
-function importFillDateOutOfRange(dateStr) {
-  const y = Number(dateStr.slice(0, 4));
-  const currentYear = new Date().getFullYear();
-  return y < currentYear - 3 || y > currentYear;
+// 'future' | 'old' | '' for an imported fill date.
+function importFillDateProblem(dateStr) {
+  const now = new Date();
+  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  if (dateStr > today) return 'future';
+  if (Number(dateStr.slice(0, 4)) < now.getFullYear() - 3) return 'old';
+  return '';
 }
 
 function withLabel(code) {
   if (!code) return '—';
   const opt = COMPANION.options.find((o) => o.value === code);
   return opt ? opt.label : '—';
+}
+
+function clearSendStatus() {
+  const st = document.getElementById('sendStatus');
+  if (st) {
+    st.textContent = '';
+    st.className = 'import-status';
+  }
 }
 
 function clearImportPanel() {
@@ -2394,7 +2427,7 @@ function buildImportPreview(data) {
   const [fy, fm, fd] = data.date.split('-');
   const rows = [
     ['מין', data.sex === 'male' ? 'זכר' : 'נקבה'],
-    ['גיל לפי ההורה', `${years} שנים, ${months} חודשים`],
+    ['גיל לפי ההורה', ageWords(years, months)],
     ['תאריך מילוי', `${fd}/${fm}/${fy}`],
     [
       'מי נמצא עם הילד',
@@ -2412,15 +2445,22 @@ function buildImportPreview(data) {
   });
 }
 
+function openImportBox() {
+  document.getElementById('importBox').open = true;
+}
+
 function importParentAnswers(text) {
   clearImportPanel();
-  const result = EFORTSCode.decode(text);
+  openImportBox();
+  // a code pasted from a quoted reply: drop the leading «>» marks per line
+  const result = EFORTSCode.decode(String(text).replace(/^[ \t]*(?:>[ \t]*)+/gm, ''));
   if (!result.ok) {
     showImportError(result.error, result.params);
     return;
   }
-  if (importFillDateOutOfRange(result.data.date)) {
-    showImportError('E10', { v: result.data.date });
+  const dateProblem = importFillDateProblem(result.data.date);
+  if (dateProblem) {
+    showImportError('E10', { v: result.data.date, future: dateProblem === 'future' });
     return;
   }
   if (result.data.dob > result.data.date) {
@@ -2447,7 +2487,7 @@ function isClinicianFormDirty() {
 function applyImportedAnswers() {
   if (!importPreviewData) return;
   if (isClinicianFormDirty()) {
-    if (!confirm('הטופס כבר מכיל נתונים. הייבוא יחליף אותם, כולל המספר האנונימי.')) return;
+    if (!confirm('הטופס כבר מכיל נתונים. הייבוא יחליף אותם, כולל המספר האנונימי. להמשיך?')) return;
   }
   const data = importPreviewData;
 
@@ -2547,20 +2587,37 @@ function looksLikePdf(file, bytes) {
   return bytes.length >= 4 && latin1(bytes.subarray(0, 4)) === '%PDF';
 }
 
+// The app's own «סיכום התוצאות להורים» sheet carries that title in its PDF
+// info (the page text itself is glyph-encoded), as UTF-16 hex or UTF-16BE.
+function pdfIsParentSheet(raw) {
+  const title = 'סיכום התוצאות להורים';
+  let hex = '';
+  let be = '';
+  for (const ch of title) {
+    const c = ch.charCodeAt(0);
+    hex += c.toString(16).padStart(4, '0');
+    be += String.fromCharCode(c >> 8, c & 255);
+  }
+  return raw.toLowerCase().includes(hex) || raw.includes(be);
+}
+
 async function importFromPdf(file) {
   if (file.size > PDF_MAX_BYTES) {
     showImportError('F1', {});
     return;
   }
   let codes;
+  let raw = '';
   try {
-    codes = await codesFromPdf(new Uint8Array(await file.arrayBuffer()));
+    const bytes = new Uint8Array(await file.arrayBuffer());
+    codes = await codesFromPdf(bytes);
+    if (!codes.length) raw = latin1(bytes);
   } catch {
     showImportError('F2', {});
     return;
   }
   if (!codes.length) {
-    showImportError('F3', {});
+    showImportError(pdfIsParentSheet(raw) ? 'F5' : 'F3', {});
     return;
   }
   importParentAnswers(codes.join('\n'));
@@ -2570,6 +2627,7 @@ async function importFromPdf(file) {
 async function importFromFile(file) {
   if (!file) return;
   clearImportPanel();
+  openImportBox();
   if (/\.pdf$/i.test(file.name || '') || file.type === 'application/pdf') {
     await importFromPdf(file);
     return;
@@ -2648,6 +2706,11 @@ function copyParentLink() {
 
 document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('sendLink').value = parentLink();
+  // «גרור/י» only where there is a mouse to drag with
+  const hint = document.getElementById('importDropHint');
+  if (hint && window.matchMedia && !window.matchMedia('(pointer: fine)').matches) {
+    hint.textContent = 'העלה/י את קובץ ה-PDF שקיבלת מההורים.';
+  }
   document.getElementById('sendCopy').addEventListener('click', copyParentLink);
 });
 
