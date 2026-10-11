@@ -191,9 +191,6 @@ function buildForm() {
       </div>
     </div>`;
     html += `<div class="section-instruction">${r.instruction}</div>`;
-    html += `<div class="scale-legend">
-      ${scaleLabels.map((l) => `<span>${l.replace('\n', ' ')}</span>`).join('')}
-    </div>`;
 
     items
       .filter((it) => it.num >= r.range[0] && it.num <= r.range[1])
@@ -391,9 +388,8 @@ function saveForm() {
   });
   const saved = storeSet('eforts_save', JSON.stringify(data));
   const ind = document.getElementById('saveIndicator');
-  ind.textContent = saved ? 'נשמר בדפדפן זה' : 'הדפדפן חוסם שמירה — הנתונים לא נשמרו';
-  ind.style.display = 'block';
-  setTimeout(() => (ind.style.display = 'none'), 2000);
+  ind.textContent = saved ? 'נשמר אוטומטית בדפדפן זה' : 'הדפדפן חוסם שמירה — הנתונים לא נשמרו';
+  ind.classList.toggle('blocked', !saved);
 }
 
 // Restores the saved form and returns the saved data (or null when there is
@@ -452,6 +448,15 @@ function showRestoreBar(data) {
   const id = String(data.anonId || '').trim();
   document.getElementById('restoreText').textContent =
     'נטען השאלון האחרון שנשמר בדפדפן זה' + (id ? ` (מס' ${id}).` : '.');
+  const complete =
+    !!id &&
+    !!data.gender &&
+    !!data.birthDate &&
+    !!data.fillDate &&
+    !!data.answers &&
+    Object.keys(data.answers).length === items.length;
+  const showBtn = document.getElementById('restoreShow');
+  if (showBtn) showBtn.hidden = !complete;
   bar.hidden = false;
 }
 
@@ -580,7 +585,10 @@ document.addEventListener('DOMContentLoaded', () => {
 function calculate() {
   const birthDate = getBirthDateValue();
   if (!birthDate) {
-    showWarning('יש להזין תאריך לידה לפני חישוב הציונים.');
+    showWarning(
+      'יש להזין תאריך לידה לפני חישוב הציונים.',
+      firstEmpty(['birthDay', 'birthMonth', 'birthYear']),
+    );
     return;
   }
   // Item 7: the age band depends on the fill date as much as the birth
@@ -589,21 +597,25 @@ function calculate() {
   // band can no longer survive to here — this is the belt-and-braces
   // check for the fill date specifically, with its own message).
   if (!getFillDateValue()) {
-    showWarning('יש להזין תאריך מילוי לפני חישוב הציונים.');
+    showWarning(
+      'יש להזין תאריך מילוי לפני חישוב הציונים.',
+      firstEmpty(['fillDay', 'fillMonth', 'fillYear']),
+    );
     return;
   }
   if (!isoDateExists(birthDate) || !isoDateExists(getFillDateValue())) {
-    showWarning('התאריך אינו קיים בלוח השנה.');
+    showWarning('התאריך אינו קיים בלוח השנה.', isoDateExists(birthDate) ? 'fillDay' : 'birthDay');
     return;
   }
   if (birthDate > getFillDateValue()) {
-    showWarning('תאריך הלידה מאוחר מתאריך המילוי.');
+    showWarning('תאריך הלידה מאוחר מתאריך המילוי.', 'birthDay');
     return;
   }
   const ageGroup = document.getElementById('ageGroup').value;
   if (!ageGroup) {
     showWarning(
       'הגיל מחוץ לטווח הגילים של השאלון (3 עד 11 שנים ו-11 חודשים) — לא ניתן לחשב ציונים',
+      'birthDay',
     );
     return;
   }
@@ -611,11 +623,14 @@ function calculate() {
   // wrote the summary in female forms, and an empty anonymous number put
   // "—" into the summary as the child's stand-in noun. Fail loud instead.
   if (!document.getElementById('childGender').value) {
-    showWarning('יש לבחור מין לפני חישוב הציונים — הסיכום נכתב בלשון זכר או נקבה בהתאם.');
+    showWarning(
+      'יש לבחור מין לפני חישוב הציונים — הסיכום נכתב בלשון זכר או נקבה בהתאם.',
+      'childGender',
+    );
     return;
   }
   if (!getAnonId()) {
-    showWarning('יש להזין מספר אנונימי — הוא מופיע בכותרת ובשמות הקבצים במקום שם.');
+    showWarning('יש להזין מספר אנונימי — הוא מופיע בכותרת ובשמות הקבצים במקום שם.', 'anonId');
     return;
   }
 
@@ -631,7 +646,7 @@ function calculate() {
   });
 
   if (missing.length > 0) {
-    showWarning(`חסרות תשובות לפריטים: ${missing.join(', ')}`);
+    showMissingWarning(missing);
     return;
   }
 
@@ -664,6 +679,13 @@ function calculate() {
   const ageLabel = document.getElementById('ageGroupDisplay').textContent;
   const genderRaw = document.getElementById('childGender').value;
   const gender = genderText(genderRaw);
+  const sexLabel = sexWord(genderRaw);
+  // the age-band edge note from an import travels with the results
+  const edgeEl = document.getElementById('importEdge');
+  const edgeHtml =
+    edgeEl && !edgeEl.hidden && edgeEl.textContent.trim()
+      ? `<div class="results-edge">${escapeHtml(edgeEl.textContent.trim())}</div>`
+      : '';
   const isMale = genderRaw === 'male';
 
   const routineGroups = {
@@ -682,12 +704,14 @@ function calculate() {
   // resetForm() bring it back.
   document.getElementById('formSection').style.display = 'none';
   document.getElementById('progressWrap').style.display = 'none';
+  document.body.classList.add('showing-results');
 
   const resultsDiv = document.getElementById('results');
   resultsDiv.innerHTML = `
     <div class="results-header">
-      <h2>תוצאות שאלון EFORTS</h2>
-      <div class="results-meta">${patientNoun(genderRaw)} מס' ${anonId} | ${gender} | ${ageText} | קבוצת גיל: <bdi dir="ltr">${ageLabel}</bdi></div>
+      <h2 id="resultsTitle" tabindex="-1">תוצאות שאלון EFORTS</h2>
+      <div class="results-meta">${patientNoun(genderRaw)} מס' ${anonId} | ${sexLabel} | ${ageText} | קבוצת גיל: <bdi dir="ltr">${ageLabel}</bdi></div>
+      ${edgeHtml}
       <div class="results-hint">לחצ/י על כל שורה כדי לראות פירוט הפריטים</div>
       <div class="score-legend" style="margin-top:12px;">
         <span class="score-legend-item"><span class="score-legend-dot" style="background:var(--green)"></span> בטווח הנורמה</span>
@@ -700,23 +724,28 @@ function calculate() {
       </div>
     </div>
 
-    <div class="score-group">
-      <div class="score-group-title">ציוני שגרות</div>
+    <div class="score-group score-table">
+      ${scoreHead('שגרה')}
       ${scoreRow('morning', 'בוקר וערב', morningAvg, c.morning, routineGroups.morning.items, scores, 'routine')}
       ${scoreRow('play', 'פנאי ומשחק', playAvg, c.play, routineGroups.play.items, scores, 'routine')}
       ${scoreRow('social', 'שגרה חברתית', socialAvg, c.social, routineGroups.social.items, scores, 'routine')}
       ${scoreRow('total', 'ציון כולל', totalAvg, c.total, [], scores, 'total')}
     </div>
 
-    <div class="score-group">
-      <div class="score-group-title">ציוני תפקודים ניהוליים</div>
+    <div class="score-group score-table">
+      ${scoreHead('תפקוד ניהולי')}
       ${scoreRow('inh', 'עכבה', inhAvg, c.inh, efGroups.inh.items, scores, 'ef')}
       ${scoreRow('wm', 'זיכרון עבודה', wmAvg, c.wm, efGroups.wm.items, scores, 'ef')}
       ${scoreRow('flex', 'גמישות מחשבתית', flexAvg, c.flex, efGroups.flex.items, scores, 'ef')}
     </div>
 
     <div class="summary-card">
-      <h3 style="font-size:0.95rem; font-weight:700; color:var(--text); margin-bottom:12px; text-align:center;">סיכום קליני</h3>
+      <div class="summary-head">
+        <h3>סיכום קליני</h3>
+        <button type="button" class="btn btn-primary btn-copy-clicks" id="copyClicks" onclick="copyClicksText()">העתקה לקליקס</button>
+      </div>
+      <p class="import-status" id="clicksStatus" role="status" aria-live="polite"></p>
+      <button type="button" class="link-btn btn-clicks" onclick="downloadForClicks()">או: הורדה כקובץ טקסט (Notepad)</button>
       <div class="summary-text">${buildSummary({
         anonId,
         gender,
@@ -734,36 +763,53 @@ function calculate() {
         c,
         scores,
       })}</div>
-      <div style="background:#eef6ff; border:1px solid #c5ddf5; border-radius:8px; padding:10px 14px; margin-top:14px;">
-        <span style="font-size:0.82rem; color:#334155;">לשילוב ממצאי השאלון עם התמונה הקלינית מהמפגש: לחצ/י על "הורדה ל-AI (טקסט)", העל/י את הקובץ לכלי AI (Claude, ChatGPT, Copilot) ותאר/י לו מה נצפה. הכלי יכתוב רק את פסקת המטפל/ת, בלי לשנות ציונים או את הסיכום. אין להוסיף שם או ת״ז.</span>
-      </div>
       <div class="summary-note">
         ציון החתך נקבע 1.5 סטיות תקן מתחת לממוצע של קבוצת הגיל (Frisch & Rosenblum, 2024). ציון נמוך מציון החתך מורה על חשד לקושי בתחום שנמדד בלבד: בשגרה או בתפקוד הניהולי.
         <br>הציון הכולל הוא ממוצע שלושת ציוני השגרות. פריטים 10 ו-11 אינם נכללים בחישוב התפקודים הניהוליים.
       </div>
     </div>
 
-    <div class="parent-box">
-      <div class="parent-box-title">סיכום להורים</div>
-      <textarea id="parentNote" aria-label="הערה אישית להורים" rows="2" dir="auto" placeholder="הערה אישית להורים (לא חובה) — למשל דבר אחד לנסות בבית"></textarea>
-      <div class="parent-box-hint">מומלץ למסור להורים בפגישה או מיד אחריה.</div>
-    </div>
-
     <div class="result-actions">
       <button class="btn btn-pdf" onclick="printResults()">PDF למטפל/ת</button>
-      <button class="btn btn-parent-pdf" onclick="printParentResults()">PDF להורים</button>
-      <button class="btn btn-clicks" onclick="downloadForClicks()">הורדה לקליקס (טקסט)</button>
-      <button class="btn btn-ai" onclick="downloadForAI()">הורדה ל-AI (טקסט)</button>
-      <button class="btn btn-back" onclick="goBack()">חזרה לשאלון</button>
-      <button class="btn btn-danger" onclick="resetForm()">שאלון חדש</button>
+      <p class="print-hint" id="printHint">ייפתח חלון הדפסה — בחר/י "שמירה כ-PDF".</p>
+
+      <div class="parent-box">
+        <div class="parent-box-title">דף להורים</div>
+        <label class="parent-box-label" for="parentNote">הערה אישית (לא חובה) — תופיע בדף להורים</label>
+        <textarea id="parentNote" rows="2" dir="auto" placeholder="למשל: דבר אחד לנסות בבית"></textarea>
+        <button class="btn btn-parent-pdf" onclick="printParentResults()">PDF להורים</button>
+        <div class="parent-box-hint">מומלץ למסור להורים בפגישה או מיד אחריה.</div>
+      </div>
+
+      <div class="link-row">
+        <button type="button" class="link-btn btn-ai" onclick="downloadForAI()">הורדה ל-AI (טקסט)</button>
+        <button type="button" class="link-btn btn-back" onclick="goBack()">חזרה לשאלון</button>
+      </div>
+      <details class="ai-help">
+        <summary>מה עושים עם הקובץ?</summary>
+        <p>לשילוב ממצאי השאלון עם התמונה הקלינית מהמפגש: לחצ/י על "הורדה ל-AI (טקסט)", העל/י את הקובץ לכלי AI (Claude, ChatGPT, Copilot) ותאר/י לו מה נצפה. הכלי יכתוב רק את פסקת המטפל/ת, בלי לשנות ציונים או את הסיכום. אין להוסיף שם או ת״ז.</p>
+      </details>
+
+      <button class="btn btn-new" onclick="resetForm()">שאלון חדש — לילד/ה הבא/ה</button>
     </div>
-    <p class="print-hint" id="printHint">ייפתח חלון הדפסה — בחר/י "שמירה כ-PDF".</p>
     <p class="import-status" id="downloadStatus" role="status" aria-live="polite"></p>
   `;
   document.getElementById('parentNote').value = parentNoteDraft;
 
   resultsDiv.style.display = 'block';
-  window.scrollTo({ top: 0, behavior: 'smooth' });
+  scrollToResults();
+}
+
+// O3: land on «תוצאות שאלון EFORTS», not the page top.
+function scrollToResults() {
+  const h = document.getElementById('resultsTitle');
+  if (!h) return;
+  const top = h.getBoundingClientRect().top + window.scrollY - 16;
+  window.scrollTo({ top: Math.max(0, top), behavior: 'auto' });
+}
+
+function scoreHead(first) {
+  return `<div class="score-head" aria-hidden="true"><span>${first}</span><span>ציון</span><span>ציון החתך</span><span>מצב</span></div>`;
 }
 
 function scoreRow(id, label, score, cutoff, cardItems, scores, type) {
@@ -832,20 +878,16 @@ function scoreRow(id, label, score, cutoff, cardItems, scores, type) {
     (type === 'ef' ? `\nקרוב לציון החתך: עד 0.15 מעליו.` : '');
 
   return `<div class="score-row ${hasDetails ? '' : 'no-drill'}" ${hasDetails ? `role="button" tabindex="0" aria-expanded="false" aria-controls="drill_${id}" aria-label="${label}: ${fmtScore(score, cutoff)} — פירוט הפריטים" data-drill="${id}" onclick="toggleDrill('${id}')" onkeydown="drillKey(event, '${id}')"` : ''}>
-    <div class="score-row-top">
-      <div class="score-label">${label} ${hasDetails ? `<span class="arrow" id="arrow_${id}">&#9660;</span>` : ''}
-        <span class="info-tip" tabindex="0" onclick="event.stopPropagation()">?<span class="tip-content">${scoreTip}</span></span>
+    <div class="score-label">${label} ${hasDetails ? `<span class="arrow" id="arrow_${id}">&#9660;</span>` : ''}
+      <span class="info-tip" tabindex="0" onclick="event.stopPropagation()">?<span class="tip-content">${scoreTip}</span></span>
+      <div class="gauge">
+        <div class="gauge-fill ${st.cls}" style="width:${pct}%"></div>
+        <div class="gauge-cutoff" style="right:${cutoffPct}%" data-label="חתך ${cutoff.toFixed(2)}"></div>
       </div>
-      <div class="score-value ${st.cls}">${fmtScore(score, cutoff)}</div>
     </div>
-    <div class="gauge">
-      <div class="gauge-fill ${st.cls}" style="width:${pct}%"></div>
-      <div class="gauge-cutoff" style="right:${cutoffPct}%" data-label="חתך ${cutoff.toFixed(2)}"></div>
-    </div>
-    <div class="score-meta">
-      <span class="score-interp">ציון החתך: ${cutoff.toFixed(2)}</span>
-      <span class="score-status ${st.cls}">${st.text}</span>
-    </div>
+    <div class="score-value ${st.cls}">${fmtScore(score, cutoff)}</div>
+    <div class="score-interp">${cutoff.toFixed(2)}</div>
+    <div class="score-status-cell"><span class="score-status ${st.cls}">${st.text}</span></div>
   </div>
   ${drillHtml}`;
 }
@@ -1687,6 +1729,51 @@ function buildClicksText() {
     .replace(/&amp;/g, '&');
 }
 
+const S_CLICKS_COPIED = 'הועתק ✓ — אפשר להדביק בקליקס';
+let clicksTimer = null;
+
+function copyClicksText() {
+  const text = buildClicksText().replace(/\r?\n/g, '\r\n');
+  const status = document.getElementById('clicksStatus');
+  const ok = () => {
+    status.className = 'import-status ok';
+    status.textContent = S_CLICKS_COPIED;
+    clearTimeout(clicksTimer);
+    clicksTimer = setTimeout(() => {
+      if (status.textContent === S_CLICKS_COPIED) {
+        status.textContent = '';
+        status.className = 'import-status';
+      }
+    }, 5000);
+  };
+  const fallback = () => {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.setAttribute('readonly', '');
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    let done = false;
+    try {
+      done = document.execCommand('copy');
+    } catch {
+      done = false;
+    }
+    ta.remove();
+    if (done) ok();
+    else {
+      status.className = 'import-status err';
+      status.textContent = 'ההעתקה לא הצליחה — השתמש/י בהורדה כקובץ טקסט.';
+    }
+  };
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(ok, fallback);
+  } else {
+    fallback();
+  }
+}
+
 function downloadForClicks() {
   // BOM so Notepad opens the Hebrew as UTF-8; CRLF for Windows Notepad.
   const text = '\uFEFF' + buildClicksText().replace(/\r?\n/g, '\r\n') + '\r\n';
@@ -1889,7 +1976,7 @@ function buildParentSheetHtml(p) {
 <html lang="he" dir="rtl">
 <head>
 <meta charset="UTF-8">
-<title>סיכום התוצאות להורים</title>
+<title>סיכום התוצאות להורים — EFORTS ${fillDateText}</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;600;700&display=swap');
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -2117,11 +2204,16 @@ async function printResults() {
       ? `${fillParts[3]}/${fillParts[2]}/${fillParts[1]}`
       : new Date().toLocaleDateString('en-GB');
 
+    // O12: the title becomes the suggested file name in «שמירה כ-PDF».
+    const titleId = (getAnonId() || 'eforts').replace(/[^0-9A-Za-zא-ת-]/g, '_');
+    const titleDate = fillParts ? fillIso : new Date().toISOString().slice(0, 10);
+
     // Build a minimal, print-optimized HTML document
     const printHtml = `<!DOCTYPE html>
 <html lang="he" dir="rtl">
 <head>
 <meta charset="UTF-8">
+<title>EFORTS_${titleId}_${titleDate}_למטפל</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;600;700&display=swap');
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -2141,7 +2233,7 @@ async function printResults() {
   th { background: #f0f4f8; padding: 6px 10px; font-size: 11px; font-weight: 600; color: #444; text-align: center; border-bottom: 2px solid #ddd; }
   td { border-bottom: 1px solid #eee; }
   .summary-box { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px; margin-bottom: 16px; font-size: 12px; line-height: 1.8; }
-  .summary-box p { margin: 0 0 10px; break-inside: avoid; page-break-inside: avoid; }
+  .summary-box p { margin: 0 0 10px; break-inside: avoid; page-break-inside: avoid; orphans: 3; widows: 3; }
   .summary-box p:last-child { margin-bottom: 0; }
   .group-header { font-size: 12px; font-weight: 700; padding: 6px 10px; margin-top: 8px; }
   .group-weak { color: #c0392b; background: #fff5f5; }
@@ -2165,7 +2257,7 @@ async function printResults() {
     <div class="print-header-credit">תהליך מחשוב השאלון בוצע ע"י אליסון אלט, מרפאה בעיסוק בשירותי בריאות כללית מחוז ירושלים, בתיאום ואישור המחברות.</div>
   </div>
   <h1>תוצאות שאלון EFORTS</h1>
-  <div class="meta">${patientNoun(genderRaw)} מס' ${anonId} | ${gender} | ${ageText} | קבוצת גיל: <bdi dir="ltr">${ageLabel}</bdi> | תאריך מילוי: ${fillDateText}</div>
+  <div class="meta">${patientNoun(genderRaw)} מס' ${anonId} | ${sexWord(genderRaw)} | ${ageText} | קבוצת גיל: <bdi dir="ltr">${ageLabel}</bdi> | תאריך מילוי: ${fillDateText}</div>
 
   <div class="section-title">ציונים</div>
   <table>
@@ -2256,6 +2348,11 @@ function avg(arr) {
 function genderText(raw) {
   return raw === 'male' ? 'זכר' : raw === 'female' ? 'נקבה' : 'מין לא צוין';
 }
+// Screen/PDF header wording for the sex (the stored values and the summary
+// text keep their own forms).
+function sexWord(raw) {
+  return raw === 'male' ? 'בן' : raw === 'female' ? 'בת' : 'מין לא צוין';
+}
 function patientNoun(raw) {
   return raw === 'male' ? 'מטופל' : raw === 'female' ? 'מטופלת' : 'מטופל/ת';
 }
@@ -2264,25 +2361,74 @@ function patientNoun(raw) {
 // it. Scroll so the element lands just BELOW the bar.
 function scrollBelowProgress(el) {
   const bar = document.getElementById('progressWrap');
-  const barH = bar && bar.offsetHeight ? bar.offsetHeight : 0;
+  // only when the bar is actually stuck over the page (it sits in the form now)
+  const stuck = bar && bar.offsetHeight && bar.getBoundingClientRect().top <= 1;
+  const barH = stuck ? bar.offsetHeight : 0;
   const top = el.getBoundingClientRect().top + window.scrollY - barH - 12;
   window.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
 }
 
-function showWarning(msg) {
+function firstEmpty(ids) {
+  return ids.find((id) => !document.getElementById(id).value) || ids[0];
+}
+
+function clearFieldMarks() {
+  document.querySelectorAll('.field-invalid').forEach((el) => {
+    el.classList.remove('field-invalid');
+    el.removeAttribute('aria-invalid');
+  });
+}
+
+// O10: a warning about a field goes UNDER that field, which is scrolled to,
+// focused and marked. (#warning is the same one element, moved there.)
+function showWarning(msg, fieldId) {
   const w = document.getElementById('warning');
+  clearFieldMarks();
   w.textContent = msg;
   w.style.display = 'block';
-  scrollBelowProgress(w);
+  const field = fieldId && document.getElementById(fieldId);
+  if (!field) {
+    scrollBelowProgress(w);
+    return;
+  }
+  const row = field.closest('.date-row') || field;
+  const host = field.closest('.info-field') || row.parentNode;
+  host.appendChild(w);
+  field.classList.add('field-invalid');
+  field.setAttribute('aria-invalid', 'true');
+  w.setAttribute('role', 'alert');
+  scrollBelowProgress(row);
+  field.focus({ preventScroll: true });
 }
+
+function showMissingWarning(missing) {
+  const w = document.getElementById('warning');
+  const first = missing[0];
+  const q = document.getElementById('questionnaire');
+  if (q.hidden) setFold(false);
+  showWarning(`חסרות תשובות לפריטים: ${missing.join(', ')}`);
+  const row = document.getElementById(`q${first}_1`)?.closest('.item-row');
+  if (row) {
+    clearFieldMarks();
+    row.classList.add('field-invalid');
+    row.parentNode.insertBefore(w, row.nextSibling);
+    w.style.display = 'block';
+    scrollBelowProgress(row);
+    document.getElementById(`q${first}_1`).focus({ preventScroll: true });
+  }
+}
+
 function hideWarning() {
   document.getElementById('warning').style.display = 'none';
+  clearFieldMarks();
 }
 
 function goBack() {
   document.getElementById('results').style.display = 'none';
   document.getElementById('formSection').style.display = 'block';
   document.getElementById('progressWrap').style.display = '';
+  document.body.classList.remove('showing-results');
+  setFold(false);
   document.getElementById('questionnaire').scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
@@ -2310,6 +2456,9 @@ function resetForm() {
   document.getElementById('results').style.display = 'none';
   document.getElementById('formSection').style.display = 'block';
   document.getElementById('progressWrap').style.display = '';
+  document.body.classList.remove('showing-results');
+  hideWarning();
+  clearFold();
   updateProgress();
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
@@ -2459,6 +2608,20 @@ function clearImportPanel() {
   status.className = 'import-status';
   document.getElementById('importEdge').hidden = true;
   document.getElementById('importPreview').hidden = true;
+  clearImportAnonMsg();
+}
+
+function clearImportAnonMsg() {
+  const msg = document.getElementById('importAnonMsg');
+  if (msg) {
+    msg.textContent = '';
+    msg.style.display = 'none';
+  }
+  const f = document.getElementById('importAnon');
+  if (f) {
+    f.classList.remove('field-invalid');
+    f.removeAttribute('aria-invalid');
+  }
 }
 
 function showImportError(code, params) {
@@ -2476,7 +2639,7 @@ function buildImportPreview(data) {
   const { years, months } = computeAgeYM(data.dob, data.date);
   const [fy, fm, fd] = data.date.split('-');
   const rows = [
-    ['מין', data.sex === 'male' ? 'זכר' : 'נקבה'],
+    ['מין', data.sex === 'male' ? 'בן' : 'בת'],
     ['גיל לפי ההורה', ageWords(years, months)],
     ['תאריך מילוי', `${fd}/${fm}/${fy}`],
     [
@@ -2518,6 +2681,10 @@ function importParentAnswers(text, source) {
     return;
   }
   importPreviewData = result.data;
+  // O12: a file was read; pasted code was found
+  document.getElementById('importPreviewTitle').textContent =
+    source === 'file' ? 'הקובץ נקרא. בדוק/י לפני המילוי:' : 'נמצא קוד תקין. בדוק/י לפני המילוי:';
+  document.getElementById('importAnon').value = '';
   buildImportPreview(result.data);
   const age = computeAgeYM(result.data.dob, result.data.date);
   showImportEdge(age.years, age.months);
@@ -2534,16 +2701,31 @@ function isClinicianFormDirty() {
   return !!anyRadio || !!anonId || !!gender || !!birthDate;
 }
 
+// O1: fill + calculate in one press. The anonymous number is typed in the
+// preview; empty = mark it, focus it, fill nothing.
 function applyImportedAnswers() {
   if (!importPreviewData) return;
+  const anonField = document.getElementById('importAnon');
+  const anon = anonField.value.trim();
+  if (!anon) {
+    clearImportAnonMsg();
+    anonField.classList.add('field-invalid');
+    anonField.setAttribute('aria-invalid', 'true');
+    const msg = document.getElementById('importAnonMsg');
+    msg.textContent = 'יש להזין מספר אנונימי — הוא מופיע בכותרת ובשמות הקבצים במקום שם.';
+    msg.style.display = 'block';
+    anonField.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    anonField.focus({ preventScroll: true });
+    return;
+  }
   if (isClinicianFormDirty()) {
     if (!confirm('הטופס כבר מכיל נתונים. הייבוא יחליף אותם, כולל המספר האנונימי. להמשיך?')) return;
   }
   const data = importPreviewData;
 
   // O1: a new child is a new number. Never carry the last child's number (or
-  // OT note) over; the clinician types the new one.
-  document.getElementById('anonId').value = '';
+  // OT note) over; the number is the one typed in the preview.
+  document.getElementById('anonId').value = anon;
   parentNoteDraft = '';
   hideRestoreBar();
 
@@ -2570,17 +2752,41 @@ function applyImportedAnswers() {
   const { years, months } = computeAgeYM(data.dob, data.date);
   const status = document.getElementById('importStatus');
   status.className = 'import-status ok';
-  status.textContent = 'התשובות הוזנו. הקלד/י מספר אנונימי ולחצ/י על "חשב ציונים".';
+  status.textContent = 'התשובות הוזנו.';
 
   showImportEdge(years, months);
 
   document.getElementById('importPreview').hidden = true;
   document.getElementById('importCode').value = '';
+  anonField.value = '';
+  clearImportAnonMsg();
   importPreviewData = null;
 
-  const anonField = document.getElementById('anonId');
-  anonField.scrollIntoView({ behavior: 'smooth', block: 'center' });
-  anonField.focus();
+  // the 30 answers fold into one line (expand to edit)
+  setFold(true);
+  calculate();
+}
+
+// ----- O1: fold the 30 answers after an import -----
+let foldedByImport = false;
+
+function setFold(folded) {
+  const toggle = document.getElementById('foldToggle');
+  const q = document.getElementById('questionnaire');
+  if (!toggle) return;
+  if (folded) foldedByImport = true;
+  if (!foldedByImport) return;
+  q.hidden = folded;
+  toggle.hidden = false;
+  toggle.setAttribute('aria-expanded', String(!folded));
+  document.getElementById('foldAction').textContent = folded ? 'הצגה ועריכה ▾' : 'הסתרה ▴';
+}
+
+function clearFold() {
+  foldedByImport = false;
+  const toggle = document.getElementById('foldToggle');
+  if (toggle) toggle.hidden = true;
+  document.getElementById('questionnaire').hidden = false;
 }
 
 // ----- PDF answers file -----
@@ -2822,4 +3028,17 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   importApply.addEventListener('click', applyImportedAnswers);
+
+  document.getElementById('foldToggle').addEventListener('click', () => {
+    setFold(!document.getElementById('questionnaire').hidden);
+  });
+  document.getElementById('restoreShow').addEventListener('click', calculate);
 });
+
+// O9: a refresh opens at the top, never wherever the browser remembers.
+try {
+  window.history.scrollRestoration = 'manual';
+} catch {
+  // not supported: harmless
+}
+window.addEventListener('load', () => window.scrollTo(0, 0));

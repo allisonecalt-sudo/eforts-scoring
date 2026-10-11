@@ -46,7 +46,7 @@ module.exports = [
         {
           argsIgnorePattern: '^_',
           varsIgnorePattern:
-            '^(calculate|toggleDrill|drillKey|goBack|resetForm|printResults|printParentResults|downloadForAI|downloadForClicks)$',
+            '^(calculate|toggleDrill|drillKey|goBack|resetForm|printResults|printParentResults|downloadForAI|downloadForClicks|copyClicksText)$',
         },
       ],
       'no-undef': 'error',

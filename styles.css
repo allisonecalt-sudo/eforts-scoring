@@ -42,7 +42,10 @@ body {
 /* ===== HEADER ===== */
 .header {
   text-align: center;
-  padding: 28px 0 20px;
+  padding: 14px 0 10px;
+}
+body.showing-results .header {
+  display: none;
 }
 .header-logos {
   display: flex;
@@ -50,7 +53,7 @@ body {
   justify-content: center;
   flex-wrap: wrap;
   gap: 22px;
-  margin-bottom: 16px;
+  margin-bottom: 8px;
 }
 .header-logo {
   height: 44px;
@@ -87,7 +90,7 @@ body {
   font-size: 0.98rem;
   font-weight: 700;
   color: var(--text);
-  margin-top: 14px;
+  margin-top: 6px;
 }
 .header p.header-lab {
   font-size: 0.78rem;
@@ -102,17 +105,24 @@ body {
   margin-top: 4px;
 }
 .header p.header-subtitle {
-  font-size: 0.72rem;
-  font-weight: 400;
-  color: #5a6a7e;
-  margin-top: 12px;
+  display: none;
 }
 .header p.header-credit {
-  font-size: 0.7rem;
+  font-size: 0.68rem;
   font-weight: 300;
   color: #5a6a7e;
-  margin-top: 6px;
-  line-height: 1.5;
+  margin-top: 4px;
+  line-height: 1.4;
+}
+/* lab + citation read as one small line */
+.header p.header-lab,
+.header p.header-citation {
+  display: inline;
+  font-size: 0.7rem;
+  margin: 0;
+}
+.header p.header-citation::before {
+  content: ' · ';
 }
 
 /* ===== PROGRESS BAR ===== */
@@ -284,24 +294,6 @@ body {
   background: #f8fafc;
   border-bottom: 1px solid var(--border);
   font-weight: 400;
-}
-
-/* ===== SCALE LEGEND ===== */
-.scale-legend {
-  display: flex;
-  align-items: center;
-  padding: 8px 20px;
-  background: #f8fafc;
-  border-bottom: 1px solid var(--border);
-  gap: 0;
-  justify-content: flex-end;
-}
-.scale-legend span {
-  font-size: 0.68rem;
-  color: var(--text-secondary);
-  font-weight: 500;
-  text-align: center;
-  width: 56px;
 }
 
 /* ===== SUB-SECTION DIVIDER ===== */
@@ -514,14 +506,15 @@ body {
    the row reads as one clear choice, not four equal buttons. "שאלון חדש"
    (.btn-danger, above) stays visually distinct — it's the destructive one. */
 .btn-pdf {
-  background: var(--blue);
-  color: #fff;
+  background: #fff;
+  color: var(--blue);
+  border: 1.5px solid var(--blue);
 }
 .btn-pdf:hover {
-  background: #005f8a;
+  background: #eef6ff;
 }
 .btn-pdf:disabled {
-  background: #8fc2db;
+  opacity: 0.6;
   cursor: wait;
 }
 .btn-parent-pdf {
@@ -574,7 +567,6 @@ body {
   color: var(--green);
   font-weight: 500;
   padding: 6px;
-  display: none;
 }
 
 /* ===== RESULTS ===== */
@@ -621,7 +613,11 @@ body {
 
 /* Score row */
 .score-row {
-  padding: 16px 20px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 54px 64px 104px;
+  align-items: center;
+  column-gap: 8px;
+  padding: 10px 20px;
   border-bottom: 1px solid #f1f5f9;
   cursor: pointer;
   transition: background 0.15s;
@@ -639,19 +635,17 @@ body {
   background: transparent;
 }
 
-.score-row-top {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 8px;
-}
 .score-label {
   font-size: 0.92rem;
   font-weight: 600;
   color: var(--text);
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 6px;
+  gap: 2px 6px;
+}
+.score-label .gauge {
+  flex-basis: 100%;
 }
 .score-label .arrow {
   font-size: 0.6rem;
@@ -675,11 +669,11 @@ body {
 /* Gauge bar */
 .gauge {
   position: relative;
-  height: 8px;
+  height: 5px;
   background: #f1f5f9;
-  border-radius: 4px;
+  border-radius: 3px;
   overflow: visible;
-  margin-bottom: 6px;
+  margin: 2px 0 0;
 }
 .gauge-fill {
   height: 100%;
@@ -697,34 +691,42 @@ body {
 }
 .gauge-cutoff {
   position: absolute;
-  top: -4px;
+  top: -3px;
   width: 2px;
-  height: 16px;
+  height: 11px;
   background: var(--text);
   border-radius: 1px;
 }
-.gauge-cutoff::after {
-  content: attr(data-label);
-  position: absolute;
-  top: 18px;
-  left: 50%;
-  transform: translateX(-50%);
-  font-size: 0.62rem;
-  color: #5a6a7e;
-  white-space: nowrap;
-}
 
-.score-meta {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
 .score-interp {
-  font-size: 0.78rem;
+  font-size: 0.9rem;
   font-weight: 500;
+  color: var(--text);
+  text-align: center;
+}
+.score-value {
+  text-align: center;
+}
+.score-status-cell {
+  text-align: center;
+}
+.score-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 54px 64px 104px;
+  column-gap: 8px;
+  padding: 10px 20px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  background: #f8fafc;
+  border-bottom: 1px solid var(--border);
+  border-radius: var(--radius) var(--radius) 0 0;
+}
+.score-head span:not(:first-child) {
+  text-align: center;
 }
 .score-status {
+  display: inline-block;
   font-size: 0.72rem;
   padding: 3px 10px;
   border-radius: 20px;
@@ -815,7 +817,6 @@ body {
 .drill-dots {
   display: flex;
   gap: 3px;
-  direction: ltr;
   flex-shrink: 0;
 }
 .drill-dot {
@@ -856,9 +857,11 @@ body {
   margin-bottom: 16px;
 }
 .summary-text {
-  font-size: 0.85rem;
+  font-size: 1rem;
   line-height: 1.75;
-  color: #334155;
+  color: var(--text);
+  max-width: 70ch;
+  margin: 0 auto;
 }
 .summary-text p {
   margin-bottom: 8px;
@@ -907,12 +910,12 @@ body {
 }
 .result-actions {
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: column;
+  align-items: stretch;
   gap: 10px;
   margin: 16px 0;
 }
 .result-actions .btn {
-  flex: 1;
   white-space: nowrap;
 }
 
@@ -1044,14 +1047,190 @@ body {
 
 /* Item 22: 4 result-action buttons in a row got tight enough to wrap their
    labels onto two lines ("שמור כ-" / "PDF"). A 2x2 grid reads cleanly. */
-@media (max-width: 400px) {
-  .result-actions {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
+
+/* ===== UX round (O1-O12) ===== */
+.import-anon {
+  margin: 12px 0;
+}
+.import-anon input {
+  width: 100%;
+  max-width: 260px;
+}
+.field-msg {
+  display: none;
+  margin-top: 6px;
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: #92400e;
+}
+.field-invalid {
+  border-color: #d97706 !important;
+  box-shadow: 0 0 0 3px #fde68a;
+}
+.item-row.field-invalid {
+  background: #fffbeb;
+  box-shadow: inset 0 0 0 2px #fcd34d;
+}
+.info-field .warning {
+  margin: 8px 0 0;
+  padding: 8px 12px;
+  text-align: right;
+}
+.info-calc {
+  margin: 0 0 14px;
+}
+.info-calc .btn {
+  width: 100%;
+}
+.fold-toggle {
+  display: block;
+  width: 100%;
+  margin: 0 0 12px;
+  padding: 12px 16px;
+  background: var(--card);
+  border: 1.5px solid var(--border);
+  border-radius: 10px;
+  font: inherit;
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: var(--text);
+  cursor: pointer;
+  text-align: right;
+}
+.fold-toggle[hidden],
+#questionnaire[hidden] {
+  display: none;
+}
+.save-indicator.blocked {
+  color: var(--red);
+}
+.summary-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.summary-head h3 {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text);
+}
+.summary-card .import-status {
+  margin: 6px 0 0;
+  min-height: 1.2em;
+}
+.btn-copy-clicks {
+  flex: 0 0 auto;
+  padding: 12px 22px;
+}
+.link-btn {
+  background: none;
+  border: none;
+  padding: 6px 2px;
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--blue);
+  text-decoration: underline;
+  cursor: pointer;
+}
+.link-btn:hover {
+  color: #005f8a;
+}
+.summary-card .btn-clicks {
+  display: block;
+  margin: 2px 0 14px;
+}
+.link-row {
+  display: flex;
+  gap: 18px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+.result-actions .btn-pdf + .print-hint {
+  margin: -4px 0 0;
+  text-align: center;
+}
+.parent-box {
+  margin: 6px 0 0;
+  padding: 14px;
+}
+.parent-box-label {
+  display: block;
+  font-size: 0.85rem;
+  margin-bottom: 6px;
+  color: var(--text);
+}
+.parent-box .btn-parent-pdf {
+  width: 100%;
+  margin-top: 10px;
+}
+.ai-help {
+  font-size: 0.8rem;
+  color: #334155;
+  background: #eef6ff;
+  border: 1px solid #c5ddf5;
+  border-radius: 8px;
+  padding: 6px 12px;
+}
+.ai-help summary {
+  cursor: pointer;
+  font-weight: 600;
+  padding: 4px 0;
+}
+.ai-help p {
+  margin: 6px 0 4px;
+  line-height: 1.6;
+}
+.btn-new {
+  width: 100%;
+  background: #e2e8f0;
+  color: var(--text);
+  margin-top: 6px;
+}
+.btn-new:hover {
+  background: #cbd5e1;
+}
+@media (max-width: 600px) {
+  .score-row,
+  .score-head {
+    grid-template-columns: minmax(0, 1fr) 40px 44px 78px;
+    column-gap: 4px;
+    padding-left: 10px;
+    padding-right: 10px;
   }
-  .result-actions .btn {
-    flex: unset;
+  .score-label {
+    font-size: 0.85rem;
   }
+  .score-value {
+    font-size: 1rem;
+  }
+  .score-interp {
+    font-size: 0.8rem;
+  }
+  .score-status {
+    font-size: 0.66rem;
+    padding: 3px 6px;
+  }
+  .summary-head {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .btn-copy-clicks {
+    width: 100%;
+  }
+}
+
+.results-edge {
+  margin: 10px auto 0;
+  max-width: 520px;
+  padding: 8px 12px;
+  background: #fffbeb;
+  border: 1px solid #fcd34d;
+  border-radius: 8px;
+  font-size: 0.82rem;
+  color: #92400e;
 }
 
 @media print {
@@ -1253,4 +1432,11 @@ body {
 }
 .restore-bar[hidden] {
   display: none;
+}
+.restore-bar .btn {
+  flex: 0 0 auto;
+  padding: 8px 14px;
+}
+.restore-bar #restoreText {
+  flex: 1 1 200px;
 }
