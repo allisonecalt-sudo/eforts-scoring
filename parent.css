@@ -465,3 +465,15 @@ fieldset#pSexField.p-field-missing {
     margin-top: 4px;
   }
 }
+
+/* saved message: file name on its own line, never broken */
+.p-filename {
+  display: block;
+  white-space: nowrap;
+  font-size: 0.82rem;
+  margin: 2px 0;
+  overflow-wrap: normal;
+}
+#pSendHint:has(.p-filename) {
+  text-align: center;
+}

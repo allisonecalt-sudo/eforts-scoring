@@ -49,7 +49,10 @@ test('P1/P2 download path: hint before, saved message with the file name after',
   await expect(page.locator('#pSendHint')).toHaveText(BEFORE_DL);
   const { name } = await downloadPdf(page);
   const hint = page.locator('#pSendHint');
-  await expect(hint).toContainText('הקובץ נשמר בתיקיית ההורדות (');
+  await expect(hint).toContainText('הקובץ נשמר בתיקיית ההורדות:');
+  await expect(hint.locator('bdi.p-filename')).toHaveText(name);
+  await expect(hint.locator('bdi.p-filename')).toHaveAttribute('dir', 'ltr');
+  expect(await hint.textContent()).not.toContain('(');
   await expect(hint).toContainText(name);
   await expect(hint).toContainText('עכשיו פתחו את המייל, צרפו את הקובץ ושלחו למטפל/ת.');
 });

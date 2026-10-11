@@ -43,8 +43,8 @@ const H_D3 = 'למחוק את כל התשובות ששמרתם במכשיר הז
 const H_P_SHARE = 'שליחת קובץ התשובות (PDF)';
 const H_P_SHARE_HINT = 'בחרו מייל ושלחו את הקובץ לכתובת שקיבלתם מהמטפל/ת.';
 const H_P_SHARED = 'נשלח? מצוין. אפשר לסגור את הדף.';
-const H_P_SAVED_A = 'הקובץ נשמר בתיקיית ההורדות (';
-const H_P_SAVED_B = '). עכשיו פתחו את המייל, צרפו את הקובץ ושלחו למטפל/ת.';
+const H_P_SAVED_A = 'הקובץ נשמר בתיקיית ההורדות:';
+const H_P_SAVED_B = 'עכשיו פתחו את המייל, צרפו את הקובץ ושלחו למטפל/ת.';
 const H_P_DL = 'הורדת קובץ התשובות (PDF)';
 const H_P_DL_HINT = 'צרפו את הקובץ למייל ושלחו לכתובת שקיבלתם מהמטפל/ת.';
 const H_P_SHARE_TITLE = 'EFORTS';
@@ -520,10 +520,11 @@ function downloadAnswers() {
   // say what happened and what to do next (the tap used to change nothing visible)
   pSendHint.textContent = '';
   pSendHint.appendChild(document.createTextNode(H_P_SAVED_A));
-  const bdi = document.createElement('bdi');
-  bdi.dir = 'ltr';
-  bdi.textContent = file.name;
-  pSendHint.appendChild(bdi);
+  const name = document.createElement('bdi');
+  name.dir = 'ltr';
+  name.className = 'p-filename';
+  name.textContent = file.name;
+  pSendHint.appendChild(name);
   pSendHint.appendChild(document.createTextNode(H_P_SAVED_B));
 }
 
