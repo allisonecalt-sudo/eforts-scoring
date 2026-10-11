@@ -23,6 +23,7 @@ const DRAFT_MAX_AGE_MS = 14 * 24 * 3600 * 1000;
 const H_M0 = 'כדי לסיים, צריך להשלים עוד: ';
 const H_S1 = 'מין הילד/ה';
 const H_S2 = 'תאריך לידה';
+const H_S2_VALID = 'תאריך לידה תקין';
 const H_S3 = 'תשובות לשאלות {nums}';
 const H_S3_ONE = 'תשובה לשאלה {nums}';
 const H_DOB_BAD = 'תאריך הלידה לא נראה תקין. בדקו אותו שוב.';
@@ -49,6 +50,7 @@ const state = {
   model: null,
   canShare: false,
   attempted: false,
+  dobTouched: false,
 };
 const JSPDF_SRC = 'assets/vendor/jspdf.umd.min.js';
 
@@ -301,11 +303,14 @@ function coarsePointer() {
 function paintDob() {
   const st = dobStatus();
   const msg = st === 'bad' ? H_DOB_BAD : st === 'age' ? H_DOB_AGE : '';
-  pDobError.textContent = msg;
-  pDobError.hidden = !msg;
+  // a half-typed year must not flash an error: show it only once the field has
+  // lost focus (or «סיום» was tapped); live after that
+  const show = state.dobTouched || state.attempted;
+  pDobError.textContent = show ? msg : '';
+  pDobError.hidden = !show || !msg;
   pDobField.classList.toggle(
     'p-field-missing',
-    st === 'bad' || st === 'age' || (state.attempted && st === 'empty'),
+    (show && (st === 'bad' || st === 'age')) || (state.attempted && st === 'empty'),
   );
 }
 
@@ -320,7 +325,7 @@ function checkForm(scroll) {
   });
   const problems = [];
   if (!sexOk) problems.push(H_S1);
-  if (dobSt) problems.push(H_S2);
+  if (dobSt) problems.push(dobSt === 'empty' ? H_S2 : H_S2_VALID);
   if (missingItems.length) {
     problems.push(
       (missingItems.length === 1 ? H_S3_ONE : H_S3).replace('{nums}', missingItems.join(', ')),
@@ -455,6 +460,7 @@ function clearAll() {
   });
 
   state.attempted = false;
+  state.dobTouched = false;
   pDraftBar.hidden = true;
   pDone.hidden = true;
   pFormSection.hidden = false;
@@ -505,6 +511,10 @@ document.addEventListener('DOMContentLoaded', () => {
   pFormSection.addEventListener('change', () => {
     updateProgress();
     saveDraft();
+    checkForm(false);
+  });
+  pDob.addEventListener('blur', () => {
+    state.dobTouched = true;
     checkForm(false);
   });
   checkForm(false);
