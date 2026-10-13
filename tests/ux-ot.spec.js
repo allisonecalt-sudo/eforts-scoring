@@ -311,14 +311,13 @@ function savedForm(extra) {
       fillDate: '2026-10-11',
       companions: { morning: 'mom', play: '', social: '' },
       answers,
-      savedAt: NOW.getTime() - 60000,
     },
     extra,
   );
 }
 
 async function seedAndReload(page, data) {
-  await page.evaluate((d) => localStorage.setItem('eforts_save', JSON.stringify(d)), data);
+  await page.evaluate((d) => sessionStorage.setItem('eforts_save', JSON.stringify(d)), data);
   await page.reload();
   await page.waitForSelector('#questionnaire .item-row');
 }
@@ -465,7 +464,7 @@ test('O12: no «שמור» button; a small autosave note instead', async ({ page
   await open(page);
   expect(await page.locator('button:text-is("שמור")').count()).toBe(0);
   await expect(page.locator('#saveIndicator')).toBeVisible();
-  await expect(page.locator('#saveIndicator')).toHaveText('נשמר אוטומטית בדפדפן זה');
+  await expect(page.locator('#saveIndicator')).toHaveText('נשמר זמנית בלשונית זו בלבד, עד לסגירתה');
 });
 
 test('O12: a read file says «הקובץ נקרא», pasted code keeps «נמצא קוד תקין»', async ({ page }) => {

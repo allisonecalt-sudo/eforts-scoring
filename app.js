@@ -336,16 +336,18 @@ function updateAge() {
 // ===== SAVE / LOAD =====
 // O4: a Clalit PC may block site storage; every access goes through these
 // three so a blocked, full or disabled store can never stop the page.
+// Session storage on purpose: the child's data lives only until this tab is
+// closed, so the next person on a shared computer never sees it.
 function storeGet(key) {
   try {
-    return localStorage.getItem(key);
+    return sessionStorage.getItem(key);
   } catch {
     return null;
   }
 }
 function storeSet(key, value) {
   try {
-    localStorage.setItem(key, value);
+    sessionStorage.setItem(key, value);
     return true;
   } catch {
     return false;
@@ -353,15 +355,21 @@ function storeSet(key, value) {
 }
 function storeRemove(key) {
   try {
-    localStorage.removeItem(key);
+    sessionStorage.removeItem(key);
   } catch {
     // nothing to remove from
   }
 }
 
-// O2: a saved form older than this is dropped on load, so a stale child
-// never greets the next clinician.
-const SAVE_MAX_AGE_MS = 14 * 24 * 60 * 60 * 1000;
+// Older versions kept the form in localStorage. Wipe any such leftover (never
+// migrated into the session) so a previous child's answers are gone.
+function removeLegacySave() {
+  try {
+    localStorage.removeItem('eforts_save');
+  } catch {
+    // nothing to remove from
+  }
+}
 
 // The OT's personal note to the parents lives in memory for this page
 // session only (never storage, never the AI file) so it survives
@@ -380,7 +388,6 @@ function saveForm() {
       social: document.getElementById('companion_social')?.value || '',
     },
     answers: {},
-    savedAt: Date.now(),
   };
   items.forEach((item) => {
     const checked = document.querySelector(`input[name="q${item.num}"]:checked`);
@@ -388,12 +395,14 @@ function saveForm() {
   });
   const saved = storeSet('eforts_save', JSON.stringify(data));
   const ind = document.getElementById('saveIndicator');
-  ind.textContent = saved ? 'נשמר אוטומטית בדפדפן זה' : 'הדפדפן חוסם שמירה — הנתונים לא נשמרו';
+  ind.textContent = saved
+    ? 'נשמר זמנית בלשונית זו בלבד, עד לסגירתה'
+    : 'הדפדפן חוסם שמירה — הנתונים לא נשמרו';
   ind.classList.toggle('blocked', !saved);
 }
 
 // Restores the saved form and returns the saved data (or null when there is
-// nothing usable: no storage, broken JSON, or older than 14 days).
+// nothing usable: no storage or broken JSON).
 function loadForm() {
   const raw = storeGet('eforts_save');
   if (!raw) return null;
@@ -405,10 +414,6 @@ function loadForm() {
     return null;
   }
   if (!data || typeof data !== 'object') return null;
-  if (typeof data.savedAt === 'number' && Date.now() - data.savedAt > SAVE_MAX_AGE_MS) {
-    storeRemove('eforts_save');
-    return null;
-  }
   if (data.anonId) document.getElementById('anonId').value = data.anonId;
   if (data.gender) document.getElementById('childGender').value = data.gender;
   if (data.birthDate) setBirthDateValue(data.birthDate);
@@ -447,7 +452,7 @@ function showRestoreBar(data) {
   }
   const id = String(data.anonId || '').trim();
   document.getElementById('restoreText').textContent =
-    'נטען השאלון האחרון שנשמר בדפדפן זה' + (id ? ` (מס' ${id}).` : '.');
+    'נטען השאלון שנשמר בלשונית זו' + (id ? ` (מס' ${id}).` : '.');
   const complete =
     !!id &&
     !!data.gender &&
@@ -546,13 +551,34 @@ function setFillDateToToday() {
   document.getElementById('fillYear').value = now.getFullYear();
 }
 
+// True while anything has been entered (number, sex, birth date or an answer).
+function formInProgress() {
+  return !!(
+    getAnonId() ||
+    document.getElementById('childGender').value ||
+    ['birthDay', 'birthMonth', 'birthYear'].some(
+      (id) => document.getElementById(id).value !== '',
+    ) ||
+    document.querySelector('input[name^="q"]:checked')
+  );
+}
+
+// Asks the browser for its own "leave the page?" prompt, only mid-form.
+function warnBeforeLeaving(e) {
+  if (!formInProgress()) return;
+  e.preventDefault();
+  e.returnValue = '';
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   populateBirthDropdowns();
   populateFillDropdowns();
   buildForm();
   setFillDateToToday();
+  removeLegacySave();
   showRestoreBar(loadForm());
   updateProgress();
+  window.addEventListener('beforeunload', warnBeforeLeaving);
   document.getElementById('birthDay').addEventListener('change', updateAge);
   document.getElementById('birthMonth').addEventListener('change', updateAge);
   document.getElementById('birthYear').addEventListener('change', updateAge);
@@ -2527,7 +2553,7 @@ function goBack() {
 }
 
 function resetForm() {
-  if (!confirm('לאפס את כל התשובות ולהתחיל שאלון חדש? הנתונים השמורים בדפדפן זה יימחקו.')) return;
+  if (!confirm('לאפס את כל התשובות ולהתחיל שאלון חדש? הנתונים השמורים בלשונית זו יימחקו.')) return;
   storeRemove('eforts_save');
   parentNoteDraft = '';
   hideRestoreBar();
