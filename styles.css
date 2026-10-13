@@ -128,8 +128,10 @@ body.ot .header-logos {
 body.ot .header p.header-authors {
   margin-top: 6px;
 }
+/* Carmit 2026-10-13 #3: the subtitle says whose page this is («עמוד למטפל/ת») */
 body.ot .header p.header-subtitle {
-  display: none;
+  margin-top: 6px;
+  font-size: 0.85rem;
 }
 body.ot .header p.header-credit {
   font-size: 0.68rem;
