@@ -36,7 +36,7 @@ function savedForm(extra) {
 }
 
 async function seedAndReload(page, data) {
-  await page.evaluate((d) => localStorage.setItem('eforts_save', JSON.stringify(d)), data);
+  await page.evaluate((d) => sessionStorage.setItem('eforts_save', JSON.stringify(d)), data);
   await page.reload();
   await page.waitForSelector('#questionnaire .item-row');
 }
@@ -90,15 +90,13 @@ test('O2: reopening lands on the form with the restore bar; «שאלון חדש�
   page,
 }) => {
   await openFresh(page);
-  await seedAndReload(page, savedForm({ savedAt: NOW.getTime() - 60000 }));
+  await seedAndReload(page, savedForm());
   await expect(page.locator('#results')).toBeHidden();
   await expect(page.locator('#formSection')).toBeVisible();
   await expect(page.locator('#sendBox')).toBeVisible();
   await expect(page.locator('#importBox')).toBeVisible();
   await expect(page.locator('#restoreBar')).toBeVisible();
-  await expect(page.locator('#restoreText')).toHaveText(
-    "נטען השאלון האחרון שנשמר בדפדפן זה (מס' 77).",
-  );
+  await expect(page.locator('#restoreText')).toHaveText("נטען השאלון שנשמר בלשונית זו (מס' 77).");
   expect(await page.locator('#anonId').inputValue()).toBe('77');
   await expect(page.locator('#progressText')).toHaveText('30 / 30');
   await expect(page.locator('#results .results-header')).toHaveCount(0); // never auto-calculated
@@ -110,20 +108,11 @@ test('O2: reopening lands on the form with the restore bar; «שאלון חדש�
   await expect(page.locator('#progressText')).toHaveText('0 / 30');
 });
 
-test('O2: a saved form older than 14 days is dropped on load', async ({ page }) => {
-  await openFresh(page);
-  await seedAndReload(page, savedForm({ savedAt: NOW.getTime() - 15 * 24 * 60 * 60 * 1000 }));
-  await expect(page.locator('#restoreBar')).toBeHidden();
-  expect(await page.locator('#anonId').inputValue()).toBe('');
-  expect(await page.evaluate(() => localStorage.getItem('eforts_save'))).toBeNull();
-});
-
 test('O2: the companion selects auto-save like every other field', async ({ page }) => {
   await openFresh(page);
   await page.selectOption('#companion_play', 'dad');
-  const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('eforts_save')));
+  const saved = await page.evaluate(() => JSON.parse(sessionStorage.getItem('eforts_save')));
   expect(saved.companions.play).toBe('dad');
-  expect(typeof saved.savedAt).toBe('number');
 });
 
 // ===== O3 =====
