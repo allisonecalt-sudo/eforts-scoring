@@ -98,9 +98,9 @@ test('item 8: an anonId with HTML renders literally in results + summary; the ex
   // FX2 (Gemini review item 2) replaced the one place the two-below-EF
   // routine clause embedded anonId mid-sentence ("בכך ש-${anonId}") with a
   // pronoun — so all-2s no longer puts anonId inside buildSummary()'s own
-  // output. (Since 2026-10-09 even the מומלץ paragraph's motivation clause
-  // uses a possessive, not the number.) That clause only renders when >=2 items score
-  // 4-5 (FX2 spec §C), so two items are bumped to 4 to reach it.
+  // output. (Since 2026-10-09 the summary uses possessives, not the number;
+  // the מומלץ paragraph itself was removed on 2026-10-13.) Two items are
+  // still bumped to 4 so the strengths wording is exercised.
   const html = await fillAndCalculate(page, {
     sex: 'male',
     ageYearsBack: 5,
@@ -116,7 +116,7 @@ test('item 8: an anonId with HTML renders literally in results + summary; the ex
   // her ruling 2026-10-09: the number is not written inside summary sentences
   expect(summaryHtml).not.toContain('<b>x</b>');
   expect(summaryHtml).not.toContain('&lt;b&gt;x&lt;/b&gt;');
-  expect(summaryHtml).toContain('גיוס המוטיבציה שלו');
+  expect(summaryHtml).not.toContain('מומלץ');
 
   const downloadPromise = page.waitForEvent('download');
   await page.click('.btn-ai');

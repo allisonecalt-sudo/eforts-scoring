@@ -88,84 +88,6 @@ function fmtScore(score, cutoff) {
 // grouping, so "one item" never reads like a bare item number.
 const nItems = (n) => (n === 1 ? 'פריט אחד' : `${n} פריטים`);
 
-// FX2 (Gemini review item 4 + FX2-strength-nouns-spec §A): the 30 noun
-// phrases named in מומלץ when a strength item is woven in, instead of the
-// vague fallback "במשימות אחרות". Masculine and feminine are identical —
-// the only gendered words stay in the frame (כוחותיו/כוחותיה, לו/לה) —
-// so these plain strings carry no g(). Items n and n+8 (n = 1-8) share one
-// noun on purpose (strengthNoun[n] === strengthNoun[n + 8]), so a twin pair
-// can merge into one "בשגרת הבוקר והערב" entry (see strengthNounSlot below).
-// Top-level (not inside buildSummary) so a test can call it via
-// page.evaluate, per the spec.
-const strengthNoun = {
-  1: 'התנעה עצמאית',
-  2: 'שמירה על קצב ללא תזכורות',
-  3: 'זכירת רצף הפעילויות',
-  4: 'התארגנות לפי כללי הבית',
-  5: 'פתרון בעיות',
-  6: 'התעלמות מגירויים מסיחים',
-  7: 'הקפדה על איכות הביצוע',
-  8: 'סיום פעילות לפני מעבר לאחרת',
-  9: 'התנעה עצמאית',
-  10: 'שמירה על קצב ללא תזכורות',
-  11: 'זכירת רצף הפעילויות',
-  12: 'התארגנות לפי כללי הבית',
-  13: 'פתרון בעיות',
-  14: 'התעלמות מגירויים מסיחים',
-  15: 'הקפדה על איכות הביצוע',
-  16: 'סיום פעילות לפני מעבר לאחרת',
-  17: 'יוזמה',
-  18: 'שמירה על קצב מתאים',
-  19: 'התקדמות לפי סדר השלבים',
-  20: 'הקפדה על הכללים',
-  21: 'התמקדות',
-  22: 'תכנון',
-  23: 'סיום פעילות לפני מעבר לאחרת',
-  24: 'יוזמה',
-  25: 'למידה מהתנסויות',
-  26: 'הימנעות מהבעה מוגזמת של כעס',
-  27: 'השתתפות לפי כללי הקבוצה',
-  28: 'פתרון בעיות',
-  29: 'שקילת תגובות אפשריות',
-  30: 'חשיבה לפני תגובה',
-};
-const NOUN_SUFFIX = {
-  am: 'בשגרת הבוקר',
-  pm: 'בשגרת הערב',
-  ampm: 'בשגרת הבוקר והערב',
-  play: 'במשחק',
-  social: 'במצבים חברתיים',
-};
-// joinHe: 1 item -> "A", 2 -> "A וB", 3+ -> "A, B וC". Every part already
-// starts with "ב", so the result reads "…וב…".
-const joinHe = (parts) =>
-  parts.length === 1 ? parts[0] : parts.slice(0, -1).join(', ') + ' ו' + parts[parts.length - 1];
-
-// FX2-strength-nouns-spec §B: `woven` is the ordered list of item numbers
-// the routine paragraphs already wove in as strengths (buildSummary pushes
-// into it — see the eligibleStrong block below). This turns that same list
-// into the מומלץ noun-phrase slot: group by context (am/pm/play/social),
-// merging a morning/evening twin pair into one "ampm" entry, cap at 3,
-// then join.
-function strengthNounSlot(woven) {
-  const ctxOf = (n) => (n <= 8 ? 'am' : n <= 16 ? 'pm' : n <= 23 ? 'play' : 'social');
-  const entries = [];
-  for (const n of woven) {
-    if (n >= 9 && n <= 16 && woven.includes(n - 8)) continue; // merged into its morning twin
-    entries.push({
-      noun: strengthNoun[n],
-      ctx: n <= 8 && woven.includes(n + 8) ? 'ampm' : ctxOf(n),
-    });
-  }
-  const groups = [];
-  for (const e of entries.slice(0, 3)) {
-    let g = groups.find((x) => x.ctx === e.ctx);
-    if (!g) groups.push((g = { ctx: e.ctx, nouns: [] }));
-    g.nouns.push('ב' + e.noun);
-  }
-  return groups.length ? joinHe(groups.map((g) => joinHe(g.nouns) + ' ' + NOUN_SUFFIX[g.ctx])) : '';
-}
-
 // ===== BUILD FORM =====
 function buildForm() {
   const container = document.getElementById('questionnaire');
@@ -1064,9 +986,6 @@ function buildSummary(d) {
   // number is NOT written inside summary sentences (it stays in the results
   // header, the print header, the AI file's details line and file names);
   // pronouns / possessive suffixes cover it. Sex unset -> slash forms.
-  const hisMotivation = d.sexUnset
-    ? 'גיוס המוטיבציה שלו/שלה'
-    : g('גיוס המוטיבציה שלו', 'גיוס המוטיבציה שלה');
 
   const { diffPhrase, strengthPhrase } = itemPhrases(m);
 
@@ -1122,7 +1041,6 @@ function buildSummary(d) {
     efStatusMap[e.key] = efStatus(e);
   });
 
-  const strongItemsAll = items.filter((i) => d.scores[i.num] >= 4);
   // S1 (QA 2026-10-11): a function is named as a strength ONLY when its own
   // status is clearly in norm (not below, not close, not at the cutoff).
   // Items 10/11 carry no function but are working-memory-like, so they
@@ -1216,10 +1134,6 @@ function buildSummary(d) {
     // attribution verb bank in §B1).
     const usedEFs = new Set();
     let repeatCount = 0;
-    // FX2-strength-nouns-spec §B: the ordered union of every routine
-    // paragraph's woven-in strengths (item numbers, paragraph order) — fed
-    // to strengthNounSlot() below for the מומלץ fallback (item 4).
-    const woven = [];
 
     weakRoutines.forEach((r, idx) => {
       const rItems = items.filter((i) => i.routine === r.key);
@@ -1394,14 +1308,6 @@ function buildSummary(d) {
         return true;
       });
       if (eligibleStrong.length > 0) {
-        // FX2-strength-nouns-spec §B step 1: feed the מומלץ noun-phrase
-        // slot from the SAME items this paragraph already wove in as
-        // strengths, in the SAME order/cap it uses (item order, first 3) —
-        // pushed from the raw list (both twin numbers, when both are
-        // strong) so strengthNounSlot's own twin-merge (step 2) can see
-        // both and produce one "…והערב" entry instead of two.
-        woven.push(...eligibleStrong.slice(0, 3).map((i) => i.num));
-
         // Twin-pair duplication bug (FX2 spec "Seen while specifying"):
         // both twins of a pair (e.g. items 6 + 14) share one strengthPhrase
         // string — without this, a strong twin pair printed the SAME
@@ -1554,51 +1460,6 @@ function buildSummary(d) {
     if (!(onlyTotalBelow && efData.every((e) => efStatusMap[e.key] === 'above'))) {
       s += para(efPara);
     }
-
-    // ===== המלצה =====
-    let rec =
-      'מומלץ על טיפול שיכלול הדרכת הורים אודות התפתחות התפקודים הניהוליים וכיצד ההורים יכולים לסייע בהקניית אסטרטגיות יעילות התומכות בתפקוד';
-    if (weakEFs.length > 0) {
-      rec += `, תוך ניתוח דרישות המטלה והסביבה וקביעת מטרות ישימות לטווח קצר, בהתייחס למוקד הקושי ב${weakEFs.map((e) => e.label).join(' וב')}`;
-    } else {
-      rec += ', תוך ניתוח דרישות המטלה והסביבה והתאמת השגרה בבית';
-    }
-    if (strongItemsAll.length >= 2) {
-      // canon D "Strengths" part: motivation + small successes + recruiting
-      // strengths from an easier routine toward the harder ones, named with
-      // pronouns / possessives (no anonymous number, no "הילד" — rule 25).
-      // Gemini review item 3: "כמו כן מומלץ לשים דגש" repeated the
-      // מ-ל-צ root right after "מומלץ על טיפול" — Carmit's C32 wording
-      // ("תוך שימת דגש על") folds this into ONE sentence instead.
-      // Gemini review item 4 / FX2-strength-nouns-spec: when in-norm
-      // routines exist, keep naming them (unchanged, §C precedence 1);
-      // otherwise, name the real strength items instead of the vague
-      // fallback (§C precedence 2); "במשימות אחרות" only when neither
-      // applies (§C precedence 3, Carmit's own C32 wording).
-      // Gemini review R7-5b (7.11): when NO routine is below cutoff (the
-      // EF-only profile), there's no harder routine to transfer strengths
-      // onto — end at the success-collecting clause instead of inventing a
-      // target ("...אל המשימות שקשות לו יותר" implied a harder routine that
-      // doesn't exist here).
-      if (weakRoutines.length === 0) {
-        rec += `, תוך שימת דגש על ${hisMotivation} ועל איסוף חוויות של הצלחה, גם אם קטנות.`;
-      } else {
-        // Gemini review R7-5a (7.10): joinHe ("A, B וC"), never the flat
-        // "A וB וC" a plain join(' ו') produces for three routines. Guarded
-        // on length — joinHe([]) has no defined "0 items" case (it's built
-        // for the 1+ case elsewhere), so keep the empty-string fallthrough
-        // a bare join(' ו') gave for free when okRoutines is empty (e.g.
-        // model-50/50f, all three routines weak) — that '' is what lets the
-        // next `||` reach strengthNounSlot()/the vague fallback.
-        const strengthRoutines =
-          okRoutines.length > 0 ? joinHe(okRoutines.map((r) => r.inName)) : '';
-        const strengthSlot = strengthRoutines || strengthNounSlot(woven) || 'במשימות אחרות';
-        rec += `, תוך שימת דגש על ${hisMotivation}, איסוף חוויות של הצלחה גם אם קטנות, וגיוס ${g('כוחותיו', 'כוחותיה')} המתבטאים ${strengthSlot} אל המשימות שקשות ${g('לו', 'לה')} יותר.`;
-      }
-    } else {
-      rec += '.';
-    }
-    s += para(rec);
   }
 
   return s;
@@ -1610,15 +1471,13 @@ function buildSummary(d) {
 function aiPrompt(gender) {
   return `הנחיות לכלי ה-AI:
 
-1. מה כבר קיים. הציונים חושבו בכלי, והסיכום הקליני שלמעלה (תמונה כללית, משמעות קלינית ופסקת "מומלץ") נכתב בכלי לפי כללי הכתיבה שנגזרו מהנוסח של מחברות השאלון. אל תחשב מחדש אף ציון, אל תשנה אף מספר, ואל תכתוב מחדש את הסיכום או חלק ממנו.
+1. מה כבר קיים. הציונים חושבו בכלי, והסיכום הקליני שלמעלה (תמונה כללית ומשמעות קלינית) נכתב בכלי לפי כללי הכתיבה שנגזרו מהנוסח של מחברות השאלון. אל תחשב מחדש אף ציון, אל תשנה אף מספר, ואל תכתוב מחדש את הסיכום או חלק ממנו.
 
-2. מה אתה כותב: רק את פסקת המטפל/ת. זו פסקה אחת, שנכנסת בין "משמעות קלינית" לבין פסקת "מומלץ", ומצרפת את ממצאי השאלון לתמונה הקלינית מהמפגש. פתח כמו בנוסח של המחברות: "אם מצרפים ממצאי הערכה אלו לתמונה הקלינית בשטח עולה כי…". כתוב אותה רק ממה שהמטפל/ת מוסר/ת לך בשיחה הזו: תצפיות מהמפגש, דיווח של ההורים או של הצוות החינוכי, ממצאים ממבדקים אחרים. אם לא נמסרו תצפיות, אל תכתוב את הפסקה, ושאל את המטפל/ת מה נצפה.
+2. מה אתה כותב: רק את פסקת המטפל/ת. זו פסקה אחת, שנכנסת בסוף "משמעות קלינית", ומצרפת את ממצאי השאלון לתמונה הקלינית מהמפגש. פתח כמו בנוסח של המחברות: "אם מצרפים ממצאי הערכה אלו לתמונה הקלינית בשטח עולה כי…". כתוב אותה רק ממה שהמטפל/ת מוסר/ת לך בשיחה הזו: תצפיות מהמפגש, דיווח של ההורים או של הצוות החינוכי, ממצאים ממבדקים אחרים. אם לא נמסרו תצפיות, אל תכתוב את הפסקה, ושאל את המטפל/ת מה נצפה.
 
-3. תוספת לפסקת "מומלץ", רק אם המטפל/ת ביקש/ה: חצי משפט שמתחבר לסוף הפסקה הקיימת, רק ממה שעלה במפגש (לדוגמה "וייתכן גם ויסות רגשי", כשזה עלה בטיפול ולא מהשאלון). בלי מספר טיפולים, תדירות, שמות פרוטוקולים, הפניות או אבחנות.
+3. לא להמציא. כל משפט נשען על הקובץ הזה או על מה שהמטפל/ת כתב/ה בשיחה. אף משפט לא סותר ציון של פריט או משפט אחר בסיכום. מוטיבציה, ביטחון עצמי, ויסות רגשי וקשב נכתבים רק אם המטפל/ת מסר/ה אותם.
 
-4. לא להמציא. כל משפט נשען על הקובץ הזה או על מה שהמטפל/ת כתב/ה בשיחה. אף משפט לא סותר ציון של פריט או משפט אחר בסיכום. מוטיבציה, ביטחון עצמי, ויסות רגשי וקשב נכתבים רק אם המטפל/ת מסר/ה אותם.
-
-5. קול ושפה, כמו בסיכום:
+4. קול ושפה, כמו בסיכום:
 - גוף שלישי. פעלים רכים: "מתקשה ל…", "זקוק ל…", "מוסח מ…", "עולה קושי ב…", "נראה כי", "ייתכן", "על רקע", "ככל הנראה".
 - בלי שרשראות שלילה ("לא עושה, לא זוכר") ובלי ניגוד מהסוג "לא X אלא Y".
 - בלי תוויות אבחנתיות או תכונתיות ("אימפולסיבי", ADHD, "קשב" כאבחנה). מתארים התנהגות: פזיזות, מוסחות, קושי בעכבה.
@@ -1627,15 +1486,15 @@ function aiPrompt(gender) {
 - מין: ${gender}. התאמת מין בכל פועל, כינוי וסיומת. אם המין לא צוין, שאל לפני שאתה כותב.
 - עברית בלבד. המילה הלועזית היחידה: EFORTS.
 
-6. מונחים, בדיוק כך: עכבה · זיכרון עבודה · גמישות מחשבתית · תפקודים ניהוליים · ציון החתך · ציון כולל · בטווח הנורמה (בסיכום מופיע גם "בתחום הנורמה", ולתפקוד ניהולי גם "גבוה מציון החתך") · שגרת בוקר וערב · שגרת פנאי ומשחק · השגרה החברתית · שגרות היום-יום. לא: "סף", "נקודת חתך", "פונקציות ניהוליות", "תקין לגמרי".
+5. מונחים, בדיוק כך: עכבה · זיכרון עבודה · גמישות מחשבתית · תפקודים ניהוליים · ציון החתך · ציון כולל · בטווח הנורמה (בסיכום מופיע גם "בתחום הנורמה", ולתפקוד ניהולי גם "גבוה מציון החתך") · שגרת בוקר וערב · שגרת פנאי ומשחק · השגרה החברתית · שגרות היום-יום. לא: "סף", "נקודת חתך", "פונקציות ניהוליות", "תקין לגמרי".
 
-7. מספרים ופריטים. ציון נכתב בצורה "(קיבל/ה ציון X כאשר ציון החתך הוא Y)", שתי ספרות אחרי הנקודה, בדיוק כפי שהוא מופיע למעלה. בלי ממוצעים, סטיות תקן, אחוזונים, "מתחת לממוצע", ובלי מילות התשובה ("לפעמים", "לעיתים רחוקות"). פריט נכתב "פריט N"; שני פריטים: "(פריט N ופריט M)".
+6. מספרים ופריטים. ציון נכתב בצורה "(קיבל/ה ציון X כאשר ציון החתך הוא Y)", שתי ספרות אחרי הנקודה, בדיוק כפי שהוא מופיע למעלה. בלי ממוצעים, סטיות תקן, אחוזונים, "מתחת לממוצע", ובלי מילות התשובה ("לפעמים", "לעיתים רחוקות"). פריט נכתב "פריט N"; שני פריטים: "(פריט N ופריט M)".
 
-8. תפקודים ניהוליים. תפקוד ניהולי שציונו נמוך מציון החתך הוא ההסבר העיקרי לקושי. תפקוד שציונו "קרוב לציון החתך" (עד 0.15 מעליו) יכול להסביר קושי רק כגורם משני ("ולעיתים על רקע קושי ב…"). תפקוד שציונו גבוה מציון החתך ביותר מ-0.15 (במצב "בטווח הנורמה" ברשימת הציונים) אינו מסביר קושי; הוא יכול להופיע רק כחוזקה. פריטים 10 ו-11 אינם ראיה לאף תפקוד ניהולי.
+7. תפקודים ניהוליים. תפקוד ניהולי שציונו נמוך מציון החתך הוא ההסבר העיקרי לקושי. תפקוד שציונו "קרוב לציון החתך" (עד 0.15 מעליו) יכול להסביר קושי רק כגורם משני ("ולעיתים על רקע קושי ב…"). תפקוד שציונו גבוה מציון החתך ביותר מ-0.15 (במצב "בטווח הנורמה" ברשימת הציונים) אינו מסביר קושי; הוא יכול להופיע רק כחוזקה. פריטים 10 ו-11 אינם ראיה לאף תפקוד ניהולי.
 
-9. פורמט. טקסט רגיל בלבד: בלי כוכביות, בלי כותרות ובלי תבליטים, כי הטקסט מודבק למערכת שמוחקת עיצוב. החזר רק את הפסקה המבוקשת, בלי משפט פתיחה כמו "להלן הפסקה"; רק שורה אחת שאומרת איפה הפסקה נכנסת, ואחריה הפסקה.
+8. פורמט. טקסט רגיל בלבד: בלי כוכביות, בלי כותרות ובלי תבליטים, כי הטקסט מודבק למערכת שמוחקת עיצוב. החזר רק את הפסקה המבוקשת, בלי משפט פתיחה כמו "להלן הפסקה"; רק שורה אחת שאומרת איפה הפסקה נכנסת, ואחריה הפסקה.
 
-10. בקשות אחרות (נוסח לדוח, גרסה להורים, מטרות טיפול): למחברות עוד אין נוסח מוסכם לאלה. כתוב אותן רק אם המטפל/ת ביקש/ה במפורש, פתח ב"טיוטה — לבדיקת המטפל/ת", ושמור על כל הכללים שלמעלה.
+9. בקשות אחרות (נוסח לדוח, גרסה להורים): למחברות עוד אין נוסח מוסכם לאלה. כתוב אותן רק אם המטפל/ת ביקש/ה במפורש, פתח ב"טיוטה — לבדיקת המטפל/ת", ושמור על כל הכללים שלמעלה.
 
 לפני שאתה עונה, בדוק:
 [ ] לא חישבתי ולא שיניתי אף ציון, ולא כתבתי מחדש את הסיכום.
