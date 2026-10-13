@@ -7,9 +7,9 @@
 // fixture (byte-equal golden diff), including the three new ones this round
 // added (model-norm, model-ef-only, model-twin-dedupe). This file adds the
 // narrower, spec-referenced assertions that a golden diff alone doesn't
-// document: the strengthNoun table's own shape, strengthNounSlot()'s unit
-// cases (FX2 spec §D), the exact §D "must contain" phrases for 50/50f/32,
-// and the twin-dedupe fix.
+// document: the twin-dedupe fix. (The strengthNoun table, strengthNounSlot()
+// and the §D מומלץ-tail assertions were removed on 2026-10-13 together with
+// the מומלץ paragraph itself.)
 
 const { test, expect } = require('@playwright/test');
 const fs = require('fs');
@@ -19,88 +19,9 @@ const { gotoApp, computeFixture } = require('./helpers/eforts-app');
 const FIXTURES_DIR = path.join(__dirname, 'fixtures');
 const loadFixture = (name) => JSON.parse(fs.readFileSync(path.join(FIXTURES_DIR, name), 'utf8'));
 
-// ===== strengthNoun table shape (FX2 spec §A/§D) =====
-
-test('strengthNoun has 30 non-empty entries, and item n shares its noun with item n+8 (n=1-8)', async ({
-  page,
-}) => {
-  await gotoApp(page);
-  const result = await page.evaluate(() => {
-    const keys = Object.keys(strengthNoun).map(Number);
-    const allNonEmpty = keys.every(
-      (k) => typeof strengthNoun[k] === 'string' && strengthNoun[k].length > 0,
-    );
-    const twinsMatch = [1, 2, 3, 4, 5, 6, 7, 8].every(
-      (n) => strengthNoun[n] === strengthNoun[n + 8],
-    );
-    return { count: keys.length, allNonEmpty, twinsMatch };
-  });
-  expect(result.count).toBe(30);
-  expect(result.allNonEmpty).toBe(true);
-  expect(result.twinsMatch).toBe(true);
-});
-
-// ===== strengthNounSlot() unit cases (FX2 spec §D table) =====
-
-test('strengthNounSlot() unit cases match the FX2 spec §D table', async ({ page }) => {
-  await gotoApp(page);
-  const cases = [
-    { woven: [17, 22], expected: 'ביוזמה ובתכנון במשחק' },
-    { woven: [28], expected: 'בפתרון בעיות במצבים חברתיים' },
-    { woven: [6, 14], expected: 'בהתעלמות מגירויים מסיחים בשגרת הבוקר והערב' },
-    { woven: [3, 13], expected: 'בזכירת רצף הפעילויות בשגרת הבוקר ובפתרון בעיות בשגרת הערב' },
-    {
-      woven: [17, 22, 28],
-      expected: 'ביוזמה ובתכנון במשחק ובפתרון בעיות במצבים חברתיים',
-    },
-    {
-      woven: [18, 19, 20, 21],
-      expected: 'בשמירה על קצב מתאים, בהתקדמות לפי סדר השלבים ובהקפדה על הכללים במשחק',
-    },
-    {
-      woven: [2, 6, 14, 17],
-      expected:
-        'בשמירה על קצב ללא תזכורות בשגרת הבוקר, בהתעלמות מגירויים מסיחים בשגרת הבוקר והערב וביוזמה במשחק',
-    },
-    { woven: [], expected: '' },
-  ];
-  for (const c of cases) {
-    const actual = await page.evaluate((woven) => strengthNounSlot(woven), c.woven);
-    expect(actual, `strengthNounSlot(${JSON.stringify(c.woven)})`).toBe(c.expected);
-  }
-});
-
-// ===== FX2 spec §D: the exact מומלץ tail for 50 / 50f / 32 =====
-
-test('model 50: מומלץ names the woven strength (items 17+22), never "במשימות אחרות"', async ({
-  page,
-}) => {
-  await gotoApp(page);
-  const result = await computeFixture(page, loadFixture('model-50.json'));
-  expect(result.summaryHtml).toContain(
-    'וגיוס כוחותיו המתבטאים ביוזמה ובתכנון במשחק אל המשימות שקשות לו יותר.',
-  );
-  expect(result.summaryHtml).not.toContain('במשימות אחרות');
-});
-
-test('model 50f: same noun phrase, female forms (כוחותיה/לה)', async ({ page }) => {
-  await gotoApp(page);
-  const result = await computeFixture(page, loadFixture('model-50f.json'));
-  expect(result.summaryHtml).toContain(
-    'וגיוס כוחותיה המתבטאים ביוזמה ובתכנון במשחק אל המשימות שקשות לה יותר.',
-  );
-  expect(result.summaryHtml).not.toContain('במשימות אחרות');
-});
-
-test('model 32: in-norm routines still win over the noun-phrase slot (path 1, unchanged)', async ({
-  page,
-}) => {
-  await gotoApp(page);
-  const result = await computeFixture(page, loadFixture('model-32.json'));
-  expect(result.summaryHtml).toContain(
-    'וגיוס כוחותיו המתבטאים בשגרת פנאי ומשחק ובשגרה החברתית אל המשימות שקשות לו יותר.',
-  );
-});
+// ===== The מומלץ paragraph is no longer generated (2026-10-13) =====
+// strengthNoun / strengthNounSlot only fed that paragraph and were removed
+// with it; no-recommendation.spec.js holds the per-fixture assertions.
 
 // ===== Twin-pair strength-duplication bug (FX2 spec "Seen while specifying") =====
 

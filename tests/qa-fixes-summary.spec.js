@@ -178,7 +178,7 @@ test('S5: the 4+12 twin phrase is a verb phrase', async ({ page }) => {
   expect(seen).toBeGreaterThan(0);
 });
 
-test('S6: total below with no routine below says so, then the cross-function view and מומלץ', async ({
+test('S6: total below with no routine below says so, then the cross-function view (no מומלץ paragraph)', async ({
   page,
 }) => {
   await gotoApp(page);
@@ -190,7 +190,7 @@ test('S6: total below with no routine below says so, then the cross-function vie
       seen++;
       expect(r.text).toMatch(/הציון הכולל נמוך מציון החתך \(קיבלה? ציון כולל/);
       expect(r.text).toContain('אף שהציון בכל שגרה בנפרד אינו נמוך מציון החתך.');
-      expect(r.text).toContain('מומלץ');
+      expect(r.text).not.toContain('מומלץ');
       expect(r.text).not.toContain('בעיקר');
       const anyFn = Object.values(r.ef).some((v) => v !== 'norm');
       if (!anyFn) expect(r.text).not.toContain('בתפקודים');
@@ -220,30 +220,23 @@ test('S2 + S3: rounding is half-up and a below-cutoff score never prints equal t
   expect(r.atCut).toBe('2.92');
 });
 
-test('S7 + NITs: second paragraph with both functions uses «גם כאן…וכן לקושי», singular «ציון»', async ({
+test('S7 + NITs: second paragraph with both functions uses «גם כאן…וכן לקושי», singular «ציון», no recommendation leftovers', async ({
   page,
 }) => {
   await gotoApp(page);
   const runs = await sweep(page, 1500);
   let s7 = 0;
   let singular = 0;
-  let nit = 0;
   for (const r of runs) {
     if (r.text.includes('גם כאן נראה כי הקושי התפקודי קשור לקושי ב')) {
       if (/קשור לקושי ב[^.]*, וכן לקושי ב/.test(r.text)) s7++;
     }
     if (r.text.includes('מורים על ציון בטווח הנורמה')) singular++;
-    if (!Object.values(r.routines).includes('below')) {
-      expect(r.text).not.toMatch(/גיוס המוטיבציה של[הו], איסוף חוויות/);
-      if (r.text.includes('איסוף חוויות')) {
-        nit++;
-        expect(r.text).toContain('ועל איסוף חוויות של הצלחה, גם אם קטנות');
-      }
-    }
+    expect(r.text).not.toContain('איסוף חוויות');
+    expect(r.text).not.toContain('גיוס המוטיבציה');
   }
   expect(s7).toBeGreaterThan(0);
   expect(singular).toBeGreaterThan(0);
-  expect(nit).toBeGreaterThan(0);
 });
 
 // ===== Parent sheet =====
