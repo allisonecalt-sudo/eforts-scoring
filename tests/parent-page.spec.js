@@ -231,7 +231,7 @@ test('header: parent.html .header matches index.html .header (h1 text swapped)',
   await gotoParent(page);
   const parentHeader = await page.locator('.header').innerHTML();
 
-  const normalizedIndex = indexHeader.replace('קידוד שאלון', 'שאלון להורים');
+  const normalizedIndex = indexHeader.replace('קידוד שאלון · עמוד למטפל/ת', 'שאלון להורים');
   expect(parentHeader).toBe(normalizedIndex);
 });
 
