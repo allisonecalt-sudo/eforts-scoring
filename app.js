@@ -1561,7 +1561,7 @@ function buildExportText() {
   text += `══════════════════════════════════\n\n`;
 
   text += `רקע על הכלי:\n`;
-  text += `EFORTS (Executive Functions & Occupational Routine Scale) — "שאלון למדידת יכולת הניהול העצמי של ילדים בשגרות היום יום" (Frisch & Rosenblum, 2014; נורמות וציוני חתך: Frisch & Rosenblum, 2024). שאלון להורים, לגילאי 3.0–11.11: 30 פריטים בשלוש שגרות — שגרות בוקר וערב (פריטים 1–16), שגרות פנאי ומשחק (17–23) ושגרה חברתית (24–30). כל פריט מדורג מ-1 (אף פעם) עד 5 (תמיד); ציון גבוה = תפקוד טוב יותר. ציון שגרה = ממוצע פריטי השגרה; ציון כולל = ממוצע שלושת ציוני השגרות. כל פריט משויך גם לאחד משלושה תפקודים ניהוליים — עכבה, זיכרון עבודה או גמישות מחשבתית; פריטים 10 ו-11 אינם נכללים בחישוב התפקודים הניהוליים. ציון החתך נקבע 1.5 סטיות תקן מתחת לממוצע של קבוצת הגיל. ציון נמוך מציון החתך מורה על חשד לקושי בתחום שנמדד בלבד (בשגרה או בתפקוד הניהולי), ואינו קביעה של עיכוב כללי.\n\n`;
+  text += `EFORTS (Executive Functions & Occupational Routine Scale) — "שאלון למדידת יכולת הניהול העצמי של ילדים בשגרות היום יום" (© Frisch & Rosenblum, 2014; נורמות וציוני חתך: Frisch & Rosenblum, 2024). שאלון להורים, לגילאי 3.0–11.11: 30 פריטים בשלוש שגרות — שגרות בוקר וערב (פריטים 1–16), שגרות פנאי ומשחק (17–23) ושגרה חברתית (24–30). כל פריט מדורג מ-1 (אף פעם) עד 5 (תמיד); ציון גבוה = תפקוד טוב יותר. ציון שגרה = ממוצע פריטי השגרה; ציון כולל = ממוצע שלושת ציוני השגרות. כל פריט משויך גם לאחד משלושה תפקודים ניהוליים — עכבה, זיכרון עבודה או גמישות מחשבתית; פריטים 10 ו-11 אינם נכללים בחישוב התפקודים הניהוליים. ציון החתך נקבע 1.5 סטיות תקן מתחת לממוצע של קבוצת הגיל. ציון נמוך מציון החתך מורה על חשד לקושי בתחום שנמדד בלבד (בשגרה או בתפקוד הניהולי), ואינו קביעה של עיכוב כללי.\n\n`;
 
   text += `פרטי המטופל/ת:\n`;
   text += `  מספר אנונימי: ${anonIdRaw} | מין: ${gender} | גיל: ${ageText} | קבוצת גיל נורמטיבית: ${ageLabel}\n\n`;
@@ -1937,8 +1937,8 @@ function buildParentSheetHtml(p) {
   .logos { display: flex; align-items: flex-end; justify-content: center; gap: 14px; margin-bottom: 6px; }
   .logos img { height: 28px; width: auto; max-width: 100px; object-fit: contain; }
   .q-title { font-size: 12px; font-weight: 700; margin-top: 4px; line-height: 1.4; }
-  .footer-logo { height: 14px; width: auto; max-width: 50px; vertical-align: middle; margin-inline-end: 6px; }
   .q-authors { font-size: 11px; color: #475569; margin-top: 2px; }
+  .q-lab { font-size: 11px; font-weight: 500; color: #475569; margin-top: 2px; }
   h1 { text-align: center; font-size: 20px; margin: 10px 0 2px; }
   .meta { text-align: center; font-size: 12px; color: #475569; margin-bottom: 10px; }
   h2 { font-size: 14px; font-weight: 700; color: #0f4c75; margin: 12px 0 4px; padding-bottom: 2px; border-bottom: 1px solid #94a3b8; }
@@ -1969,6 +1969,7 @@ function buildParentSheetHtml(p) {
     </div>
     <div class="q-title">שאלון למדידת יכולת הניהול העצמי של ילדים בשגרות היום יום (EFORTS)</div>
     <div class="q-authors"><span dir="ltr">© Frisch &amp; Rosenblum, 2014</span></div>
+    <div class="q-lab">© המעבדה לבריאות תפקודית - תפקוד אנושי מורכב והשתתפות, אוניברסיטת חיפה</div>
   </div>
   <h1>סיכום התוצאות להורים</h1>
   <div class="meta">${e(meta)}</div>
@@ -1990,7 +1991,7 @@ function buildParentSheetHtml(p) {
 
   ${contactText ? `<section><p><b>לשאלות: ${e(contactText)}</b></p></section>` : '<section><h2>לשאלות</h2><p>אפשר לפנות לצוות הריפוי בעיסוק.</p></section>'}
 
-  <div class="footer"><img class="footer-logo" src="assets/clalit.svg" alt="שירותי בריאות כללית"> EFORTS © Frisch &amp; Rosenblum, 2014 · הסיכום נכתב להורים ואינו מחליף את דוח האבחון.</div>
+  <div class="footer">EFORTS © Frisch &amp; Rosenblum, 2014 · הסיכום נכתב להורים ואינו מחליף את דוח האבחון.</div>
 </body>
 </html>`;
 }
