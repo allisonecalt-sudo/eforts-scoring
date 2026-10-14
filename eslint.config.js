@@ -112,6 +112,8 @@ module.exports = [
         getBirthDateValue: 'readonly',
         getFillDateValue: 'readonly',
         buildExportText: 'readonly',
+        printResults: 'readonly',
+        buildParentSheetHtml: 'readonly',
         fmtScore: 'readonly',
         escapeHtml: 'readonly',
         getAnonId: 'readonly',
