@@ -1937,6 +1937,7 @@ function buildParentSheetHtml(p) {
   .logos { display: flex; align-items: flex-end; justify-content: center; gap: 14px; margin-bottom: 6px; }
   .logos img { height: 28px; width: auto; max-width: 100px; object-fit: contain; }
   .q-title { font-size: 12px; font-weight: 700; margin-top: 4px; line-height: 1.4; }
+  .footer-logo { height: 14px; width: auto; max-width: 50px; vertical-align: middle; margin-inline-end: 6px; }
   .q-authors { font-size: 11px; color: #475569; margin-top: 2px; }
   h1 { text-align: center; font-size: 20px; margin: 10px 0 2px; }
   .meta { text-align: center; font-size: 12px; color: #475569; margin-bottom: 10px; }
@@ -1964,11 +1965,10 @@ function buildParentSheetHtml(p) {
   <div class="head">
     <div class="logos">
       <img src="assets/haifa.jpg" alt="אוניברסיטת חיפה">
-      <img src="assets/chap.png" alt="המעבדה לתפקוד אנושי מורכב (CHAP)">
-      <img src="assets/clalit.svg" alt="שירותי בריאות כללית">
+      <img src="assets/chap.png" alt="המעבדה לבריאות תפקודית - תפקוד אנושי מורכב והשתתפות">
     </div>
     <div class="q-title">שאלון למדידת יכולת הניהול העצמי של ילדים בשגרות היום יום (EFORTS)</div>
-    <div class="q-authors">כרמית פריש ופרופ' שרה רוזנבלום, אוניברסיטת חיפה</div>
+    <div class="q-authors"><span dir="ltr">© Frisch &amp; Rosenblum, 2014</span></div>
   </div>
   <h1>סיכום התוצאות להורים</h1>
   <div class="meta">${e(meta)}</div>
@@ -1990,7 +1990,7 @@ function buildParentSheetHtml(p) {
 
   ${contactText ? `<section><p><b>לשאלות: ${e(contactText)}</b></p></section>` : '<section><h2>לשאלות</h2><p>אפשר לפנות לצוות הריפוי בעיסוק.</p></section>'}
 
-  <div class="footer">EFORTS — Frisch &amp; Rosenblum, 2014 · הסיכום נכתב להורים ואינו מחליף את דוח האבחון.</div>
+  <div class="footer"><img class="footer-logo" src="assets/clalit.svg" alt="שירותי בריאות כללית"> EFORTS © Frisch &amp; Rosenblum, 2014 · הסיכום נכתב להורים ואינו מחליף את דוח האבחון.</div>
 </body>
 </html>`;
 }
@@ -2182,8 +2182,9 @@ async function printResults() {
   .print-header-title { font-size: 15px; font-weight: 700; color: #1a202c; margin-top: 8px; line-height: 1.4; }
   .print-header-authors { font-size: 12px; font-weight: 700; color: #1a202c; margin-top: 6px; }
   .print-header-lab { font-size: 10px; font-weight: 500; color: #64748b; margin-top: 1px; }
-  .print-header-citation { font-size: 9px; font-weight: 300; color: #64748b; margin-top: 3px; }
-  .print-header-credit { font-size: 9px; font-weight: 300; color: #5a6a7e; margin-top: 4px; line-height: 1.4; }
+  .print-header-ownership { font-size: 9px; font-weight: 400; color: #5a6a7e; margin-top: 4px; line-height: 1.4; }
+  .print-credit-logo { height: 14px; width: auto; max-width: 50px; object-fit: contain; flex: none; }
+  .print-header-credit { display: flex; align-items: center; justify-content: center; gap: 6px; font-size: 9px; font-weight: 300; color: #5a6a7e; margin-top: 4px; line-height: 1.4; }
   .section-title { font-size: 14px; font-weight: 700; color: #0077b6; margin: 16px 0 8px; padding-bottom: 4px; border-bottom: 2px solid #0077b6; }
   table { width: 100%; border-collapse: collapse; margin-bottom: 12px; }
   th { background: #f0f4f8; padding: 6px 10px; font-size: 11px; font-weight: 600; color: #444; text-align: center; border-bottom: 2px solid #ddd; }
@@ -2208,14 +2209,13 @@ async function printResults() {
   <div class="print-header">
     <div class="print-header-logos">
       <img src="assets/haifa.jpg" alt="אוניברסיטת חיפה">
-      <img src="assets/chap.png" alt="המעבדה לתפקוד אנושי מורכב (CHAP)">
-      <img src="assets/clalit.svg" alt="שירותי בריאות כללית">
+      <img src="assets/chap.png" alt="המעבדה לבריאות תפקודית - תפקוד אנושי מורכב והשתתפות">
     </div>
     <div class="print-header-title">שאלון למדידת יכולת הניהול העצמי של ילדים בשגרות היום יום</div>
-    <div class="print-header-authors">כרמית פריש ופרופ' שרה רוזנבלום, אוניברסיטת חיפה</div>
-    <div class="print-header-lab">המעבדה לתפקוד אנושי מורכב (CHAP), אוניברסיטת חיפה</div>
-    <div class="print-header-citation">Frisch &amp; Rosenblum, 2014</div>
-    <div class="print-header-credit">תהליך מחשוב השאלון בוצע ע"י אליסון אלט, מרפאה בעיסוק בשירותי בריאות כללית מחוז ירושלים, בתיאום ואישור המחברות.</div>
+    <div class="print-header-authors"><span dir="ltr">© Frisch &amp; Rosenblum, 2014</span></div>
+    <div class="print-header-lab">© המעבדה לבריאות תפקודית - תפקוד אנושי מורכב והשתתפות, אוניברסיטת חיפה</div>
+    <div class="print-header-ownership">השאלון וזכויותיו שייכים למחברות ולמעבדה באוניברסיטת חיפה, ולא לשירותי בריאות כללית; כללית שותפה למחשוב השאלון בלבד.</div>
+    <div class="print-header-credit"><img class="print-credit-logo" src="assets/clalit.svg" alt="שירותי בריאות כללית"><span>תהליך מחשוב השאלון בוצע ע"י אליסון אלט, מרפאה בעיסוק בשירותי בריאות כללית מחוז ירושלים, בתיאום ואישור המחברות.</span></div>
   </div>
   <h1>תוצאות שאלון EFORTS</h1>
   <div class="meta">${patientNoun(genderRaw)} מס' ${anonId} | ${sexWord(genderRaw)} | ${ageText} | קבוצת גיל: <bdi dir="ltr">${ageLabel}</bdi> | תאריך מילוי: ${fillDateText}</div>
@@ -2241,7 +2241,7 @@ async function printResults() {
   </table>
 
   <div class="footer">
-    EFORTS — Frisch & Rosenblum, 2014 | נורמות: Frisch & Rosenblum, 2024 | ציון החתך נקבע 1.5 סטיות תקן מתחת לממוצע של קבוצת הגיל | פריטים 10 ו-11 אינם נכללים בחישוב התפקודים הניהוליים
+    EFORTS © Frisch & Rosenblum, 2014 | נורמות: Frisch & Rosenblum, 2024 | ציון החתך נקבע 1.5 סטיות תקן מתחת לממוצע של קבוצת הגיל | פריטים 10 ו-11 אינם נכללים בחישוב התפקודים הניהוליים
   </div>
 </body>
 </html>`;
