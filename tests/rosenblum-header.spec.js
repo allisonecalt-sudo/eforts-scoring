@@ -130,6 +130,43 @@ test('parent sheet carries the © line and footer', async ({ page }) => {
   expect(html).toContain(`alt="${ALT}"`);
   const head = html.slice(html.indexOf('class="logos"'), html.indexOf('q-title'));
   expect(head).not.toContain('clalit.svg');
-  expect(html).toContain('class="footer-logo" src="assets/clalit.svg"');
+  expect(html).toContain(`<div class="q-lab">${LAB}</div>`);
+  expect(html).not.toMatch(/<img[^>]*clalit/i);
+  expect(html).not.toContain('footer-logo');
+  expect(html).not.toContain(OWN);
   expect(html).not.toContain('כרמית פריש');
+});
+
+for (const file of pages) {
+  test(`${file}: at 1280px the Clalit credit logo is at most half Haifa's height and not wider`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await page.goto(pathToFileURL(path.resolve(__dirname, '..', file)).href);
+    const r = await page.evaluate(() => {
+      const c = document.querySelector('img[src="assets/clalit.svg"]').getBoundingClientRect();
+      const h = document.querySelector('img[src="assets/haifa.jpg"]').getBoundingClientRect();
+      return { ch: c.height, cw: c.width, hh: h.height, hw: h.width };
+    });
+    expect(r.ch).toBeGreaterThan(0);
+    expect(r.ch).toBeLessThanOrEqual(r.hh * 0.5);
+    expect(r.cw).toBeLessThanOrEqual(r.hw);
+  });
+}
+
+test('AI export background cites © Frisch & Rosenblum, 2014', async ({ page }) => {
+  await gotoApp(page);
+  const scores = {};
+  for (let n = 1; n <= 30; n++) scores[n] = 3;
+  await fillAndCalculate(page, {
+    sex: 'male',
+    ageYearsBack: 5,
+    ageMonthsBack: 0,
+    itemScores: scores,
+    anonId: '50',
+  });
+  const text = await page.evaluate(() => buildExportText());
+  expect(text).toContain(
+    '(© Frisch & Rosenblum, 2014; נורמות וציוני חתך: Frisch & Rosenblum, 2024)',
+  );
 });

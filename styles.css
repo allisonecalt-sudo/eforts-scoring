@@ -1601,3 +1601,12 @@ body.previewing .info-calc {
     height: 16px;
   }
 }
+
+/* On desktop the Clalit logo is at most half the Haifa logo's height (and narrower) */
+@media (min-width: 768px) {
+  .credit-logo {
+    height: 22px;
+    max-height: 22px;
+    width: auto;
+  }
+}
