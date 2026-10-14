@@ -15,6 +15,17 @@ const ALT = 'המעבדה לבריאות תפקודית - תפקוד אנושי 
 const pages = ['index.html', 'parent.html'];
 
 for (const file of pages) {
+  test(`${file}: Clalit logo is smaller than Haifa's at phone width too`, async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 800 });
+    await page.goto(pathToFileURL(path.resolve(__dirname, '..', file)).href);
+    const h = await page.evaluate(() => [
+      document.querySelector('img[src="assets/clalit.svg"]').getBoundingClientRect().height,
+      document.querySelector('img[src="assets/haifa.jpg"]').getBoundingClientRect().height,
+    ]);
+    expect(h[0]).toBeGreaterThan(0);
+    expect(h[0]).toBeLessThan(h[1] * 0.75);
+  });
+
   test(`${file}: header shows ©, lab line, ownership sentence`, async ({ page }) => {
     await page.goto(pathToFileURL(path.resolve(__dirname, '..', file)).href);
     const header = page.locator('.header');
