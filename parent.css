@@ -493,3 +493,9 @@ fieldset#pSexField.p-field-missing {
 .header p.header-authors {
   white-space: nowrap;
 }
+
+@media (max-width: 640px) {
+  .credit-logo {
+    height: 13px;
+  }
+}
